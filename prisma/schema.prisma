@@ -1,0 +1,169 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  ADMIN
+  SCHEDULER
+  EMPLOYEE
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+}
+
+enum SalaryType {
+  FIXED_MONTHLY
+  HOURLY
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         UserRole  @default(EMPLOYEE)
+  employeeId   String?   @unique
+  employee     Employee? @relation(fields: [employeeId], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Store {
+  id                String             @id @default(cuid())
+  name              String
+  address           String?
+  logoUrl           String?
+  shiftsPerDay      Int                @default(3)
+  isActive          Boolean            @default(true)
+  employees         EmployeeStore[]
+  shiftTemplates    ShiftTemplate[]
+  staffingRules     StaffingRule[]
+  staffingOverrides StaffingOverride[]
+  shiftAssignments  ShiftAssignment[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([isActive, name])
+}
+
+model Employee {
+  id               String            @id @default(cuid())
+  name             String
+  phone            String?
+  email            String?
+  employmentType   EmploymentType    @default(FULL_TIME)
+  position         String
+  salaryType       SalaryType        @default(HOURLY)
+  monthlySalary    Float?
+  hourlyRate       Float?
+  maxShiftsPerWeek  Int               @default(5)
+  maxShiftsPerMonth Int               @default(22)
+  maxHoursPerMonth  Float             @default(160)
+  isActive         Boolean           @default(true)
+  stores           EmployeeStore[]
+  user             User?
+  shiftAssignments ShiftAssignment[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([isActive, name])
+}
+
+model EmployeeStore {
+  id         String   @id @default(cuid())
+  employeeId String
+  storeId    String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  store      Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, storeId])
+  @@index([storeId])
+}
+
+model ShiftTemplate {
+  id                String             @id @default(cuid())
+  storeId           String
+  store             Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name              String
+  startTime         String
+  endTime           String
+  durationHours     Float              @default(3)
+  sortOrder         Int                @default(0)
+  isActive          Boolean            @default(true)
+  staffingRules     StaffingRule[]
+  staffingOverrides StaffingOverride[]
+  shiftAssignments  ShiftAssignment[]
+
+  @@unique([storeId, name])
+  @@index([storeId, isActive, sortOrder])
+}
+
+model StaffingRule {
+  id              String        @id @default(cuid())
+  storeId         String
+  store           Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  shiftTemplateId String
+  shiftTemplate   ShiftTemplate @relation(fields: [shiftTemplateId], references: [id], onDelete: Cascade)
+  dayOfWeek       Int
+  requiredStaff   Int           @default(1)
+
+  @@unique([storeId, shiftTemplateId, dayOfWeek])
+}
+
+model StaffingOverride {
+  id              String        @id @default(cuid())
+  storeId         String
+  store           Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  shiftTemplateId String
+  shiftTemplate   ShiftTemplate @relation(fields: [shiftTemplateId], references: [id], onDelete: Cascade)
+  date            DateTime      @db.Date
+  requiredStaff   Int           @default(1)
+
+  @@unique([storeId, shiftTemplateId, date])
+  @@index([storeId, date])
+}
+
+model ShiftAssignment {
+  id              String         @id @default(cuid())
+  storeId         String
+  store           Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  shiftTemplateId String
+  shiftTemplate   ShiftTemplate  @relation(fields: [shiftTemplateId], references: [id], onDelete: Cascade)
+  employeeId      String?
+  employee        Employee?      @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  date            DateTime       @db.Date
+  slotIndex       Int            @default(0)
+  isManual        Boolean        @default(false)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@unique([storeId, shiftTemplateId, date, slotIndex])
+  @@index([employeeId, date])
+  @@index([date])
+  @@index([storeId, date])
+  @@index([storeId, date, isManual])
+}
+
+model ScheduleDayNote {
+  id        String   @id @default(cuid())
+  date      DateTime @db.Date @unique
+  note      String
+  colorKey  String   @default("amber")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+}
+
+model ScheduleConfig {
+  id           String   @id @default("default")
+  shiftsPerDay Int      @default(3)
+  updatedAt    DateTime @updatedAt
+}

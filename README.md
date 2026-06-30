@@ -1,36 +1,139 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Apexflow HR - Hệ thống Quản lý Nhân sự & Xếp ca
 
-## Getting Started
+Phase 1: Quản lý nhân viên, cửa hàng, cấu hình ca, xếp ca tự động multi-store, kéo thả đổi ca, cảnh báo ca trống.
 
-First, run the development server:
+## Công nghệ
+
+- **Next.js 16** (App Router) + TypeScript
+- **PostgreSQL** (Supabase) + Prisma ORM
+- **NextAuth v5** — phân quyền 3 vai trò
+- **Tailwind CSS** — giao diện tiếng Việt
+- Deploy: **Vercel** + **Supabase** free tier
+
+## Tính năng Phase 1
+
+| Module | Mô tả |
+|--------|-------|
+| Nhân viên | Loại FT/PT, chức vụ, số ca/giờ tối đa, phân bổ cửa hàng |
+| Cửa hàng | Quản lý 1-2+ cửa hàng, nhân viên luân phiên |
+| Cấu hình ca | 2-5 ca/ngày, số NV/ca theo ngày trong tuần (1 hoặc 2) |
+| Xếp ca tự động | Thuật toán đa dạng ca, cân bằng giờ, chống trùng multi-store |
+| Kéo thả | Đổi ca thủ công, kiểm tra xung đột |
+| Cảnh báo | Thông báo ca trống — cần tuyển thêm hoặc làm thêm ca |
+
+## Phân quyền
+
+| Vai trò | Quyền |
+|---------|-------|
+| **Admin** | Toàn quyền: nhân viên, cửa hàng, cấu hình, xếp ca |
+| **Người xếp ca** | Chỉ xem & xếp ca (không chỉnh cấu hình) |
+| **Nhân viên** | Chỉ xem lịch làm của mình |
+
+## Cài đặt local
+
+### 1. Clone & cài dependency
+
+```bash
+npm install
+```
+
+### 2. Cấu hình Supabase
+
+1. Tạo project tại [supabase.com](https://supabase.com)
+2. Vào **Project Settings → Database → Connection string (URI)**
+3. Copy `.env.example` thành `.env`:
+
+```bash
+cp .env.example .env
+```
+
+4. Điền `DATABASE_URL` và tạo `AUTH_SECRET`:
+
+```bash
+openssl rand -base64 32
+```
+
+### 3. Khởi tạo database
+
+```bash
+npm run db:push      # Tạo bảng
+npm run db:seed      # Dữ liệu mẫu
+```
+
+### 4. Chạy dev
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Mở [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Tài khoản demo (sau seed)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Vai trò | Email | Mật khẩu |
+|---------|-------|----------|
+| Admin | admin@apexflow.vn | admin123 |
+| Xếp ca | scheduler@apexflow.vn | scheduler123 |
+| Nhân viên | nhanvien1@apexflow.vn | employee123 |
 
-## Learn More
+## Deploy Vercel + Supabase
 
-To learn more about Next.js, take a look at the following resources:
+Tai lieu deploy/update an toan: [docs/DEPLOY-PRODUCTION.md](/Users/nguyenthanhnam/Library/Mobile%20Documents/com~apple~CloudDocs/anti/ban-sao-quanlinhansu/docs/DEPLOY-PRODUCTION.md)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Supabase (Production DB)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Dùng connection string **Pooler** (port 6543) cho Vercel serverless
+2. Thêm `?pgbouncer=true` vào URL nếu cần
+3. Tạo **production project riêng**, không dùng chung với local/dev
 
-## Deploy on Vercel
+### Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. Push code lên GitHub
+2. Import project trên [vercel.com](https://vercel.com)
+3. Thêm Environment Variables:
+   - `DATABASE_URL`
+   - `DIRECT_URL`
+   - `AUTH_SECRET`
+   - `AUTH_URL` = `https://your-domain.vercel.app`
+4. Deploy
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Migrate production
+
+```bash
+npm run db:migrate:deploy
+```
+
+Khong khuyen nghi dung `db:push` hoac `db:seed` truc tiep tren production.
+
+## Quy trình xếp ca
+
+1. **Admin** cấu hình ca & số nhân viên/ca theo ngày
+2. **Admin / Người xếp ca** vào **Lịch xếp ca** → **Xếp ca tự động**
+3. Hệ thống phân bổ theo:
+   - Giờ/ca tối đa mỗi nhân viên
+   - Không trùng giờ giữa 2 cửa hàng
+   - Đa dạng ca (hôm nay Ca 1 → ngày mai ưu tiên Ca 2)
+   - Cân bằng số giờ giữa các nhân viên
+4. Chỉnh thủ công bằng kéo thả nếu cần
+5. Xem cảnh báo ca trống nếu thiếu nhân sự
+
+## Roadmap Phase 2 & 3
+
+- **Phase 2**: Doanh thu theo ca, target KPI, tích hợp TikTok/Shopee (nếu API cho phép)
+- **Phase 3**: Tính lương (cứng/giờ), thưởng theo hệ số target, import Excel
+
+## Cấu trúc thư mục
+
+```
+src/
+├── app/
+│   ├── (dashboard)/     # Trang chính (có sidebar)
+│   ├── api/             # REST API
+│   └── dang-nhap/       # Đăng nhập
+├── components/          # UI components
+├── lib/
+│   ├── schedule-engine.ts   # Thuật toán xếp ca
+│   ├── assignment-service.ts
+│   └── auth.ts
+└── generated/prisma/    # Prisma client
+```
