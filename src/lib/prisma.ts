@@ -13,9 +13,12 @@ function createPrismaClient() {
     );
   }
 
+  const isSupabase = connectionString.includes("supabase");
+
   return new PrismaClient({
     adapter: new PrismaPg({
       connectionString,
+      ...(isSupabase ? { ssl: { rejectUnauthorized: false } } : {}),
     }),
   });
 }
