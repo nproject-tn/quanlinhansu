@@ -24,7 +24,7 @@ type ApprovalRequest = {
   id: string;
   actionType: "ASSIGN_EMPLOYEE" | "MOVE_ASSIGNMENT";
   message: string;
-  conflicts?: Array<{ message?: string }>;
+  conflicts?: Array<{ message?: string; employeeId?: string; date?: string; storeId?: string; shiftTemplateId?: string }>;
   requestedBy?: {
     name?: string;
     email?: string;
