@@ -353,9 +353,9 @@ export default function StoresPage() {
                     <div className="flex items-center gap-2">
                       <CardTitle>{store.name}</CardTitle>
                       <Button
-                        size="icon"
+                        size="sm"
                         variant="ghost"
-                        className="h-6 w-6 text-slate-400 hover:text-blue-600"
+                        className="h-6 w-6 p-0 text-slate-400 hover:text-blue-600"
                         onClick={(e) => {
                           e.preventDefault();
                           setEditingNameFor(store.id);
