@@ -7,6 +7,7 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
+    "env:check": "tsx scripts/check-env-target.ts",
     "db:generate": "prisma generate",
     "db:migrate:status": "prisma migrate status",
     "db:migrate:dev": "prisma migrate dev",
@@ -15,7 +16,11 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:setup": "prisma db push && tsx prisma/seed.ts",
-    "db:test": "tsx scripts/test-db-connection.ts"
+    "db:test": "tsx scripts/test-db-connection.ts",
+    "db:test:prod": "dotenv_config_path=.env.production.manual tsx scripts/test-db-connection.ts",
+    "db:push:prod": "dotenv_config_path=.env.production.manual prisma db push",
+    "db:seed:prod": "dotenv_config_path=.env.production.manual tsx prisma/seed.ts",
+    "db:migrate:deploy:prod": "dotenv_config_path=.env.production.manual prisma migrate deploy"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

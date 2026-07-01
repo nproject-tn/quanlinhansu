@@ -21,8 +21,8 @@ const navItems: {
   roles: UserRole[];
 }[] = [
   { href: "/", label: "Tổng quan", icon: LayoutDashboard, roles: ["ADMIN", "SCHEDULER", "EMPLOYEE"] },
-  { href: "/nhan-vien", label: "Nhân viên", icon: Users, roles: ["ADMIN"] },
   { href: "/cua-hang", label: "Cửa hàng", icon: Building2, roles: ["ADMIN"] },
+  { href: "/nhan-vien", label: "Nhân viên", icon: Users, roles: ["ADMIN", "SCHEDULER"] },
   { href: "/cau-hinh-ca", label: "Cấu hình ca", icon: Settings2, roles: ["ADMIN"] },
   { href: "/lich-xep-ca", label: "Lịch xếp ca", icon: CalendarDays, roles: ["ADMIN", "SCHEDULER", "EMPLOYEE"] },
 ];
@@ -40,8 +40,8 @@ export function Sidebar({ user }: SidebarProps) {
   const items = navItems.filter((item) => item.roles.includes(user.role));
 
   return (
-    <aside className="flex w-64 flex-col border-r border-slate-200 bg-white">
-      <div className="border-b border-slate-100 px-6 py-5">
+    <aside className="glass-control sticky top-4 flex h-[calc(100vh-2rem)] w-64 shrink-0 flex-col overflow-hidden rounded-[28px] border border-white/65 bg-white/68 shadow-[0_18px_40px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+      <div className="border-b border-white/45 px-6 py-5">
         <p className="text-sm font-semibold text-blue-600">Apexflow HR</p>
         <h1 className="text-lg font-bold text-slate-900">Quản lý nhân sự</h1>
       </div>
@@ -55,10 +55,10 @@ export function Sidebar({ user }: SidebarProps) {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-colors",
                 active
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  ? "bg-blue-50/90 text-blue-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)]"
+                  : "text-slate-600 hover:bg-white/55 hover:text-slate-900"
               )}
             >
               <Icon className="h-4 w-4" />
@@ -68,8 +68,8 @@ export function Sidebar({ user }: SidebarProps) {
         })}
       </nav>
 
-      <div className="border-t border-slate-100 p-4">
-        <div className="mb-3 rounded-lg bg-slate-50 px-3 py-2">
+      <div className="border-t border-white/45 p-4">
+        <div className="mb-3 rounded-2xl bg-white/45 px-3 py-3">
           <p className="text-sm font-medium text-slate-900">{user.name}</p>
           <p className="text-xs text-slate-500">{ROLE_LABELS[user.role]}</p>
         </div>

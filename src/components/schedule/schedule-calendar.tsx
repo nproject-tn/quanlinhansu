@@ -1,6 +1,13 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import {
+  Fragment,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 import {
   DndContext,
   DragOverlay,
@@ -14,10 +21,13 @@ import {
 } from "@dnd-kit/core";
 import { format, parseISO } from "date-fns";
 import { vi } from "date-fns/locale";
-import { AlertCircle, AlertTriangle, Bell, CheckCircle2, GripVertical, X } from "lucide-react";
+import { AlertCircle, AlertTriangle, GripVertical, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useConfirmDialog } from "@/components/confirm/confirm-dialog-provider";
+import { useNotifications } from "@/components/notifications/notification-center";
 import { getDayNoteColor } from "@/lib/day-note-colors";
 import { cn } from "@/lib/utils";
 import type { ScheduleConflict } from "@/lib/schedule-engine";
@@ -62,7 +72,9 @@ type ScheduleCalendarProps = {
   unfilled: Unfilled[];
   selectedEmployeeId: string;
   layoutMode: "horizontal" | "vertical";
+  onLayoutModeChange: (mode: "horizontal" | "vertical") => void;
   canEdit: boolean;
+  isAdmin?: boolean;
   onRefresh: () => void;
 };
 
@@ -84,6 +96,63 @@ function parseDragOrDropId(id: string, slots: Slot[]): Slot | undefined {
       s.shiftTemplateId === shiftTemplateId &&
       s.date === date &&
       s.slotIndex === Number(slotIndex)
+  );
+}
+
+function LayoutModeIcon({ mode }: { mode: "horizontal" | "vertical" }) {
+  return (
+    <span
+      className={cn(
+        "flex h-4 w-4",
+        mode === "horizontal" ? "flex-col justify-between" : "flex-row justify-between"
+      )}
+      aria-hidden="true"
+    >
+      {Array.from({ length: 3 }).map((_, index) => (
+        <span
+          key={index}
+          className={cn(
+            "rounded-full bg-current",
+            mode === "horizontal" ? "h-0.5 w-full" : "h-full w-0.5"
+          )}
+        />
+      ))}
+    </span>
+  );
+}
+
+function LayoutModeActions({
+  layoutMode,
+  onLayoutModeChange,
+}: {
+  layoutMode: "horizontal" | "vertical";
+  onLayoutModeChange: (mode: "horizontal" | "vertical") => void;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <Button
+        type="button"
+        size="sm"
+        variant={layoutMode === "horizontal" ? "default" : "outline"}
+        className="h-9 w-9 rounded-xl p-0"
+        onClick={() => onLayoutModeChange("horizontal")}
+        aria-label="Chuyển sang bảng ngang"
+        title="Bảng ngang"
+      >
+        <LayoutModeIcon mode="horizontal" />
+      </Button>
+      <Button
+        type="button"
+        size="sm"
+        variant={layoutMode === "vertical" ? "default" : "outline"}
+        className="h-9 w-9 rounded-xl p-0"
+        onClick={() => onLayoutModeChange("vertical")}
+        aria-label="Chuyển sang bảng dọc"
+        title="Bảng dọc"
+      >
+        <LayoutModeIcon mode="vertical" />
+      </Button>
+    </div>
   );
 }
 
@@ -252,7 +321,6 @@ function CompactSlotGroup({
   employees,
   canEdit,
   loading,
-  selectedEmployeeId,
   onAssign,
   onClear,
 }: {
@@ -263,15 +331,21 @@ function CompactSlotGroup({
   employees: Employee[];
   canEdit: boolean;
   loading: boolean;
-  selectedEmployeeId?: string;
   onAssign: (slot: Slot, employeeId: string) => Promise<void>;
   onClear: (slot: Slot) => Promise<void>;
 }) {
   const orderedSlots = [...slots].sort((a, b) => a.slotIndex - b.slotIndex);
   const assignedSlots = orderedSlots.filter((slot) => Boolean(slot.employeeId));
   const emptySlots = orderedSlots.filter((slot) => !slot.employeeId);
+  const assignedEmployeeIds = new Set(
+    assignedSlots
+      .map((slot) => slot.employeeId)
+      .filter((employeeId): employeeId is string => Boolean(employeeId))
+  );
+  const availableEmployees = employees.filter(
+    (employee) => !assignedEmployeeIds.has(employee.id)
+  );
   const hasAssigned = assignedSlots.length > 0;
-  const showEmptySlots = !selectedEmployeeId;
 
   return (
     <div
@@ -298,20 +372,15 @@ function CompactSlotGroup({
               if (!employee) return null;
 
               return (
-                <div key={slotKey(slot)} className="flex items-center justify-between gap-2">
-                  <p className="font-semibold text-slate-900">{employee.name}</p>
-                  {canEdit && (
-                    <button
-                      type="button"
-                      onClick={() => onClear(slot)}
-                      disabled={loading}
-                      className="rounded p-0.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
-                      aria-label={`Xóa ${employee.name} khỏi ${shift.name}`}
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  )}
-                </div>
+                <CompactAssignedSlotRow
+                  key={slotKey(slot)}
+                  slot={slot}
+                  shift={shift}
+                  employee={employee}
+                  canEdit={canEdit}
+                  loading={loading}
+                  onClear={() => onClear(slot)}
+                />
               );
             })}
           </div>
@@ -322,26 +391,17 @@ function CompactSlotGroup({
         <p className="mt-1 font-semibold text-slate-400">— Trống —</p>
       )}
 
-      {canEdit && showEmptySlots && emptySlots.length > 0 && (
+      {canEdit && emptySlots.length > 0 && (
         <div className="mt-1 space-y-1.5">
           {emptySlots.map((slot) => (
-            <Select
+            <CompactEmptySlotDropZone
               key={slotKey(slot)}
-              className="h-8 text-xs"
-              value=""
-              disabled={loading}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val) void onAssign(slot, val);
-              }}
-            >
-              <option value="">— Chọn nhân viên —</option>
-              {employees.map((employee) => (
-                <option key={employee.id} value={employee.id}>
-                  {employee.name}
-                </option>
-              ))}
-            </Select>
+              slot={slot}
+              employees={availableEmployees}
+              loading={loading}
+              canEdit={canEdit}
+              onAssign={(employeeId) => onAssign(slot, employeeId)}
+            />
           ))}
         </div>
       )}
@@ -363,6 +423,120 @@ function CompactSlotGroup({
   );
 }
 
+function CompactAssignedSlotRow({
+  slot,
+  shift,
+  employee,
+  canEdit,
+  loading,
+  onClear,
+}: {
+  slot: Slot;
+  shift: Shift;
+  employee: Employee;
+  canEdit: boolean;
+  loading: boolean;
+  onClear: () => Promise<void>;
+}) {
+  const key = slotKey(slot);
+  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
+    id: dragId(key),
+    disabled: !canEdit || loading,
+    data: { slot },
+  });
+  const { setNodeRef: setDropRef, isOver } = useDroppable({
+    id: dropId(key),
+    disabled: !canEdit || loading,
+    data: { slot },
+  });
+
+  return (
+    <div
+      ref={setDropRef}
+      className={cn(
+        "flex items-center justify-between gap-2 rounded-md px-1 py-0.5 transition-colors",
+        isOver && "ring-2 ring-blue-400",
+        isDragging && "opacity-40"
+      )}
+    >
+      <p className="font-semibold text-slate-900">{employee.name}</p>
+      {canEdit && (
+        <div className="flex items-center gap-1">
+          <button
+            ref={setDragRef}
+            type="button"
+            className="touch-none rounded p-0.5 text-slate-400 hover:bg-white hover:text-slate-600"
+            {...listeners}
+            {...attributes}
+            aria-label={`Kéo ${employee.name} để đổi ca ${shift.name}`}
+          >
+            <GripVertical className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => void onClear()}
+            disabled={loading}
+            className="rounded p-0.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
+            aria-label={`Xóa ${employee.name} khỏi ${shift.name}`}
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CompactEmptySlotDropZone({
+  slot,
+  employees,
+  loading,
+  canEdit,
+  onAssign,
+}: {
+  slot: Slot;
+  employees: Employee[];
+  loading: boolean;
+  canEdit: boolean;
+  onAssign: (employeeId: string) => Promise<void>;
+}) {
+  const key = slotKey(slot);
+  const { setNodeRef, isOver } = useDroppable({
+    id: dropId(key),
+    disabled: !canEdit || loading,
+    data: { slot },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "rounded-lg transition-colors",
+        isOver && "ring-2 ring-blue-400"
+      )}
+    >
+      <Select
+        className="h-8 text-xs"
+        value=""
+        disabled={loading || employees.length === 0}
+        onChange={(e) => {
+          const val = e.target.value;
+          if (val) void onAssign(val);
+        }}
+      >
+        <option value="">
+          {employees.length > 0 ? "— Chọn nhân viên —" : "Không còn nhân viên phù hợp"}
+        </option>
+        {employees.map((employee) => (
+          <option key={employee.id} value={employee.id}>
+            {employee.name}
+          </option>
+        ))}
+      </Select>
+    </div>
+  );
+}
+
 export function ScheduleCalendar({
   stores,
   shifts,
@@ -372,27 +546,25 @@ export function ScheduleCalendar({
   unfilled,
   selectedEmployeeId,
   layoutMode,
+  onLayoutModeChange,
   canEdit,
+  isAdmin,
   onRefresh,
 }: ScheduleCalendarProps) {
   const [activeSlot, setActiveSlot] = useState<Slot | null>(null);
   const [conflicts, setConflicts] = useState<ScheduleConflict[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [messageType, setMessageType] = useState<"success" | "error">("success");
-  const [showToasts, setShowToasts] = useState(true);
-  const [renderedToast, setRenderedToast] = useState<{
-    id: string;
-    title: string;
-    body: string;
-    tone: "warning" | "error" | "success";
-    icon: typeof AlertTriangle;
-  } | null>(null);
-  const [toastPhase, setToastPhase] = useState<"enter" | "exit">("enter");
-  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [pendingRequest, setPendingRequest] = useState<{
+    title: string;
+    description: string;
+    conflicts: ScheduleConflict[];
+    onConfirm: () => void;
+    onCancel: () => void;
+  } | null>(null);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
-  const notificationShellRef = useRef<HTMLDivElement | null>(null);
   const plannerScrollRef = useRef<HTMLDivElement | null>(null);
   const plannerTableRef = useRef<HTMLTableElement | null>(null);
   const plannerScrollbarTrackRef = useRef<HTMLDivElement | null>(null);
@@ -409,24 +581,8 @@ export function ScheduleCalendar({
   const [plannerContentWidth, setPlannerContentWidth] = useState(0);
   const [plannerViewportWidth, setPlannerViewportWidth] = useState(0);
   const [plannerScrollLeft, setPlannerScrollLeft] = useState(0);
-
-  useEffect(() => {
-    if (!message && conflicts.length === 0 && unfilled.length === 0) return;
-    setShowToasts(true);
-  }, [message, conflicts, unfilled.length]);
-
-  useEffect(() => {
-    if (!showNotificationCenter) return;
-
-    const handlePointerDown = (event: MouseEvent) => {
-      if (!notificationShellRef.current?.contains(event.target as Node)) {
-        setShowNotificationCenter(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, [showNotificationCenter]);
+  const { notify } = useNotifications();
+  const { confirm } = useConfirmDialog();
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -559,13 +715,6 @@ export function ScheduleCalendar({
     () => new Map(dayNotes.map((note) => [note.date, note])),
     [dayNotes]
   );
-  const filteredEmployeeSlots = useMemo(
-    () =>
-      selectedEmployeeId
-        ? slots.filter((slot) => slot.employeeId === selectedEmployeeId)
-        : slots,
-    [selectedEmployeeId, slots]
-  );
   const shiftsByStore = useMemo(() => {
     const map = new Map<string, Shift[]>();
     for (const store of stores) {
@@ -576,15 +725,35 @@ export function ScheduleCalendar({
     }
     return map;
   }, [shifts, stores]);
+  const visibleGroupKeys = useMemo(() => {
+    if (!selectedEmployeeId) {
+      return new Set(slotsByGroup.keys());
+    }
+
+    const keys = new Set<string>();
+    for (const [groupKey, groupSlots] of slotsByGroup.entries()) {
+      if (groupSlots.some((slot) => slot.employeeId === selectedEmployeeId)) {
+        keys.add(groupKey);
+      }
+    }
+    return keys;
+  }, [selectedEmployeeId, slotsByGroup]);
   const visibleDates = useMemo(
-    () => [...new Set(filteredEmployeeSlots.map((slot) => slot.date))].sort(),
-    [filteredEmployeeSlots]
+    () =>
+      selectedEmployeeId
+        ? dates.filter((date) =>
+            Array.from(visibleGroupKeys).some((groupKey) => groupKey.startsWith(`${date}|`))
+          )
+        : dates,
+    [dates, selectedEmployeeId, visibleGroupKeys]
   );
   const visibleStores = useMemo(() => {
     if (!selectedEmployeeId) return stores;
-    const visibleStoreIds = new Set(filteredEmployeeSlots.map((slot) => slot.storeId));
+    const visibleStoreIds = new Set(
+      Array.from(visibleGroupKeys).map((groupKey) => groupKey.split("|")[1])
+    );
     return stores.filter((store) => visibleStoreIds.has(store.id));
-  }, [filteredEmployeeSlots, selectedEmployeeId, stores]);
+  }, [selectedEmployeeId, stores, visibleGroupKeys]);
   const visibleShiftIdsByStore = useMemo(() => {
     if (!selectedEmployeeId) {
       return new Map(
@@ -593,13 +762,14 @@ export function ScheduleCalendar({
     }
 
     const map = new Map<string, Set<string>>();
-    for (const slot of filteredEmployeeSlots) {
-      const current = map.get(slot.storeId) ?? new Set<string>();
-      current.add(slot.shiftTemplateId);
-      map.set(slot.storeId, current);
+    for (const groupKey of visibleGroupKeys) {
+      const [, storeId, shiftTemplateId] = groupKey.split("|");
+      const current = map.get(storeId) ?? new Set<string>();
+      current.add(shiftTemplateId);
+      map.set(storeId, current);
     }
     return map;
-  }, [filteredEmployeeSlots, selectedEmployeeId, shiftsByStore, stores]);
+  }, [selectedEmployeeId, shiftsByStore, stores, visibleGroupKeys]);
 
   async function assignEmployee(
     slot: Slot,
@@ -627,14 +797,19 @@ export function ScheduleCalendar({
       const data = await res.json().catch(() => ({}));
 
       if (res.status === 409 && data.requiresConfirmation) {
-        const ok = window.confirm(
-          `${data.error}\n\n${(data.conflicts ?? []).map((c: ScheduleConflict) => c.message).join("\n")}\n\nXác nhận vẫn xếp ca?`
-        );
-        if (ok) {
-          await assignEmployee(slot, employeeId, true);
-          return;
-        }
-        setConflicts(data.conflicts ?? []);
+        setPendingRequest({
+          title: "Xác nhận yêu cầu xếp ca",
+          description: typeof data.error === "string" ? data.error : "Vượt giới hạn xếp ca",
+          conflicts: data.conflicts ?? [],
+          onConfirm: () => {
+            setPendingRequest(null);
+            void assignEmployee(slot, employeeId, true);
+          },
+          onCancel: () => {
+            setPendingRequest(null);
+            setConflicts(data.conflicts ?? []);
+          },
+        });
         return;
       }
 
@@ -696,25 +871,30 @@ export function ScheduleCalendar({
       const result = await moveAssignment(sourceSlot, targetSlot);
 
       if (result.data?.requiresConfirmation) {
-        const ok = window.confirm(
-          `${result.data.error}\n\n${(result.data.conflicts ?? [])
-            .map((conflict: ScheduleConflict) => conflict.message)
-            .join("\n")}\n\nXác nhận vẫn đổi ca?`
-        );
-        if (ok) {
-          const confirmed = await moveAssignment(sourceSlot, targetSlot, true);
-          if (!confirmed.ok) {
-            setConflicts(confirmed.data.conflicts ?? []);
-            setMessageType("error");
-            setMessage(confirmed.data.error ?? "Không thể đổi ca");
-            return;
-          }
-          setMessageType("success");
-          setMessage(confirmed.data.message ?? "Đã cập nhật ca");
-          await onRefresh();
-          return;
-        }
-        setConflicts(result.data.conflicts ?? []);
+        setPendingRequest({
+          title: "Xác nhận yêu cầu đổi ca",
+          description: typeof result.data.error === "string" ? result.data.error : "Vượt giới hạn đổi ca",
+          conflicts: result.data.conflicts ?? [],
+          onConfirm: async () => {
+            setPendingRequest(null);
+            setLoading(true);
+            const confirmed = await moveAssignment(sourceSlot, targetSlot, true);
+            setLoading(false);
+            if (!confirmed.ok) {
+              setConflicts(confirmed.data.conflicts ?? []);
+              setMessageType("error");
+              setMessage(confirmed.data.error ?? "Không thể đổi ca");
+              return;
+            }
+            setMessageType("success");
+            setMessage(confirmed.data.message ?? "Đã cập nhật ca");
+            await onRefresh();
+          },
+          onCancel: () => {
+            setPendingRequest(null);
+            setConflicts(result.data.conflicts ?? []);
+          },
+        });
         return;
       }
 
@@ -739,75 +919,37 @@ export function ScheduleCalendar({
   }
 
   const activeEmployee = activeSlot ? employeeMap.get(activeSlot.employeeId ?? "") : null;
-  const notifications = [
-    ...(unfilled.length > 0
-      ? [
-          {
-            id: "unfilled",
-            title: `Còn ${unfilled.length} ca trống`,
-            body: "Chọn nhân viên hoặc xếp tự động.",
-            tone: "warning" as const,
-            icon: AlertTriangle,
-          },
-        ]
-      : []),
-    ...(conflicts.length > 0
-      ? [
-          {
-            id: "conflicts",
-            title: "Xung đột xếp ca",
-            body: conflicts.slice(0, 3).map((conflict) => conflict.message).join(" "),
-            tone: "error" as const,
-            icon: AlertCircle,
-          },
-        ]
-      : []),
-    ...(message
-      ? [
-          {
-            id: "message",
-            title: messageType === "success" ? "Cập nhật thành công" : "Không thể cập nhật",
-            body: message,
-            tone: messageType === "success" ? ("success" as const) : ("error" as const),
-            icon: messageType === "success" ? CheckCircle2 : AlertCircle,
-          },
-        ]
-      : []),
-  ];
-  const hasNotificationDot = notifications.length > 0;
-  const currentToast = message
-    ? notifications.find((notification) => notification.id === "message")
-    : conflicts.length > 0
-      ? notifications.find((notification) => notification.id === "conflicts")
-      : notifications.find((notification) => notification.id === "unfilled");
-  const currentToastSignature = currentToast
-    ? `${currentToast.id}|${currentToast.title}|${currentToast.body}|${currentToast.tone}`
-    : null;
 
   useEffect(() => {
-    if (!showToasts || !currentToast) {
-      if (renderedToast) {
-        setToastPhase("exit");
-        const cleanupTimer = window.setTimeout(() => setRenderedToast(null), 260);
-        return () => window.clearTimeout(cleanupTimer);
-      }
-      return;
-    }
+    if (unfilled.length === 0 || !canEdit) return;
+    notify({
+      title: `Còn ${unfilled.length} ca trống`,
+      body: "Chọn nhân viên hoặc xếp tự động.",
+      tone: "warning",
+      dedupeKey: `schedule-unfilled|${unfilled.length}`,
+    });
+  }, [notify, unfilled.length]);
 
-    setRenderedToast(currentToast);
-    setToastPhase("enter");
+  useEffect(() => {
+    if (conflicts.length === 0) return;
+    notify({
+      title: "Xung đột xếp ca",
+      body: conflicts.slice(0, 3).map((conflict) => conflict.message).join(" "),
+      tone: "error",
+      dedupeKey: `schedule-conflicts|${conflicts.map((conflict) => conflict.message).join("|")}`,
+    });
+  }, [conflicts, notify]);
 
-    const hideTimer = window.setTimeout(() => {
-      setToastPhase("exit");
-      setShowToasts(false);
-    }, 3000);
-    const cleanupTimer = window.setTimeout(() => setRenderedToast(null), 3260);
-
-    return () => {
-      window.clearTimeout(hideTimer);
-      window.clearTimeout(cleanupTimer);
-    };
-  }, [currentToastSignature, showToasts]);
+  useEffect(() => {
+    if (!message) return;
+    notify({
+      title: messageType === "success" ? "Cập nhật thành công" : "Không thể cập nhật",
+      body: message,
+      tone: messageType === "success" ? "success" : "error",
+      dedupeKey: `schedule-message|${messageType}|${message}`,
+    });
+    setMessage(null);
+  }, [message, messageType, notify]);
 
   function handlePlannerMouseDown(event: ReactMouseEvent<HTMLDivElement>) {
     if (!isSpacePressed || !plannerScrollRef.current) return;
@@ -888,14 +1030,24 @@ export function ScheduleCalendar({
     return (
       <Card>
         <CardContent className="py-8 text-center text-slate-500">
-          <p className="font-medium">Chưa có ca nào để xếp.</p>
-          <p className="mt-1 text-sm">Vào <strong>Cấu hình ca</strong> để thiết lập ca cho cửa hàng.</p>
+          <p className="font-medium">
+            {canEdit ? "Chưa có ca nào để xếp." : "Chưa có ca nào trong khoảng đang xem."}
+          </p>
+          <p className="mt-1 text-sm">
+            {canEdit ? (
+              <>
+                Vào <strong>Cấu hình ca</strong> để thiết lập ca cho cửa hàng.
+              </>
+            ) : (
+              "Đổi bộ lọc ngày/tháng hoặc cửa hàng để xem lịch khác."
+            )}
+          </p>
         </CardContent>
       </Card>
     );
   }
 
-  if (selectedEmployeeId && filteredEmployeeSlots.length === 0) {
+  if (selectedEmployeeId && visibleGroupKeys.size === 0) {
     const selectedEmployee = employeeMap.get(selectedEmployeeId);
 
     return (
@@ -922,87 +1074,6 @@ export function ScheduleCalendar({
 
   return (
     <div className="space-y-4">
-      <div
-        ref={notificationShellRef}
-        className="pointer-events-none fixed top-4 right-4 z-50 flex w-[min(360px,calc(100vw-2rem))] flex-col items-end gap-3"
-      >
-        <div className="pointer-events-auto relative">
-          <button
-            type="button"
-            onClick={() => {
-              setShowNotificationCenter((current) => !current);
-              setShowToasts(false);
-            }}
-            className="toast-liquid flex h-12 w-12 items-center justify-center rounded-2xl border-slate-200/70 text-slate-700 transition-transform hover:scale-[1.02]"
-            aria-label="Mở thông báo"
-          >
-            <Bell className="h-5 w-5" />
-            {hasNotificationDot && (
-              <span className="absolute top-2.5 right-2.5 h-2.5 w-2.5 rounded-full bg-rose-500 shadow-[0_0_0_3px_rgba(255,255,255,0.5)]" />
-            )}
-          </button>
-        </div>
-
-        {showNotificationCenter && hasNotificationDot && (
-          <div className="toast-liquid toast-enter pointer-events-auto w-full border-slate-200/70 text-slate-900">
-            <div className="space-y-3">
-              {notifications.map((notification) => {
-                const Icon = notification.icon;
-                return (
-                  <div key={notification.id} className="flex items-start gap-3">
-                    <Icon
-                      className={cn(
-                        "mt-0.5 h-5 w-5 shrink-0",
-                        notification.tone === "warning" && "text-amber-500",
-                        notification.tone === "error" && "text-rose-500",
-                        notification.tone === "success" && "text-emerald-500"
-                      )}
-                    />
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium">{notification.title}</p>
-                      <p className="mt-1 text-sm text-slate-700/80">{notification.body}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {renderedToast &&
-          (() => {
-            const notification = renderedToast;
-            const Icon = notification.icon;
-            return (
-              <div
-                key={`toast-${notification.id}`}
-                className={cn(
-                  "toast-liquid pointer-events-auto w-full",
-                  toastPhase === "enter" ? "toast-enter" : "toast-exit",
-                  notification.tone === "warning" && "border-amber-200/70 text-amber-950",
-                  notification.tone === "error" && "border-rose-200/70 text-rose-950",
-                  notification.tone === "success" && "border-emerald-200/70 text-emerald-950"
-                )}
-              >
-                <div className="flex items-start gap-3">
-                  <Icon
-                    className={cn(
-                      "mt-0.5 h-5 w-5 shrink-0",
-                      notification.tone === "warning" && "text-amber-500",
-                      notification.tone === "error" && "text-rose-500",
-                      notification.tone === "success" && "text-emerald-500"
-                    )}
-                  />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium">{notification.title}</p>
-                    <p className="mt-1 text-sm opacity-85">{notification.body}</p>
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
-      </div>
-
       {canEdit && (
         <p className="text-sm text-slate-600">
           Chọn nhân viên từ dropdown, kéo biểu tượng <GripVertical className="inline h-3 w-3" /> để đổi ca,
@@ -1013,8 +1084,12 @@ export function ScheduleCalendar({
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         {layoutMode === "horizontal" ? (
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between gap-3">
             <CardTitle>Lịch xếp ca dạng bảng ngang</CardTitle>
+            <LayoutModeActions
+              layoutMode={layoutMode}
+              onLayoutModeChange={onLayoutModeChange}
+            />
           </CardHeader>
           <CardContent className="group px-0 py-0">
             <div
@@ -1113,7 +1188,7 @@ export function ScheduleCalendar({
                               const daySlots = slotsByGroup.get(`${date}|${store.id}|${shift.id}`) ?? [];
                               const hasSelectedEmployeeInGroup =
                                 !selectedEmployeeId ||
-                                daySlots.some((slot) => slot.employeeId === selectedEmployeeId);
+                                visibleGroupKeys.has(`${date}|${store.id}|${shift.id}`);
                               const note = dayNoteMap.get(date);
                               return (
                                 <td
@@ -1133,7 +1208,6 @@ export function ScheduleCalendar({
                                         employees={eligibleEmployeesByStore.get(store.id) ?? []}
                                         canEdit={canEdit}
                                         loading={loading}
-                                        selectedEmployeeId={selectedEmployeeId}
                                         onAssign={(slot, id) => assignEmployee(slot, id)}
                                         onClear={(slot) => assignEmployee(slot, null)}
                                       />
@@ -1182,6 +1256,15 @@ export function ScheduleCalendar({
         </Card>
         ) : (
           <div className="space-y-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-3">
+                <CardTitle>Lịch xếp ca dạng bảng dọc</CardTitle>
+                <LayoutModeActions
+                  layoutMode={layoutMode}
+                  onLayoutModeChange={onLayoutModeChange}
+                />
+              </CardHeader>
+            </Card>
             {visibleDates.map((date) => (
               <Card
                 key={date}
@@ -1226,7 +1309,7 @@ export function ScheduleCalendar({
                               if (
                                 daySlots.length === 0 ||
                                 (selectedEmployeeId &&
-                                  !daySlots.some((slot) => slot.employeeId === selectedEmployeeId))
+                                  !visibleGroupKeys.has(`${date}|${store.id}|${shift.id}`))
                               ) {
                                 return [];
                               }
@@ -1241,7 +1324,6 @@ export function ScheduleCalendar({
                                   employees={eligibleEmployeesByStore.get(store.id) ?? []}
                                   canEdit={canEdit}
                                   loading={loading}
-                                  selectedEmployeeId={selectedEmployeeId}
                                   onAssign={(slot, id) => assignEmployee(slot, id)}
                                   onClear={(slot) => assignEmployee(slot, null)}
                                 />,
@@ -1266,6 +1348,60 @@ export function ScheduleCalendar({
           ) : null}
         </DragOverlay>
       </DndContext>
+
+      {/* Full-screen Modal for Scheduler sending request */}
+      {pendingRequest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <Card className="w-full max-w-2xl shadow-2xl">
+            <CardHeader className="border-b bg-slate-50/50 pb-4">
+              <CardTitle className="text-xl text-blue-700">{pendingRequest.title}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6 pt-6">
+              <div className="space-y-2">
+                <p className="text-lg font-medium text-slate-800">{pendingRequest.description}</p>
+                <p className="text-sm text-slate-500">
+                  Hành động này vượt quá giới hạn đã được thiết lập.
+                  {!isAdmin && " Một yêu cầu duyệt sẽ được gửi tới quản lý."}
+                </p>
+              </div>
+
+              {pendingRequest.conflicts && pendingRequest.conflicts.length > 0 && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                  <h4 className="mb-2 font-semibold text-amber-800 flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5" />
+                    Chi tiết cảnh báo / Vượt giới hạn
+                  </h4>
+                  <ul className="space-y-2 text-sm text-amber-700">
+                    {pendingRequest.conflicts.map((conflict, idx) => (
+                      <li key={idx} className="flex items-start gap-2">
+                        <span className="mt-1 flex h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+                        <span>{conflict.message}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={pendingRequest.onCancel}
+                  disabled={loading}
+                >
+                  Huỷ bỏ
+                </Button>
+                <Button
+                  onClick={pendingRequest.onConfirm}
+                  disabled={loading}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {loading ? "Đang xử lý..." : isAdmin ? "Xác nhận" : "Gửi yêu cầu duyệt"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

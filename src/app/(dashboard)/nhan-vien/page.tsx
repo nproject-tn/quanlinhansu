@@ -4,10 +4,13 @@ import { Fragment, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { MonthPicker } from "@/components/ui/month-picker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useConfirmDialog } from "@/components/confirm/confirm-dialog-provider";
 import { ChevronDown, ChevronUp, Plus, TimerReset } from "lucide-react";
 import { EMPLOYMENT_TYPE_LABELS } from "@/lib/utils";
+import { useNotifications } from "@/components/notifications/notification-center";
 import {
   calcMaxHoursFromShifts,
   calcMaxShiftsFromHours,
@@ -42,6 +45,14 @@ type EmployeeMonthlyHours = {
   actualShifts: number;
   hoursDelta: number;
   shiftsDelta: number;
+};
+
+type UserRole = "ADMIN" | "SCHEDULER" | "EMPLOYEE";
+
+type SessionPayload = {
+  user?: {
+    role?: UserRole;
+  };
 };
 
 type FormState = {
@@ -90,14 +101,26 @@ export default function EmployeesPage() {
   const [monthlyHours, setMonthlyHours] = useState<EmployeeMonthlyHours[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [currentRole, setCurrentRole] = useState<UserRole | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [avgShiftHours, setAvgShiftHours] = useState(DEFAULT_SHIFT_HOURS);
   const [lastEdited, setLastEdited] = useState<"shifts" | "hours" | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [hoursMonth, setHoursMonth] = useState(
-    `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`
-  );
+  const [hoursMonth, setHoursMonth] = useState(() => {
+    return `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
+  });
+
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  useEffect(() => {
+    const month = sessionStorage.getItem("employee_hoursMonth");
+    if (month) setHoursMonth(month);
+    setIsInitialized(true);
+  }, []);
+  const { notify } = useNotifications();
+  const { confirm } = useConfirmDialog();
+  const canManageEmployees = currentRole === "ADMIN";
 
   async function load() {
     const [empRes, storeRes, shiftRes] = await Promise.all([
@@ -128,8 +151,43 @@ export default function EmployeesPage() {
   }, []);
 
   useEffect(() => {
+    if (isInitialized && typeof window !== "undefined") {
+      sessionStorage.setItem("employee_hoursMonth", hoursMonth);
+    }
+  }, [hoursMonth, isInitialized]);
+
+  useEffect(() => {
+    async function loadSessionRole() {
+      const res = await fetch("/api/auth/session");
+      const session = await readJsonSafely<SessionPayload>(res, {});
+      setCurrentRole(session.user?.role ?? null);
+    }
+
+    void loadSessionRole();
+  }, []);
+
+  useEffect(() => {
+    if (canManageEmployees) return;
+    setShowForm(false);
+    setEditingId(null);
+  }, [canManageEmployees]);
+
+  useEffect(() => {
+    if (!isInitialized) return;
     void loadMonthlyHours(hoursMonth);
-  }, [hoursMonth]);
+  }, [hoursMonth, isInitialized]);
+
+  useEffect(() => {
+    if (!message) return;
+
+    notify({
+      title: "Thông báo nhân viên",
+      body: message,
+      tone: message.toLowerCase().includes("không") || message.toLowerCase().includes("lỗi") ? "error" : "success",
+      dedupeKey: `employees|${message}`,
+    });
+    setMessage(null);
+  }, [message, notify]);
 
   function updateShifts(value: string) {
     setLastEdited("shifts");
@@ -159,6 +217,11 @@ export default function EmployeesPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!canManageEmployees) {
+      setMessage("Bạn chỉ có quyền xem danh sách nhân viên");
+      return;
+    }
+
     const shifts = Number(form.maxShiftsPerMonth);
     const hours = Number(form.maxHoursPerMonth);
     if (!shifts || shifts < 1 || !hours || hours < 1) {
@@ -195,7 +258,19 @@ export default function EmployeesPage() {
   }
 
   async function handleDelete(id: string, name: string) {
-    if (!confirm(`Xóa nhân viên "${name}"?`)) return;
+    if (!canManageEmployees) {
+      setMessage("Bạn không có quyền xoá nhân viên");
+      return;
+    }
+
+    const approved = await confirm({
+      title: `Xóa nhân viên "${name}"?`,
+      description: "Nhân viên đã có lịch xếp trước đó sẽ được ẩn thay vì xoá hẳn khỏi dữ liệu.",
+      confirmLabel: "Xóa nhân viên",
+      cancelLabel: "Huỷ",
+      tone: "destructive",
+    });
+    if (!approved) return;
     const res = await fetch(`/api/employees/${id}`, { method: "DELETE" });
     const data = await readJsonSafely<{ message?: string }>(res, {});
     setMessage(data.message ?? "Đã xóa");
@@ -208,6 +283,8 @@ export default function EmployeesPage() {
   }
 
   function startEdit(emp: Employee) {
+    if (!canManageEmployees) return;
+
     setEditingId(emp.id);
     setLastEdited(null);
     setForm({
@@ -227,6 +304,8 @@ export default function EmployeesPage() {
   }
 
   function toggleStore(storeId: string) {
+    if (!canManageEmployees) return;
+
     setForm((f) => ({
       ...f,
       storeIds: f.storeIds.includes(storeId)
@@ -334,30 +413,31 @@ export default function EmployeesPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Quản lý nhân viên</h1>
-        <p className="text-slate-600">Thêm, sửa, xóa nhân viên và phân bổ cửa hàng</p>
+        <p className="text-slate-600">
+          {canManageEmployees
+            ? "Thêm, sửa, xóa nhân viên và phân bổ cửa hàng"
+            : "Xem danh sách nhân viên và giờ làm thực tế"}
+        </p>
       </div>
-
-      {message && (
-        <div className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{message}</div>
+      {canManageEmployees && (
+        <div className="flex items-center justify-between">
+          <Button
+            type="button"
+            onClick={() => {
+              setEditingId(null);
+              setForm(emptyForm);
+              setLastEdited(null);
+              setShowForm((current) => !current);
+            }}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            {showForm ? "Ẩn bảng nhân viên" : "Thêm nhân viên"}
+            {showForm ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />}
+          </Button>
+        </div>
       )}
 
-      <div className="flex items-center justify-between">
-        <Button
-          type="button"
-          onClick={() => {
-            setEditingId(null);
-            setForm(emptyForm);
-            setLastEdited(null);
-            setShowForm((current) => !current);
-          }}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          {showForm ? "Ẩn bảng nhân viên" : "Thêm nhân viên"}
-          {showForm ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />}
-        </Button>
-      </div>
-
-      {showForm && (
+      {canManageEmployees && showForm && (
         <Card>
           <CardHeader>
             <CardTitle>Thêm nhân viên mới</CardTitle>
@@ -383,7 +463,7 @@ export default function EmployeesPage() {
                   <th className="pb-2 pr-4">Ca/tháng</th>
                   <th className="pb-2 pr-4">Giờ/tháng</th>
                   <th className="pb-2 pr-4">Cửa hàng</th>
-                  <th className="pb-2">Thao tác</th>
+                  {canManageEmployees && <th className="pb-2">Thao tác</th>}
                 </tr>
               </thead>
               <tbody>
@@ -398,16 +478,18 @@ export default function EmployeesPage() {
                       <td className="py-3 pr-4">{emp.maxShiftsPerMonth}</td>
                       <td className="py-3 pr-4">{emp.maxHoursPerMonth}h</td>
                       <td className="py-3 pr-4">{emp.stores.map((s) => s.store.name).join(", ")}</td>
-                      <td className="py-3">
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="outline" onClick={() => startEdit(emp)}>Sửa</Button>
-                          <Button size="sm" variant="destructive" onClick={() => handleDelete(emp.id, emp.name)}>Xóa</Button>
-                        </div>
-                      </td>
+                      {canManageEmployees && (
+                        <td className="py-3">
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" onClick={() => startEdit(emp)}>Sửa</Button>
+                            <Button size="sm" variant="destructive" onClick={() => handleDelete(emp.id, emp.name)}>Xóa</Button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
-                    {editingId === emp.id && (
+                    {canManageEmployees && editingId === emp.id && (
                       <tr className="border-b border-slate-100 bg-slate-50/70">
-                        <td className="px-4 py-4" colSpan={7}>
+                        <td className="px-4 py-4" colSpan={canManageEmployees ? 7 : 6}>
                           <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                             <div className="mb-4 flex items-center justify-between">
                               <h3 className="text-base font-semibold text-slate-900">
@@ -445,11 +527,11 @@ export default function EmployeesPage() {
             <TimerReset className="h-5 w-5" />
             Giờ làm thực tế trong tháng
           </CardTitle>
-          <Input
-            type="month"
+          <MonthPicker
             value={hoursMonth}
-            onChange={(e) => setHoursMonth(e.target.value)}
-            className="max-w-[180px]"
+            onChange={setHoursMonth}
+            className="min-w-[190px]"
+            ariaLabel="Chọn tháng xem giờ làm thực tế"
           />
         </CardHeader>
         <CardContent>

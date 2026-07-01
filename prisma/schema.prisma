@@ -23,16 +23,29 @@ enum SalaryType {
   HOURLY
 }
 
+enum ScheduleApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ScheduleApprovalAction {
+  ASSIGN_EMPLOYEE
+  MOVE_ASSIGNMENT
+}
+
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  passwordHash String
-  name         String
-  role         UserRole  @default(EMPLOYEE)
-  employeeId   String?   @unique
-  employee     Employee? @relation(fields: [employeeId], references: [id])
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id                         String                    @id @default(cuid())
+  email                      String                    @unique
+  passwordHash               String
+  name                       String
+  role                       UserRole                  @default(EMPLOYEE)
+  employeeId                 String?                   @unique
+  employee                   Employee?                 @relation(fields: [employeeId], references: [id])
+  requestedScheduleApprovals ScheduleApprovalRequest[] @relation("RequestedScheduleApprovals")
+  reviewedScheduleApprovals  ScheduleApprovalRequest[] @relation("ReviewedScheduleApprovals")
+  createdAt                  DateTime                  @default(now())
+  updatedAt                  DateTime                  @updatedAt
 }
 
 model Store {
@@ -54,24 +67,24 @@ model Store {
 }
 
 model Employee {
-  id               String            @id @default(cuid())
-  name             String
-  phone            String?
-  email            String?
-  employmentType   EmploymentType    @default(FULL_TIME)
-  position         String
-  salaryType       SalaryType        @default(HOURLY)
-  monthlySalary    Float?
-  hourlyRate       Float?
+  id                String            @id @default(cuid())
+  name              String
+  phone             String?
+  email             String?
+  employmentType    EmploymentType    @default(FULL_TIME)
+  position          String
+  salaryType        SalaryType        @default(HOURLY)
+  monthlySalary     Float?
+  hourlyRate        Float?
   maxShiftsPerWeek  Int               @default(5)
   maxShiftsPerMonth Int               @default(22)
   maxHoursPerMonth  Float             @default(160)
-  isActive         Boolean           @default(true)
-  stores           EmployeeStore[]
-  user             User?
-  shiftAssignments ShiftAssignment[]
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  isActive          Boolean           @default(true)
+  stores            EmployeeStore[]
+  user              User?
+  shiftAssignments  ShiftAssignment[]
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
   @@index([isActive, name])
 }
@@ -131,18 +144,18 @@ model StaffingOverride {
 }
 
 model ShiftAssignment {
-  id              String         @id @default(cuid())
+  id              String        @id @default(cuid())
   storeId         String
-  store           Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  store           Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
   shiftTemplateId String
-  shiftTemplate   ShiftTemplate  @relation(fields: [shiftTemplateId], references: [id], onDelete: Cascade)
+  shiftTemplate   ShiftTemplate @relation(fields: [shiftTemplateId], references: [id], onDelete: Cascade)
   employeeId      String?
-  employee        Employee?      @relation(fields: [employeeId], references: [id], onDelete: SetNull)
-  date            DateTime       @db.Date
-  slotIndex       Int            @default(0)
-  isManual        Boolean        @default(false)
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  employee        Employee?     @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  date            DateTime      @db.Date
+  slotIndex       Int           @default(0)
+  isManual        Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   @@unique([storeId, shiftTemplateId, date, slotIndex])
   @@index([employeeId, date])
@@ -151,9 +164,28 @@ model ShiftAssignment {
   @@index([storeId, date, isManual])
 }
 
+model ScheduleApprovalRequest {
+  id            String                 @id @default(cuid())
+  actionType    ScheduleApprovalAction
+  status        ScheduleApprovalStatus @default(PENDING)
+  requestedById String?
+  requestedBy   User?                  @relation("RequestedScheduleApprovals", fields: [requestedById], references: [id], onDelete: SetNull)
+  reviewedById  String?
+  reviewedBy    User?                  @relation("ReviewedScheduleApprovals", fields: [reviewedById], references: [id], onDelete: SetNull)
+  payload       Json
+  conflicts     Json
+  message       String
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  decidedAt     DateTime?
+
+  @@index([status, createdAt])
+  @@index([requestedById, status])
+}
+
 model ScheduleDayNote {
   id        String   @id @default(cuid())
-  date      DateTime @db.Date @unique
+  date      DateTime @unique @db.Date
   note      String
   colorKey  String   @default("amber")
   createdAt DateTime @default(now())

@@ -39,6 +39,25 @@ cp .env.example .env
 
 Local nen tro vao `Supabase Dev`.
 
+Khong nen thay `.env` bang URL production.
+
+Neu can chay lenh DB truc tiep vao production, dung file rieng:
+
+```bash
+cp .env.production.manual.example .env.production.manual
+```
+
+Sau do chi dung cac lenh:
+
+```bash
+npm run db:test:prod
+npm run db:push:prod
+npm run db:seed:prod
+npm run db:migrate:deploy:prod
+```
+
+Muc dich cua cach nay la de ban khong vo tinh chay local/dev vao DB production.
+
 ### Production tren Vercel
 
 Nhap cac bien moi truong tu `.env.production.example`:

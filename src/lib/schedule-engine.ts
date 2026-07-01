@@ -1,15 +1,11 @@
 import {
   addDays,
-  eachDayOfInterval,
-  endOfMonth,
-  endOfWeek,
   format,
-  getDay,
-  startOfMonth,
-  startOfWeek,
 } from "date-fns";
 import { vi } from "date-fns/locale";
 import { formatDateOnly } from "@/lib/utils";
+
+const INVALID_CANDIDATE_SCORE = Number.NEGATIVE_INFINITY;
 
 export type ShiftTime = {
   id: string;
@@ -82,15 +78,26 @@ export function getDateRange(
   mode: "week" | "month",
   referenceDate: Date
 ): { start: Date; end: Date } {
+  const year = referenceDate.getUTCFullYear();
+  const month = referenceDate.getUTCMonth();
+  const day = referenceDate.getUTCDate();
+
   if (mode === "week") {
+    const dayOfWeek = referenceDate.getUTCDay();
+    const daysFromMonday = (dayOfWeek + 6) % 7;
+    const start = new Date(Date.UTC(year, month, day - daysFromMonday));
     return {
-      start: startOfWeek(referenceDate, { weekStartsOn: 1 }),
-      end: endOfWeek(referenceDate, { weekStartsOn: 1 }),
+      start,
+      end: new Date(Date.UTC(
+        start.getUTCFullYear(),
+        start.getUTCMonth(),
+        start.getUTCDate() + 6
+      )),
     };
   }
   return {
-    start: startOfMonth(referenceDate),
-    end: endOfMonth(referenceDate),
+    start: new Date(Date.UTC(year, month, 1)),
+    end: new Date(Date.UTC(year, month + 1, 0)),
   };
 }
 
@@ -110,7 +117,7 @@ export function getRequiredStaff(
   );
   if (override) return override.requiredStaff;
 
-  const dayOfWeek = getDay(date);
+  const dayOfWeek = date.getUTCDay();
   const rule = rules.find(
     (r) =>
       r.storeId === storeId &&
@@ -174,7 +181,7 @@ export function buildAssignmentSlots(
 
   for (const date of dates) {
     const dateStr = formatDateOnly(date);
-    const dayOfWeek = getDay(date);
+    const dayOfWeek = date.getUTCDay();
     for (const store of stores) {
       const storeShifts = shiftsByStore.get(store.id) ?? [];
 
@@ -213,7 +220,7 @@ type EmployeeForSchedule = {
   storeIds: string[];
 };
 
-type AssignmentRecord = {
+export type AssignmentRecord = {
   employeeId: string | null;
   storeId: string;
   shiftTemplateId: string;
@@ -222,14 +229,24 @@ type AssignmentRecord = {
   shift: ShiftTime;
 };
 
+type AutoAssignOptions = {
+  preserveManual?: boolean;
+  contextAssignments?: AssignmentRecord[];
+};
+
 export function autoAssignShifts(
   slots: AssignmentSlot[],
   employees: EmployeeForSchedule[],
   shifts: ShiftTime[],
-  preserveManual = true
+  options: boolean | AutoAssignOptions = true
 ): AssignmentSlot[] {
+  const preserveManual =
+    typeof options === "boolean" ? options : options.preserveManual ?? true;
+  const contextAssignments =
+    typeof options === "boolean" ? [] : options.contextAssignments ?? [];
   const shiftMap = new Map(shifts.map((s) => [s.id, s]));
   const result = slots.map((s) => ({ ...s }));
+  const resultKeys = new Set(result.map(slotKey));
 
   const manualKeys = new Set(
     result.filter((s) => s.employeeId && preserveManual).map(slotKey)
@@ -244,13 +261,20 @@ export function autoAssignShifts(
       date: s.date,
       slotIndex: s.slotIndex,
       shift: shiftMap.get(s.shiftTemplateId)!,
-    }));
+    }))
+    .filter((a) => Boolean(a.shift));
+
+  for (const assignment of contextAssignments) {
+    if (!assignment.employeeId || resultKeys.has(recordKey(assignment))) continue;
+    assigned.push(assignment);
+  }
 
   const emptySlots = result.filter(
     (s) => !s.employeeId && !manualKeys.has(slotKey(s))
   );
+  const orderedEmptySlots = orderSlotsForMonthlySpread(emptySlots, shiftMap);
 
-  for (const slot of emptySlots) {
+  for (const slot of orderedEmptySlots) {
     const shift = shiftMap.get(slot.shiftTemplateId);
     if (!shift) continue;
 
@@ -260,7 +284,7 @@ export function autoAssignShifts(
         employee,
         score: scoreCandidate(employee, slot, shift, assigned, shifts),
       }))
-      .filter((c) => c.score > -1000)
+      .filter((c) => c.score > INVALID_CANDIDATE_SCORE)
       .sort((a, b) => b.score - a.score);
 
     if (candidates.length > 0) {
@@ -280,7 +304,89 @@ export function autoAssignShifts(
 }
 
 function slotKey(s: AssignmentSlot): string {
-  return `${s.storeId}-${s.shiftTemplateId}-${formatDateOnly(s.date)}-${s.slotIndex}`;
+  return `${s.storeId}|${s.shiftTemplateId}|${formatDateOnly(s.date)}|${s.slotIndex}`;
+}
+
+function recordKey(s: AssignmentRecord): string {
+  return `${s.storeId}|${s.shiftTemplateId}|${formatDateOnly(s.date)}|${s.slotIndex}`;
+}
+
+function orderSlotsForMonthlySpread(
+  slots: AssignmentSlot[],
+  shiftMap: Map<string, ShiftTime>
+): AssignmentSlot[] {
+  const slotsByDate = new Map<string, AssignmentSlot[]>();
+  const metaByKey = new Map<string, { dateRank: number; dailyRank: number; baseRank: number }>();
+
+  for (const slot of slots) {
+    const dateKey = formatDateOnly(slot.date);
+    const daySlots = slotsByDate.get(dateKey) ?? [];
+    daySlots.push(slot);
+    slotsByDate.set(dateKey, daySlots);
+  }
+
+  for (const [dateKey, daySlots] of slotsByDate) {
+    const sortedDaySlots = [...daySlots].sort((a, b) => compareSlotBaseOrder(a, b, shiftMap));
+    const date = sortedDaySlots[0]?.date;
+    const dateRank = date ? getBalancedDateRank(date) : 0;
+    const offset = date ? (date.getUTCDate() - 1) % Math.max(sortedDaySlots.length, 1) : 0;
+
+    sortedDaySlots.forEach((slot, index) => {
+      const dailyRank = (index - offset + sortedDaySlots.length) % sortedDaySlots.length;
+      metaByKey.set(slotKey(slot), {
+        dateRank,
+        dailyRank,
+        baseRank: index,
+      });
+    });
+  }
+
+  return [...slots].sort((a, b) => {
+    const aMeta = metaByKey.get(slotKey(a));
+    const bMeta = metaByKey.get(slotKey(b));
+
+    if (aMeta && bMeta) {
+      if (aMeta.dailyRank !== bMeta.dailyRank) return aMeta.dailyRank - bMeta.dailyRank;
+      if (aMeta.dateRank !== bMeta.dateRank) return aMeta.dateRank - bMeta.dateRank;
+      if (aMeta.baseRank !== bMeta.baseRank) return aMeta.baseRank - bMeta.baseRank;
+    }
+
+    return compareSlotBaseOrder(a, b, shiftMap);
+  });
+}
+
+function compareSlotBaseOrder(
+  a: AssignmentSlot,
+  b: AssignmentSlot,
+  shiftMap: Map<string, ShiftTime>
+): number {
+  const aShift = shiftMap.get(a.shiftTemplateId);
+  const bShift = shiftMap.get(b.shiftTemplateId);
+  const aDate = formatDateOnly(a.date);
+  const bDate = formatDateOnly(b.date);
+
+  if (aDate !== bDate) return aDate.localeCompare(bDate);
+  if (a.slotIndex !== b.slotIndex) return a.slotIndex - b.slotIndex;
+  if ((aShift?.sortOrder ?? 0) !== (bShift?.sortOrder ?? 0)) {
+    return (aShift?.sortOrder ?? 0) - (bShift?.sortOrder ?? 0);
+  }
+  if (a.storeId !== b.storeId) return a.storeId.localeCompare(b.storeId);
+  return a.shiftTemplateId.localeCompare(b.shiftTemplateId);
+}
+
+function getBalancedDateRank(date: Date): number {
+  const dayIndex = date.getUTCDate() - 1;
+  const daysInMonth = getUtcDaysInMonth(date);
+  const bits = Math.ceil(Math.log2(daysInMonth));
+  let rank = 0;
+
+  for (let i = 0; i < bits; i++) {
+    if (dayIndex & (1 << i)) {
+      rank |= 1 << (bits - i - 1);
+    }
+  }
+
+  return rank;
 }
 
 function scoreCandidate(
@@ -296,7 +402,7 @@ function scoreCandidate(
   );
 
   if (sameDayShifts.length >= 3) {
-    return -1000;
+    return INVALID_CANDIDATE_SCORE;
   }
 
   const conflicts = validateAssignment(
@@ -319,37 +425,50 @@ function scoreCandidate(
     employee
   );
 
-  if (conflicts.length > 0) return -1000;
+  if (conflicts.length > 0) return INVALID_CANDIDATE_SCORE;
 
   let score = 0;
   const yesterday = formatDateOnly(addDays(slot.date, -1));
+  const monthKey = getUtcMonthKey(slot.date);
+  const slotDateKey = formatDateOnly(slot.date);
+  const monthPaceLimit = getMonthlyPaceLimit(employee.maxShiftsPerMonth, slot.date);
 
-  const monthHours = assigned
-    .filter(
-      (a) =>
-        a.employeeId === employee.id &&
-        format(a.date, "yyyy-MM") === format(slot.date, "yyyy-MM")
-    )
-    .reduce((sum, a) => sum + a.shift.durationHours, 0);
+  const employeeMonthAssignments = assigned.filter(
+    (a) => a.employeeId === employee.id && getUtcMonthKey(a.date) === monthKey
+  );
+  const monthShiftsThroughDate = employeeMonthAssignments.filter(
+    (a) => formatDateOnly(a.date) <= slotDateKey
+  ).length;
+  const overPaceShifts = Math.max(0, monthShiftsThroughDate + 1 - monthPaceLimit);
+
+  const monthHours = employeeMonthAssignments.reduce(
+    (sum, a) => sum + a.shift.durationHours,
+    0
+  );
 
   const weekShifts = assigned.filter(
-    (a) =>
-      a.employeeId === employee.id &&
-      formatDateOnly(a.date) >=
-        formatDateOnly(startOfWeek(slot.date, { weekStartsOn: 1 })) &&
-      formatDateOnly(a.date) <=
-        formatDateOnly(endOfWeek(slot.date, { weekStartsOn: 1 }))
+    (a) => {
+      if (a.employeeId !== employee.id) return false;
+      const { start, end } = getDateRange("week", slot.date);
+      const assignmentDate = formatDateOnly(a.date);
+      return assignmentDate >= formatDateOnly(start) && assignmentDate <= formatDateOnly(end);
+    }
   ).length;
 
-  const monthShifts = assigned.filter(
-    (a) =>
-      a.employeeId === employee.id &&
-      format(a.date, "yyyy-MM") === format(slot.date, "yyyy-MM")
+  const monthShifts = employeeMonthAssignments.length;
+  const storeMonthShifts = employeeMonthAssignments.filter(
+    (a) => a.storeId === slot.storeId
+  ).length;
+  const shiftPositionMonthShifts = employeeMonthAssignments.filter((a) =>
+    sameShiftPosition(a.shift, shift)
   ).length;
 
   score -= monthHours * 2;
   score -= monthShifts * 10;
   score -= weekShifts * 5;
+  score -= storeMonthShifts * 18;
+  score -= shiftPositionMonthShifts * 22;
+  score -= overPaceShifts * 120;
 
   const yesterdayShift = assigned.find(
     (a) =>
@@ -372,10 +491,43 @@ function scoreCandidate(
   }
 
   score -= sameDayShifts.length * 40;
+  score += Math.max(0, employee.maxShiftsPerMonth - monthShifts) * 2;
 
-  score += Math.random() * 5;
+  score += stableNoise(`${employee.id}|${slot.storeId}|${slot.shiftTemplateId}|${slotDateKey}`);
 
   return score;
+}
+
+function getMonthlyPaceLimit(maxShiftsPerMonth: number, date: Date): number {
+  const elapsedDays = date.getUTCDate();
+  const daysInMonth = getUtcDaysInMonth(date);
+  return Math.ceil((maxShiftsPerMonth * elapsedDays) / daysInMonth);
+}
+
+function getUtcMonthKey(date: Date): string {
+  return formatDateOnly(date).slice(0, 7);
+}
+
+function getUtcDaysInMonth(date: Date): number {
+  return new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)
+  ).getUTCDate();
+}
+
+function stableNoise(value: string): number {
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) {
+    hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
+  }
+  return (hash % 100) / 20;
+}
+
+function normalizeShiftName(name: string): string {
+  return name.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function sameShiftPosition(a: ShiftTime, b: ShiftTime): boolean {
+  return a.sortOrder === b.sortOrder || normalizeShiftName(a.name) === normalizeShiftName(b.name);
 }
 
 export function validateAssignment(
@@ -424,9 +576,10 @@ export function validateAssignment(
   );
 
   if (employeeAssignments.length >= 3) {
+    const exceededShifts = (employeeAssignments.length + 1) - 3;
     conflicts.push({
       type: "MAX_SHIFTS",
-      message: "Mỗi nhân viên chỉ được làm tối đa 3 ca trong một ngày",
+      message: `Mỗi nhân viên chỉ được làm tối đa 3 ca trong một ngày. Số ca đã vượt trong ngày: ${exceededShifts} ca`,
       employeeId,
       date: dateStr,
     });
@@ -438,6 +591,18 @@ export function validateAssignment(
       existing.shiftTemplateId === shiftTemplateId &&
       existing.slotIndex === slotIndex
     ) {
+      continue;
+    }
+    if (
+      !(existing.storeId === storeId && existing.shiftTemplateId === shiftTemplateId) &&
+      sameShiftPosition(targetShift, existing.shiftTemplate)
+    ) {
+      conflicts.push({
+        type: "OVERLAP",
+        message: `Nhân viên đã làm ${existing.shiftTemplate.name} trong ngày này, không thể xếp thêm ${targetShift.name} ở cửa hàng khác`,
+        employeeId,
+        date: dateStr,
+      });
       continue;
     }
     if (
@@ -487,13 +652,14 @@ export function validateAssignment(
     const monthShifts = allAssignments.filter(
       (a) =>
         a.employeeId === employeeId &&
-        format(a.date, "yyyy-MM") === format(date, "yyyy-MM")
+        getUtcMonthKey(a.date) === getUtcMonthKey(date)
     ).length;
 
     if (monthShifts >= employee.maxShiftsPerMonth) {
+      const exceededShifts = (monthShifts + 1) - employee.maxShiftsPerMonth;
       conflicts.push({
         type: "MAX_SHIFTS",
-        message: `Vượt số ca tối đa/tháng (${employee.maxShiftsPerMonth} ca)`,
+        message: `Vượt số ca tối đa/tháng (${employee.maxShiftsPerMonth} ca). Số ca đã vượt trong tháng: ${exceededShifts} ca`,
         employeeId,
         date: dateStr,
       });
@@ -503,14 +669,16 @@ export function validateAssignment(
       .filter(
         (a) =>
           a.employeeId === employeeId &&
-          format(a.date, "yyyy-MM") === format(date, "yyyy-MM")
+          getUtcMonthKey(a.date) === getUtcMonthKey(date)
       )
       .reduce((sum, a) => sum + a.shiftTemplate.durationHours, 0);
 
-    if (monthHours + targetShift.durationHours > employee.maxHoursPerMonth) {
+    const newTotalHours = monthHours + targetShift.durationHours;
+    if (newTotalHours > employee.maxHoursPerMonth) {
+      const exceededHours = newTotalHours - employee.maxHoursPerMonth;
       conflicts.push({
         type: "MAX_HOURS",
-        message: `Vượt số giờ tối đa/tháng (${employee.maxHoursPerMonth}h)`,
+        message: `Vượt số giờ tối đa/tháng (${employee.maxHoursPerMonth}h). Số giờ đã vượt trong tháng: ${exceededHours} giờ`,
         employeeId,
         date: dateStr,
       });
@@ -550,5 +718,18 @@ export function formatDateVi(date: Date): string {
 }
 
 export function getDaysInRange(start: Date, end: Date): Date[] {
-  return eachDayOfInterval({ start, end });
+  const days: Date[] = [];
+  let currentTime = Date.UTC(
+    start.getUTCFullYear(),
+    start.getUTCMonth(),
+    start.getUTCDate()
+  );
+  const endTime = Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate());
+
+  while (currentTime <= endTime) {
+    days.push(new Date(currentTime));
+    currentTime += 24 * 60 * 60 * 1000;
+  }
+
+  return days;
 }

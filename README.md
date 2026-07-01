@@ -47,10 +47,32 @@ npm install
 cp .env.example .env
 ```
 
-4. Điền `DATABASE_URL` và tạo `AUTH_SECRET`:
+4. `.env` chi dung cho local/dev. Khong dien URL production vao file nay.
+
+5. Điền `DATABASE_URL` và tạo `AUTH_SECRET`:
 
 ```bash
 openssl rand -base64 32
+```
+
+### Tach local va production de tranh nham
+
+- `.env` = local/dev DB
+- `.env.production.manual` = chi dung khi can chay lenh truc tiep vao production DB
+- Vercel env = production runtime
+
+Neu can thao tac DB production bang tay, copy file mau:
+
+```bash
+cp .env.production.manual.example .env.production.manual
+```
+
+Khi do dung cac lenh co hau to `:prod`:
+
+```bash
+npm run db:test:prod
+npm run db:push:prod
+npm run db:seed:prod
 ```
 
 ### 3. Khởi tạo database

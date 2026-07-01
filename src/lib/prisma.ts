@@ -40,10 +40,16 @@ function hasStoreLogoField(client: PrismaClient | undefined) {
   return storeFields.some((field) => field.name === "logoUrl");
 }
 
+function hasScheduleApprovalRequestModel(client: PrismaClient | undefined) {
+  return typeof (client as PrismaClient & { scheduleApprovalRequest?: unknown } | undefined)
+    ?.scheduleApprovalRequest !== "undefined";
+}
+
 const canReuseCachedClient =
   globalForPrisma.prisma &&
   hasScheduleDayNoteModel(globalForPrisma.prisma) &&
-  hasStoreLogoField(globalForPrisma.prisma);
+  hasStoreLogoField(globalForPrisma.prisma) &&
+  hasScheduleApprovalRequestModel(globalForPrisma.prisma);
 
 const cachedPrisma = canReuseCachedClient ? globalForPrisma.prisma : undefined;
 

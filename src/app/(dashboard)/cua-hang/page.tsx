@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useConfirmDialog } from "@/components/confirm/confirm-dialog-provider";
+import { useNotifications } from "@/components/notifications/notification-center";
 
 type Store = {
   id: string;
@@ -84,6 +86,22 @@ export default function StoresPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [editingShiftsFor, setEditingShiftsFor] = useState<string | null>(null);
   const [editShiftsPerDay, setEditShiftsPerDay] = useState("");
+  const [editingNameFor, setEditingNameFor] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const { notify } = useNotifications();
+  const { confirm } = useConfirmDialog();
+
+  useEffect(() => {
+    if (!message) return;
+
+    notify({
+      title: "Thông báo cửa hàng",
+      body: message,
+      tone: message.toLowerCase().includes("không") || message.toLowerCase().includes("lỗi") ? "error" : "success",
+      dedupeKey: `stores|${message}`,
+    });
+    setMessage(null);
+  }, [message, notify]);
 
   async function load() {
     const res = await fetch("/api/stores", { cache: "no-store" });
@@ -182,7 +200,14 @@ export default function StoresPage() {
   }
 
   async function handleDelete(id: string, storeName: string) {
-    if (!confirm(`Xóa cửa hàng "${storeName}"?`)) return;
+    const approved = await confirm({
+      title: `Xóa cửa hàng "${storeName}"?`,
+      description: "Cửa hàng này sẽ bị ẩn khỏi hệ thống và không còn dùng để xếp ca.",
+      confirmLabel: "Xóa cửa hàng",
+      cancelLabel: "Huỷ",
+      tone: "destructive",
+    });
+    if (!approved) return;
     const res = await fetch(`/api/stores/${id}`, { method: "DELETE" });
     const data = await readJsonSafely<{ message?: string }>(res, {});
     setMessage(data.message ?? "Đã xóa");
@@ -216,17 +241,31 @@ export default function StoresPage() {
     await load();
   }
 
+  async function handleSaveName(store: Store) {
+    if (!editName.trim()) return;
+    setEditingNameFor(null);
+    const res = await fetch(`/api/stores/${store.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: editName.trim(),
+        address: store.address ?? "",
+        logoUrl: store.logoUrl,
+        shiftsPerDay: store.shiftsPerDay ?? 3,
+        isActive: store.isActive,
+      }),
+    });
+    const data = await readJsonSafely<{ error?: string }>(res, {});
+    setMessage(data.error ?? "Đã cập nhật tên cửa hàng");
+    await load();
+  }
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Quản lý cửa hàng</h1>
         <p className="text-slate-600">Thêm, xóa cửa hàng — nhân viên luân phiên giữa các cửa hàng</p>
       </div>
-
-      {message && (
-        <div className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{message}</div>
-      )}
-
       <Card>
         <CardHeader>
           <CardTitle>Thêm cửa hàng</CardTitle>
@@ -271,18 +310,15 @@ export default function StoresPage() {
           <Card key={store.id}>
             <CardHeader className="flex flex-row items-center justify-between">
               <div className="flex items-center gap-3">
-                <label className="flex cursor-pointer items-center gap-3">
-                  <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg border border-dashed border-slate-300 bg-slate-50 text-[11px] text-slate-500">
+                <label className="flex cursor-pointer items-center flex-col gap-1">
+                  <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg border border-dashed border-slate-300 bg-slate-50 text-[11px] text-slate-500 hover:border-blue-400 transition-colors">
                     {store.logoUrl ? (
                       <img src={store.logoUrl} alt={store.name} className="h-full w-full object-cover" />
                     ) : (
                       <span>Logo</span>
                     )}
                   </span>
-                  <div>
-                    <CardTitle>{store.name}</CardTitle>
-                    <p className="mt-1 text-xs font-medium text-blue-600">Bấm để đổi logo</p>
-                  </div>
+                  <span className="text-[10px] font-medium text-blue-600">Đổi logo</span>
                   <input
                     type="file"
                     accept={LOGO_ACCEPT}
@@ -293,6 +329,44 @@ export default function StoresPage() {
                     }}
                   />
                 </label>
+                <div>
+                  {editingNameFor === store.id ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="h-8 w-40"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            void handleSaveName(store);
+                          } else if (e.key === "Escape") {
+                            setEditingNameFor(null);
+                          }
+                        }}
+                        autoFocus
+                      />
+                      <Button size="sm" onClick={() => handleSaveName(store)}>Lưu</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setEditingNameFor(null)}>Hủy</Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <CardTitle>{store.name}</CardTitle>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-6 w-6 text-slate-400 hover:text-blue-600"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setEditingNameFor(store.id);
+                          setEditName(store.name);
+                        }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
               <Button size="sm" variant="destructive" onClick={() => handleDelete(store.id, store.name)}>
                 Xóa

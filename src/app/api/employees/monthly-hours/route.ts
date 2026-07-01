@@ -1,7 +1,9 @@
-import { endOfMonth, format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/api-auth";
+import { getDateRange } from "@/lib/schedule-engine";
+import { parseDateOnly } from "@/lib/utils";
 
 export async function GET(request: Request) {
   const { error } = await requireAuth(["ADMIN", "SCHEDULER"]);
@@ -9,8 +11,7 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const month = searchParams.get("month") ?? format(new Date(), "yyyy-MM");
-  const start = parseISO(`${month}-01`);
-  const end = endOfMonth(start);
+  const { start, end } = getDateRange("month", parseDateOnly(`${month}-01`));
 
   const [employees, assignments] = await Promise.all([
     prisma.employee.findMany({

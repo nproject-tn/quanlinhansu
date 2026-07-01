@@ -43,7 +43,7 @@ export async function POST(request: Request, { params }: Params) {
           storeId,
           shiftTemplateId: found.id,
           dayOfWeek,
-          requiredStaff: dayOfWeek === 0 || dayOfWeek === 6 ? 2 : 1,
+          requiredStaff: 1,
         })),
         skipDuplicates: true,
       });
@@ -64,7 +64,7 @@ export async function POST(request: Request, { params }: Params) {
             storeId,
             shiftTemplateId: created.id,
             dayOfWeek,
-            requiredStaff: dayOfWeek === 0 || dayOfWeek === 6 ? 2 : 1,
+            requiredStaff: 1,
         })),
         skipDuplicates: true,
       });

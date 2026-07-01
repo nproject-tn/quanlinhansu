@@ -44,9 +44,7 @@ export const authConfig = {
 
       if (
         role === "SCHEDULER" &&
-        (path.startsWith("/nhan-vien") ||
-          path.startsWith("/cua-hang") ||
-          path.startsWith("/cau-hinh-ca"))
+        (path.startsWith("/cua-hang") || path.startsWith("/cau-hinh-ca"))
       ) {
         return Response.redirect(new URL("/lich-xep-ca", request.nextUrl));
       }

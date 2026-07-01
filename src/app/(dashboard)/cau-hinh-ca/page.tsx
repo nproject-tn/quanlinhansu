@@ -1,14 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { eachDayOfInterval, endOfMonth, format, getDay } from "date-fns";
+import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { MonthPicker } from "@/components/ui/month-picker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useConfirmDialog } from "@/components/confirm/confirm-dialog-provider";
+import { useNotifications } from "@/components/notifications/notification-center";
 import { getDayNoteColor, DAY_NOTE_COLORS } from "@/lib/day-note-colors";
-import { DAY_NAMES, parseDateOnly } from "@/lib/utils";
+import { DAY_NAMES, formatDateOnly, parseDateOnly } from "@/lib/utils";
 import { calcDurationHours } from "@/lib/shift-utils";
+import { getDateRange, getDaysInRange } from "@/lib/schedule-engine";
 
 type Store = { id: string; name: string; logoUrl?: string; shiftsPerDay?: number };
 type ShiftTemplate = {
@@ -94,7 +98,17 @@ export default function ShiftConfigPage() {
   const [overrides, setOverrides] = useState<StaffingOverride[]>([]);
   const [dayNotes, setDayNotes] = useState<DayNote[]>([]);
   const [selectedStore, setSelectedStore] = useState("");
-  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"));
+  const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), "yyyy-MM"));
+
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  useEffect(() => {
+    const store = sessionStorage.getItem("config_selectedStore");
+    if (store) setSelectedStore(store);
+    const month = sessionStorage.getItem("config_selectedMonth");
+    if (month) setSelectedMonth(month);
+    setIsInitialized(true);
+  }, []);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [editingShift, setEditingShift] = useState<string | null>(null);
@@ -116,13 +130,12 @@ export default function ShiftConfigPage() {
   const [configContentWidth, setConfigContentWidth] = useState(0);
   const [configViewportWidth, setConfigViewportWidth] = useState(0);
   const [configScrollLeft, setConfigScrollLeft] = useState(0);
+  const { notify } = useNotifications();
+  const { confirm } = useConfirmDialog();
 
   const monthStart = useMemo(() => parseDateOnly(`${selectedMonth}-01`), [selectedMonth]);
-  const monthEnd = useMemo(() => endOfMonth(monthStart), [monthStart]);
-  const monthDays = useMemo(
-    () => eachDayOfInterval({ start: monthStart, end: monthEnd }),
-    [monthEnd, monthStart]
-  );
+  const monthEnd = useMemo(() => getDateRange("month", monthStart).end, [monthStart]);
+  const monthDays = useMemo(() => getDaysInRange(monthStart, monthEnd), [monthEnd, monthStart]);
 
   const refreshColorHistory = useCallback(async () => {
     const usage = readStoredColorUsage();
@@ -146,6 +159,13 @@ export default function ShiftConfigPage() {
 
     setRecentColorKeys(topKeys);
   }, []);
+
+  useEffect(() => {
+    if (isInitialized && typeof window !== "undefined") {
+      sessionStorage.setItem("config_selectedStore", selectedStore);
+      sessionStorage.setItem("config_selectedMonth", selectedMonth);
+    }
+  }, [selectedStore, selectedMonth, isInitialized]);
 
   const trackColorUsage = useCallback((colorKey: string) => {
     if (typeof window === "undefined") return;
@@ -197,8 +217,8 @@ export default function ShiftConfigPage() {
     if (!storeId) return;
 
     const start = parseDateOnly(`${month}-01`);
-    const from = format(start, "yyyy-MM-dd");
-    const to = format(endOfMonth(start), "yyyy-MM-dd");
+    const from = formatDateOnly(start);
+    const to = formatDateOnly(getDateRange("month", start).end);
 
     setLoading(true);
     try {
@@ -225,7 +245,7 @@ export default function ShiftConfigPage() {
             date:
               typeof item.date === "string"
                 ? item.date.slice(0, 10)
-                : format(item.date, "yyyy-MM-dd"),
+                : formatDateOnly(item.date),
           }))
       );
       setDayNotes(ensureArray<DayNote>(dayNoteData));
@@ -252,9 +272,21 @@ export default function ShiftConfigPage() {
   }, [refreshColorHistory]);
 
   useEffect(() => {
-    if (!selectedStore) return;
+    if (!isInitialized || !selectedStore) return;
     void loadStoreConfig(selectedStore, selectedMonth);
-  }, [loadStoreConfig, selectedMonth, selectedStore]);
+  }, [loadStoreConfig, selectedMonth, selectedStore, isInitialized]);
+
+  useEffect(() => {
+    if (!message) return;
+
+    notify({
+      title: "Thông báo cấu hình ca",
+      body: message,
+      tone: message.toLowerCase().includes("không") || message.toLowerCase().includes("lỗi") ? "error" : "success",
+      dedupeKey: `shift-config|${message}`,
+    });
+    setMessage(null);
+  }, [message, notify]);
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
@@ -366,7 +398,7 @@ export default function ShiftConfigPage() {
     );
     if (override) return override.requiredStaff;
 
-    return getWeeklyRule(shiftId, getDay(parseDateOnly(dateStr)));
+    return getWeeklyRule(shiftId, parseDateOnly(dateStr).getUTCDay());
   }
 
   function getDayNote(dateStr: string) {
@@ -447,7 +479,7 @@ export default function ShiftConfigPage() {
     const payload = monthDays.map((day) => ({
       storeId: selectedStore,
       shiftTemplateId: shiftId,
-      date: format(day, "yyyy-MM-dd"),
+      date: formatDateOnly(day),
       requiredStaff,
     }));
 
@@ -470,12 +502,47 @@ export default function ShiftConfigPage() {
           id: item.id,
           storeId: selectedStore,
           shiftTemplateId: shiftId,
-          date: typeof item.date === "string" ? item.date.slice(0, 10) : format(item.date, "yyyy-MM-dd"),
+          date: typeof item.date === "string" ? item.date.slice(0, 10) : formatDateOnly(item.date),
           requiredStaff: item.requiredStaff,
         })),
       ];
     });
     setMessage(`Đã áp dụng ${requiredStaff} nhân viên cho toàn bộ tháng`);
+  }
+
+  async function applyRuleToDay(dateStr: string, requiredStaff: number) {
+    const payload = storeShifts.map((shift) => ({
+      storeId: selectedStore,
+      shiftTemplateId: shift.id,
+      date: dateStr,
+      requiredStaff,
+    }));
+
+    const res = await fetch("/api/staffing-overrides", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) return;
+
+    const saved = await readJsonSafely<Array<{ id: string; date: string | Date; shiftTemplateId: string; requiredStaff: number }>>(res, []);
+    setOverrides((current) => {
+      const rest = current.filter(
+        (item) => !(item.storeId === selectedStore && item.date === dateStr)
+      );
+      return [
+        ...rest,
+        ...saved.map((item) => ({
+          id: item.id,
+          storeId: selectedStore,
+          shiftTemplateId: item.shiftTemplateId,
+          date: typeof item.date === "string" ? item.date.slice(0, 10) : formatDateOnly(item.date),
+          requiredStaff: item.requiredStaff,
+        })),
+      ];
+    });
+    setMessage(`Đã áp dụng ${requiredStaff} nhân viên cho ngày ${format(parseDateOnly(dateStr), "dd/MM")}`);
   }
 
   async function updateDayNote(dateStr: string, patch: Partial<DayNote>) {
@@ -568,7 +635,14 @@ export default function ShiftConfigPage() {
   }
 
   async function deleteShift(shift: ShiftTemplate) {
-    if (!confirm(`Xóa ${shift.name}?`)) return;
+    const approved = await confirm({
+      title: `Xóa ${shift.name}?`,
+      description: "Ca này sẽ bị gỡ khỏi cấu hình của cửa hàng hiện tại.",
+      confirmLabel: "Xóa ca",
+      cancelLabel: "Giữ lại",
+      tone: "destructive",
+    });
+    if (!approved) return;
     const res = await fetch(`/api/shift-templates/${shift.id}`, { method: "DELETE" });
     const data = await readJsonSafely<{ message?: string }>(res, {});
     setMessage(data.message ?? "Đã xóa");
@@ -626,16 +700,11 @@ export default function ShiftConfigPage() {
           Chỉnh giờ ca, tự tính số tiếng, và đặt số nhân viên cho từng ngày trong tháng.
         </p>
       </div>
-
-      {message && (
-        <div className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{message}</div>
-      )}
-
       <Card>
         <CardHeader>
           <CardTitle>Bộ lọc cấu hình</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-4">
+        <CardContent className="flex flex-wrap items-start gap-4">
           <div className="flex items-center gap-3">
             <StoreFilterLogo store={selectedStoreData} />
             <Select
@@ -651,12 +720,7 @@ export default function ShiftConfigPage() {
             </Select>
           </div>
 
-          <Input
-            type="month"
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-            className="max-w-[180px]"
-          />
+          <MonthPicker value={selectedMonth} onChange={setSelectedMonth} />
         </CardContent>
       </Card>
 
@@ -680,12 +744,12 @@ export default function ShiftConfigPage() {
                   <th className="pb-2 pr-4">Thao tác</th>
                   {monthDays.map((day) => (
                     <th
-                      key={format(day, "yyyy-MM-dd")}
-                      className={`pb-2 px-1 text-center ${hasVisibleDayNote(format(day, "yyyy-MM-dd")) ? getDayNoteColor(getDayNote(format(day, "yyyy-MM-dd"))?.colorKey).softClass : ""}`}
+                      key={formatDateOnly(day)}
+                      className={`pb-2 px-1 text-center ${hasVisibleDayNote(formatDateOnly(day)) ? getDayNoteColor(getDayNote(formatDateOnly(day))?.colorKey).softClass : ""}`}
                     >
-                      <div>{format(day, "d")}</div>
+                      <div>{day.getUTCDate()}</div>
                       <div className="text-[11px] font-normal text-slate-500">
-                        {DAY_NAMES[getDay(day)].replace("Thứ ", "T")}
+                        {DAY_NAMES[day.getUTCDay()].replace("Thứ ", "T")}
                       </div>
                     </th>
                   ))}
@@ -695,7 +759,7 @@ export default function ShiftConfigPage() {
                     Ghi chú ngày / màu đánh dấu
                   </th>
                   {monthDays.map((day) => {
-                    const dateStr = format(day, "yyyy-MM-dd");
+                    const dateStr = formatDateOnly(day);
                     const note = getDayNote(dateStr);
                     const color = getDayNoteColor(note?.colorKey);
                     return (
@@ -703,7 +767,7 @@ export default function ShiftConfigPage() {
                         key={`note-${dateStr}`}
                         className={`px-1 py-2 ${note?.note.trim() ? color.softClass : ""}`}
                       >
-                        <div ref={openColorPickerDate === dateStr ? colorPickerShellRef : null} className="relative">
+                        <div ref={openColorPickerDate === dateStr ? colorPickerShellRef : null} className="relative space-y-2">
                           <div className="relative">
                             <Input
                               value={note?.note ?? ""}
@@ -777,6 +841,22 @@ export default function ShiftConfigPage() {
                               </div>
                             </div>
                           )}
+                          <Select
+                            value=""
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                void applyRuleToDay(dateStr, Number(e.target.value));
+                              }
+                            }}
+                            className="h-8 w-full text-xs"
+                          >
+                            <option value="">Áp dụng cả ngày</option>
+                            {STAFF_OPTIONS.map((option) => (
+                              <option key={option} value={option}>
+                                {option} Nhân viên
+                              </option>
+                            ))}
+                          </Select>
                         </div>
                       </th>
                     );
@@ -860,7 +940,7 @@ export default function ShiftConfigPage() {
                       </div>
                     </td>
                     {monthDays.map((day) => {
-                      const dateStr = format(day, "yyyy-MM-dd");
+                      const dateStr = formatDateOnly(day);
                       const dayNote = getDayNote(dateStr);
                       return (
                         <td
@@ -870,11 +950,11 @@ export default function ShiftConfigPage() {
                           <Select
                             value={String(getDailyStaff(shift.id, dateStr))}
                             onChange={(e) => updateOverride(shift.id, dateStr, Number(e.target.value))}
-                            className="h-8 w-[74px] text-xs"
+                            className="h-8 w-[125px] text-xs"
                           >
                             {STAFF_OPTIONS.map((option) => (
                               <option key={option} value={option}>
-                                {option} NV
+                                {option} Nhân viên
                               </option>
                             ))}
                           </Select>

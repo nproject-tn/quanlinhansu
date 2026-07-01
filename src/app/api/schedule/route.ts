@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/api-auth";
 import {
@@ -8,8 +8,9 @@ import {
   findUnfilledShifts,
   getDateRange,
   getDaysInRange,
+  type AssignmentRecord,
 } from "@/lib/schedule-engine";
-import { formatDateOnly } from "@/lib/utils";
+import { formatDateOnly, parseDateOnly } from "@/lib/utils";
 import { isMissingStoreLogoColumn } from "@/lib/store-logo-fallback";
 import { scheduleGenerateSchema } from "@/lib/validations";
 
@@ -20,7 +21,7 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const mode = (searchParams.get("mode") ?? "week") as "week" | "month";
-    const referenceDate = parseISO(searchParams.get("date") ?? format(new Date(), "yyyy-MM-dd"));
+    const referenceDate = parseDateOnly(searchParams.get("date") ?? format(new Date(), "yyyy-MM-dd"));
     const storeId = searchParams.get("storeId");
 
     const { start, end } = getDateRange(mode, referenceDate);
@@ -109,7 +110,6 @@ export async function GET(request: Request) {
         where: {
           storeId: { in: storeIds },
           date: { gte: start, lte: end },
-          ...(isEmployee ? { employeeId: session!.user.employeeId ?? "__missing_employee__" } : {}),
         },
         select: {
           id: true,
@@ -121,12 +121,10 @@ export async function GET(request: Request) {
         },
       }),
       prisma.employee.findMany({
-        where: isEmployee
-          ? { id: session!.user.employeeId ?? "__missing_employee__", isActive: true }
-          : {
-              isActive: true,
-              stores: { some: { storeId: { in: storeIds } } },
-            },
+        where: {
+          isActive: true,
+          stores: { some: { storeId: { in: storeIds } } },
+        },
         select: {
           id: true,
           name: true,
@@ -220,201 +218,291 @@ export async function POST(request: Request) {
     const { error } = await requireAuth(["ADMIN", "SCHEDULER"]);
     if (error) return error;
 
-  const body = await request.json();
-  const parsed = scheduleGenerateSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
-  }
+    const body = await request.json();
+    const parsed = scheduleGenerateSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    }
 
-  const referenceDate = parseISO(parsed.data.referenceDate);
-  const { start, end } = getDateRange(parsed.data.mode, referenceDate);
-  const dates = getDaysInRange(start, end);
+    const referenceDate = parseDateOnly(parsed.data.referenceDate);
+    const { start, end } = getDateRange(parsed.data.mode, referenceDate);
+    const planningStart = getDateRange("month", start).start;
+    const planningEnd = getDateRange("month", end).end;
+    const planningDates = getDaysInRange(planningStart, planningEnd);
 
-  const stores = await prisma.store.findMany({
-    where: {
-      isActive: true,
-      ...(parsed.data.storeIds?.length
-        ? { id: { in: parsed.data.storeIds } }
-        : {}),
-    },
-    select: { id: true, name: true },
-  });
-
-  const storeIds = stores.map((s) => s.id);
-  if (storeIds.length === 0) {
-    return NextResponse.json(
-      { error: "Chưa có cửa hàng hoạt động để xếp ca" },
-      { status: 400 }
-    );
-  }
-
-  const [shifts, rules, overrides, existing, employees] = await prisma.$transaction([
-    prisma.shiftTemplate.findMany({
-      where: { storeId: { in: storeIds }, isActive: true },
-      select: {
-        id: true,
-        storeId: true,
-        name: true,
-        startTime: true,
-        endTime: true,
-        durationHours: true,
-        sortOrder: true,
-      },
-      orderBy: [{ storeId: "asc" }, { sortOrder: "asc" }],
-    }),
-    prisma.staffingRule.findMany({
-      where: { storeId: { in: storeIds } },
-      select: {
-        storeId: true,
-        shiftTemplateId: true,
-        dayOfWeek: true,
-        requiredStaff: true,
-      },
-    }),
-    prisma.staffingOverride.findMany({
-      where: {
-        storeId: { in: storeIds },
-        date: { gte: start, lte: end },
-      },
-      select: {
-        storeId: true,
-        shiftTemplateId: true,
-        date: true,
-        requiredStaff: true,
-      },
-    }),
-    prisma.shiftAssignment.findMany({
-      where: {
-        storeId: { in: storeIds },
-        date: { gte: start, lte: end },
-      },
-      select: {
-        id: true,
-        storeId: true,
-        shiftTemplateId: true,
-        date: true,
-        slotIndex: true,
-        employeeId: true,
-        isManual: true,
-      },
-    }),
-    prisma.employee.findMany({
+    const stores = await prisma.store.findMany({
       where: {
         isActive: true,
-        stores: { some: { storeId: { in: storeIds } } },
+        ...(parsed.data.storeIds?.length
+          ? { id: { in: parsed.data.storeIds } }
+          : {}),
       },
-      select: {
-        id: true,
-        name: true,
-        maxShiftsPerMonth: true,
-        maxHoursPerMonth: true,
-        stores: { select: { storeId: true } },
-      },
-      orderBy: { name: "asc" },
-    }),
-  ]);
+      select: { id: true, name: true },
+    });
 
-  let slots = buildAssignmentSlots(
-    dates,
-    stores,
-    shifts,
-    rules,
-    overrides,
-    existing.map((e) => ({
-      id: e.id,
-      storeId: e.storeId,
-      shiftTemplateId: e.shiftTemplateId,
-      date: e.date,
-      slotIndex: e.slotIndex,
-      employeeId: e.employeeId,
-    }))
-  );
-
-  const manualAssignments = existing.filter((e) => e.isManual);
-  for (const slot of slots) {
-    slot.employeeId = null;
-    slot.assignmentId = undefined;
-  }
-
-  if (parsed.data.preserveManual) {
-    for (const manual of manualAssignments) {
-      const slot = slots.find(
-        (s) =>
-          s.storeId === manual.storeId &&
-          s.shiftTemplateId === manual.shiftTemplateId &&
-          formatDateOnly(s.date) === formatDateOnly(manual.date) &&
-          s.slotIndex === manual.slotIndex
+    const storeIds = stores.map((s) => s.id);
+    if (storeIds.length === 0) {
+      return NextResponse.json(
+        { error: "Chưa có cửa hàng hoạt động để xếp ca" },
+        { status: 400 }
       );
-      if (slot) {
+    }
+
+    const activeStores = await prisma.store.findMany({
+      where: { isActive: true },
+      select: { id: true },
+    });
+    const activeStoreIds = activeStores.map((store) => store.id);
+
+    const [shifts, contextShifts, rules, overrides, existing, contextExisting, employees] =
+      await prisma.$transaction([
+        prisma.shiftTemplate.findMany({
+          where: { storeId: { in: storeIds }, isActive: true },
+          select: {
+            id: true,
+            storeId: true,
+            name: true,
+            startTime: true,
+            endTime: true,
+            durationHours: true,
+            sortOrder: true,
+          },
+          orderBy: [{ storeId: "asc" }, { sortOrder: "asc" }],
+        }),
+        prisma.shiftTemplate.findMany({
+          where: { storeId: { in: activeStoreIds }, isActive: true },
+          select: {
+            id: true,
+            storeId: true,
+            name: true,
+            startTime: true,
+            endTime: true,
+            durationHours: true,
+            sortOrder: true,
+          },
+          orderBy: [{ storeId: "asc" }, { sortOrder: "asc" }],
+        }),
+        prisma.staffingRule.findMany({
+          where: { storeId: { in: storeIds } },
+          select: {
+            storeId: true,
+            shiftTemplateId: true,
+            dayOfWeek: true,
+            requiredStaff: true,
+          },
+        }),
+        prisma.staffingOverride.findMany({
+          where: {
+            storeId: { in: storeIds },
+            date: { gte: planningStart, lte: planningEnd },
+          },
+          select: {
+            storeId: true,
+            shiftTemplateId: true,
+            date: true,
+            requiredStaff: true,
+          },
+        }),
+        prisma.shiftAssignment.findMany({
+          where: {
+            storeId: { in: storeIds },
+            date: { gte: planningStart, lte: planningEnd },
+          },
+          select: {
+            id: true,
+            storeId: true,
+            shiftTemplateId: true,
+            date: true,
+            slotIndex: true,
+            employeeId: true,
+            isManual: true,
+          },
+        }),
+        prisma.shiftAssignment.findMany({
+          where: {
+            storeId: { in: activeStoreIds },
+            date: { gte: planningStart, lte: planningEnd },
+          },
+          select: {
+            id: true,
+            storeId: true,
+            shiftTemplateId: true,
+            date: true,
+            slotIndex: true,
+            employeeId: true,
+            shiftTemplate: {
+              select: {
+                id: true,
+                storeId: true,
+                name: true,
+                startTime: true,
+                endTime: true,
+                durationHours: true,
+                sortOrder: true,
+              },
+            },
+          },
+        }),
+        prisma.employee.findMany({
+          where: {
+            isActive: true,
+            stores: { some: { storeId: { in: storeIds } } },
+          },
+          select: {
+            id: true,
+            name: true,
+            maxShiftsPerMonth: true,
+            maxHoursPerMonth: true,
+            stores: { select: { storeId: true } },
+          },
+          orderBy: { name: "asc" },
+        }),
+      ]);
+
+    let slots = buildAssignmentSlots(
+      planningDates,
+      stores,
+      shifts,
+      rules,
+      overrides,
+      existing.map((e) => ({
+        id: e.id,
+        storeId: e.storeId,
+        shiftTemplateId: e.shiftTemplateId,
+        date: e.date,
+        slotIndex: e.slotIndex,
+        employeeId: e.employeeId,
+      }))
+    );
+
+    const slotKey = (
+      storeId: string,
+      shiftTemplateId: string,
+      date: Date,
+      slotIndex: number
+    ) => `${storeId}|${shiftTemplateId}|${formatDateOnly(date)}|${slotIndex}`;
+    const isTargetDate = (date: Date) => date >= start && date <= end;
+    const selectedSlotKeys = new Set(
+      slots.map((slot) => slotKey(slot.storeId, slot.shiftTemplateId, slot.date, slot.slotIndex))
+    );
+    const targetManualAssignments = new Map(
+      existing
+        .filter((assignment) => assignment.isManual && isTargetDate(assignment.date))
+        .map((assignment) => [
+          slotKey(
+            assignment.storeId,
+            assignment.shiftTemplateId,
+            assignment.date,
+            assignment.slotIndex
+          ),
+          assignment,
+        ])
+    );
+
+    for (const slot of slots) {
+      if (!isTargetDate(slot.date)) continue;
+
+      const key = slotKey(slot.storeId, slot.shiftTemplateId, slot.date, slot.slotIndex);
+      const manual = targetManualAssignments.get(key);
+
+      if (parsed.data.preserveManual && manual) {
         slot.employeeId = manual.employeeId;
         slot.assignmentId = manual.id;
+      } else {
+        slot.employeeId = null;
+        slot.assignmentId = undefined;
       }
     }
-  }
 
-  slots = autoAssignShifts(
-    slots,
-    employees.map((e) => ({
-      id: e.id,
-      name: e.name,
-      maxShiftsPerMonth: e.maxShiftsPerMonth,
-      maxHoursPerMonth: e.maxHoursPerMonth,
-      storeIds: e.stores.map((s) => s.storeId),
-    })),
-    shifts,
-    parsed.data.preserveManual
-  );
+    const contextAssignments: AssignmentRecord[] = contextExisting
+      .filter((assignment) => !selectedSlotKeys.has(
+        slotKey(
+          assignment.storeId,
+          assignment.shiftTemplateId,
+          assignment.date,
+          assignment.slotIndex
+        )
+      ))
+      .map((assignment) => ({
+        employeeId: assignment.employeeId,
+        storeId: assignment.storeId,
+        shiftTemplateId: assignment.shiftTemplateId,
+        date: assignment.date,
+        slotIndex: assignment.slotIndex,
+        shift: assignment.shiftTemplate,
+      }));
 
-  const manualKeys = new Set(
-    existing
-      .filter((e) => e.isManual)
-      .map(
-        (e) =>
-          `${e.storeId}|${e.shiftTemplateId}|${formatDateOnly(e.date)}|${e.slotIndex}`
-      )
-  );
+    slots = autoAssignShifts(
+      slots,
+      employees.map((e) => ({
+        id: e.id,
+        name: e.name,
+        maxShiftsPerMonth: e.maxShiftsPerMonth,
+        maxHoursPerMonth: e.maxHoursPerMonth,
+        storeIds: e.stores.map((s) => s.storeId),
+      })),
+      contextShifts,
+      {
+        preserveManual: true,
+        contextAssignments,
+      }
+    );
 
-  await prisma.shiftAssignment.deleteMany({
-    where: {
-      storeId: { in: storeIds },
-      date: { gte: start, lte: end },
-      isManual: false,
-    },
-  });
+    const manualKeys = new Set(
+      existing
+        .filter((assignment) => parsed.data.preserveManual && assignment.isManual && isTargetDate(assignment.date))
+        .map((assignment) =>
+          slotKey(
+            assignment.storeId,
+            assignment.shiftTemplateId,
+            assignment.date,
+            assignment.slotIndex
+          )
+        )
+    );
 
-  const toCreate = slots
-    .filter((slot) => slot.employeeId)
-    .filter((slot) => {
-      const key = `${slot.storeId}|${slot.shiftTemplateId}|${formatDateOnly(slot.date)}|${slot.slotIndex}`;
-      return !manualKeys.has(key);
-    })
-    .map((slot) => ({
-      storeId: slot.storeId,
-      shiftTemplateId: slot.shiftTemplateId,
-      date: slot.date,
-      slotIndex: slot.slotIndex,
-      employeeId: slot.employeeId!,
-      isManual: false,
-    }));
-
-  if (toCreate.length > 0) {
-    await prisma.shiftAssignment.createMany({
-      data: toCreate,
-      skipDuplicates: true,
+    await prisma.shiftAssignment.deleteMany({
+      where: {
+        storeId: { in: storeIds },
+        date: { gte: start, lte: end },
+        ...(parsed.data.preserveManual ? { isManual: false } : {}),
+      },
     });
-  }
 
-  const unfilled = findUnfilledShifts(slots, stores, shifts);
+    const targetSlots = slots.filter((slot) => isTargetDate(slot.date));
+    const toCreate = targetSlots
+      .filter((slot) => slot.employeeId)
+      .filter((slot) => {
+        const key = slotKey(slot.storeId, slot.shiftTemplateId, slot.date, slot.slotIndex);
+        return !manualKeys.has(key);
+      })
+      .map((slot) => ({
+        storeId: slot.storeId,
+        shiftTemplateId: slot.shiftTemplateId,
+        date: slot.date,
+        slotIndex: slot.slotIndex,
+        employeeId: slot.employeeId!,
+        isManual: false,
+      }));
 
-  return NextResponse.json({
-    success: true,
-    filled: slots.filter((s) => s.employeeId).length,
-    unfilled,
-    message:
-      unfilled.length > 0
-        ? `Còn ${unfilled.length} ca trống. Cần nhân viên làm thêm ca hoặc tuyển thêm nhân viên.`
-        : "Đã xếp ca thành công cho tất cả vị trí.",
-  });
+    if (toCreate.length > 0) {
+      await prisma.shiftAssignment.createMany({
+        data: toCreate,
+        skipDuplicates: true,
+      });
+    }
+
+    const unfilled = findUnfilledShifts(targetSlots, stores, shifts);
+
+    return NextResponse.json({
+      success: true,
+      filled: targetSlots.filter((s) => s.employeeId).length,
+      unfilled,
+      message:
+        unfilled.length > 0
+          ? `Còn ${unfilled.length} ca trống. Cần nhân viên làm thêm ca hoặc tuyển thêm nhân viên.`
+          : "Đã xếp ca thành công cho tất cả vị trí.",
+    });
   } catch (err) {
     console.error("POST /api/schedule error:", err);
     return NextResponse.json(
