@@ -90,14 +90,6 @@ npm run dev
 
 Mở [http://localhost:3000](http://localhost:3000)
 
-### Tài khoản demo (sau seed)
-
-| Vai trò | Email | Mật khẩu |
-|---------|-------|----------|
-| Admin | admin@apexflow.vn | admin123 |
-| Xếp ca | scheduler@apexflow.vn | scheduler123 |
-| Nhân viên | nhanvien1@apexflow.vn | employee123 |
-
 ## Deploy Vercel + Supabase
 
 Tai lieu deploy/update an toan: [docs/DEPLOY-PRODUCTION.md](/Users/nguyenthanhnam/Library/Mobile%20Documents/com~apple~CloudDocs/anti/ban-sao-quanlinhansu/docs/DEPLOY-PRODUCTION.md)
