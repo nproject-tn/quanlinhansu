@@ -839,6 +839,12 @@ export function ScheduleCalendar({
     if (onOptimisticUpdate) {
       onOptimisticUpdate(slot.storeId, slot.shiftTemplateId, slot.date, slot.slotIndex, employeeId);
     }
+    notify({
+      title: "Cập nhật thành công",
+      body: "Đã cập nhật ca",
+      tone: "success",
+      dedupeKey: `success-${Date.now()}-${Math.random()}`,
+    });
     setConflicts([]);
     setMessage(null);
     try {
@@ -971,6 +977,12 @@ export function ScheduleCalendar({
 
     setConflicts([]);
     setMessage(null);
+    notify({
+      title: "Cập nhật thành công",
+      body: "Đã cập nhật ca",
+      tone: "success",
+      dedupeKey: `success-${Date.now()}-${Math.random()}`,
+    });
 
     try {
       const result = await moveAssignment(sourceSlot, targetSlot);
