@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import useSWR from "swr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -78,7 +79,6 @@ function isSupportedLogoFile(file: File) {
 }
 
 export default function StoresPage() {
-  const [stores, setStores] = useState<Store[]>([]);
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
@@ -90,6 +90,15 @@ export default function StoresPage() {
   const [editName, setEditName] = useState("");
   const { notify } = useNotifications();
   const { confirm } = useConfirmDialog();
+
+  const fetcher = async (url: string) => {
+    const res = await fetch(url);
+    const data = await readJsonSafely<Store[]>(res, []);
+    if (!res.ok) throw new Error("Không tải được dữ liệu cửa hàng");
+    return data.filter((s: Store) => s.isActive);
+  };
+
+  const { data: stores = [], mutate: load, error } = useSWR("/api/stores", fetcher);
 
   useEffect(() => {
     if (!message) return;
@@ -103,20 +112,11 @@ export default function StoresPage() {
     setMessage(null);
   }, [message, notify]);
 
-  async function load() {
-    const res = await fetch("/api/stores", { cache: "no-store" });
-    const data = await readJsonSafely<Store[]>(res, []);
-    if (!res.ok) {
-      setMessage("Không tải được dữ liệu cửa hàng");
-      setStores([]);
-      return;
-    }
-    setStores(data.filter((s: Store) => s.isActive));
-  }
-
   useEffect(() => {
-    load();
-  }, []);
+    if (error) {
+      setMessage(error.message);
+    }
+  }, [error]);
 
   async function prepareLogoFile(file: File | null) {
     if (!file) return null;

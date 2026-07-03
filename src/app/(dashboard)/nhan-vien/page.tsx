@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useState } from "react";
+import useSWR from "swr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -97,14 +98,35 @@ async function readJsonSafely<T>(response: Response, fallback: T): Promise<T> {
 }
 
 export default function EmployeesPage() {
-  const [employees, setEmployees] = useState<Employee[]>([]);
+  const fetcher = async () => {
+    const [empRes, storeRes, shiftRes] = await Promise.all([
+      fetch("/api/employees"),
+      fetch("/api/stores?lean=1"),
+      fetch("/api/shift-templates"),
+    ]);
+    const empData = await readJsonSafely<Employee[]>(empRes, []);
+    const stores = await readJsonSafely<Store[]>(storeRes, []);
+    const shifts = await readJsonSafely<Array<{ durationHours: number }>>(shiftRes, []);
+    
+    let avgShiftHours = DEFAULT_SHIFT_HOURS;
+    if (shifts.length > 0) {
+      const avg = shifts.reduce((s: number, t: { durationHours: number }) => s + t.durationHours, 0) / shifts.length;
+      avgShiftHours = Math.round(avg * 10) / 10 || DEFAULT_SHIFT_HOURS;
+    }
+    return { employees: empData.filter(e => e.isActive), stores, avgShiftHours };
+  };
+
+  const { data: pageData, mutate: load } = useSWR("employees_page_data", fetcher);
+  const employees = pageData?.employees ?? [];
+  const stores = pageData?.stores ?? [];
+  const avgShiftHours = pageData?.avgShiftHours ?? DEFAULT_SHIFT_HOURS;
+
   const [monthlyHours, setMonthlyHours] = useState<EmployeeMonthlyHours[]>([]);
-  const [stores, setStores] = useState<Store[]>([]);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [currentRole, setCurrentRole] = useState<UserRole | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [avgShiftHours, setAvgShiftHours] = useState(DEFAULT_SHIFT_HOURS);
+
   const [lastEdited, setLastEdited] = useState<"shifts" | "hours" | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [hoursMonth, setHoursMonth] = useState(() => {
@@ -122,23 +144,7 @@ export default function EmployeesPage() {
   const { confirm } = useConfirmDialog();
   const canManageEmployees = currentRole === "ADMIN";
 
-  async function load() {
-    const [empRes, storeRes, shiftRes] = await Promise.all([
-      fetch("/api/employees"),
-      fetch("/api/stores?lean=1"),
-      fetch("/api/shift-templates"),
-    ]);
-    const empData = await readJsonSafely<Employee[]>(empRes, []);
-    setEmployees(empData.filter((e: Employee) => e.isActive));
-    setStores(await readJsonSafely<Store[]>(storeRes, []));
-    const shifts = await readJsonSafely<Array<{ durationHours: number }>>(shiftRes, []);
-    if (shifts.length > 0) {
-      const avg =
-        shifts.reduce((s: number, t: { durationHours: number }) => s + t.durationHours, 0) /
-        shifts.length;
-      setAvgShiftHours(Math.round(avg * 10) / 10 || DEFAULT_SHIFT_HOURS);
-    }
-  }
+
 
   async function loadMonthlyHours(month: string) {
     const res = await fetch(`/api/employees/monthly-hours?month=${month}`);
@@ -146,9 +152,6 @@ export default function EmployeesPage() {
     setMonthlyHours(data);
   }
 
-  useEffect(() => {
-    void load();
-  }, []);
 
   useEffect(() => {
     if (isInitialized && typeof window !== "undefined") {

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { format } from "date-fns";
+import { useEffect, useState, useRef, Fragment } from "react";
+import useSWR from "swr";
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -90,82 +91,52 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
     if (typeof window !== "undefined") return sessionStorage.getItem("schedule_selectedEmployeeId") || "";
     return "";
   });
-  const [data, setData] = useState<Record<string, unknown> | null>(null);
-  const [approvalRequests, setApprovalRequests] = useState<ApprovalRequest[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
+  const scheduleParams = new URLSearchParams({ mode, date: referenceDate });
+  if (storeId) scheduleParams.set("storeId", storeId);
+  const scheduleUrl = `/api/schedule?${scheduleParams.toString()}`;
+
+  const { data, mutate: mutateSchedule, isValidating: refreshingSchedule, error: scheduleErrorObj } = useSWR(scheduleUrl, async (url) => {
+    const res = await fetch(url);
+    const text = await res.text();
+    if (!res.ok) {
+      let errorMsg = "Không tải được lịch";
+      try {
+        const json = JSON.parse(text);
+        if (json.error) errorMsg = json.error;
+      } catch {}
+      throw new Error(errorMsg);
+    }
+    return JSON.parse(text);
+  });
+
+  const shouldLoadApprovals = user.role === "ADMIN" || user.role === "SCHEDULER";
+  const { data: approvalRequests = [], mutate: mutateApprovalRequests, isValidating: refreshingApprovals } = useSWR(
+    shouldLoadApprovals ? "/api/schedule/approval-requests" : null,
+    async (url) => {
+      const res = await fetch(url);
+      const text = await res.text();
+      if (!res.ok) return [];
+      if (!text.trim()) return [];
+      return JSON.parse(text);
+    }
+  );
+
+  const refreshing = refreshingSchedule || refreshingApprovals;
+
   const [generating, setGenerating] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmingApproval, setConfirmingApproval] = useState<ApprovalRequest | null>(null);
+
   const { notify } = useNotifications();
   
-  const scheduleHashRef = useRef<string>("");
-  const approvalsHashRef = useRef<string>("");
   const statusHashRef = useRef<{ assignments: string | null; requests: string | null }>({ assignments: null, requests: null });
 
   const canEdit = user.role === "ADMIN" || user.role === "SCHEDULER";
 
-  async function loadApprovalRequests(isBackground = false) {
-    if (user.role !== "ADMIN" && user.role !== "SCHEDULER") {
-      if (!isBackground) setApprovalRequests([]);
-      return;
-    }
-
-    const res = await fetch("/api/schedule/approval-requests");
-    if (!res.ok) {
-      if (!isBackground) setApprovalRequests([]);
-      return;
-    }
-
-    const text = await res.text();
-    if (!text.trim()) {
-      if (!isBackground) setApprovalRequests([]);
-      return;
-    }
-
-    if (text !== approvalsHashRef.current) {
-      approvalsHashRef.current = text;
-      try {
-        setApprovalRequests(JSON.parse(text));
-      } catch {}
-    }
-  }
-
-  async function loadSchedule(isBackground = false) {
-    if (!isBackground) {
-      setRefreshing(true);
-      setError(null);
-    }
-    try {
-      const params = new URLSearchParams({ mode, date: referenceDate });
-      if (storeId) params.set("storeId", storeId);
-      const res = await fetch(`/api/schedule?${params}`);
-      const text = await res.text();
-
-      if (!res.ok) {
-        if (!isBackground) {
-          let errorMsg = "Không tải được lịch";
-          try {
-            const json = JSON.parse(text);
-            if (json.error) errorMsg = json.error;
-          } catch {}
-          setError(errorMsg);
-        }
-        return;
-      }
-
-      if (text !== scheduleHashRef.current) {
-        scheduleHashRef.current = text;
-        try {
-          setData(JSON.parse(text));
-        } catch {}
-      }
-    } catch {
-      if (!isBackground) setError("Không kết nối được server");
-    } finally {
-      if (!isBackground) setRefreshing(false);
-    }
-  }
+  useEffect(() => {
+    if (scheduleErrorObj) setError(scheduleErrorObj.message);
+  }, [scheduleErrorObj]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -176,16 +147,6 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
       sessionStorage.setItem("schedule_selectedEmployeeId", selectedEmployeeId);
     }
   }, [mode, layoutMode, referenceDate, storeId, selectedEmployeeId]);
-
-  useEffect(() => {
-    void loadSchedule();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, referenceDate, storeId]);
-
-  useEffect(() => {
-    void loadApprovalRequests();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user.role]);
 
   useEffect(() => {
     const interval = setInterval(async () => {
@@ -210,8 +171,8 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
           statusHashRef.current.requests = status.requests;
         }
 
-        if (shouldReloadSchedule) void loadSchedule(true);
-        if (shouldReloadRequests) void loadApprovalRequests(true);
+        if (shouldReloadSchedule) void mutateSchedule();
+        if (shouldReloadRequests) void mutateApprovalRequests();
       } catch (err) {}
     }, 2000);
 
@@ -227,8 +188,30 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
   ]);
 
   async function refreshScheduleAndApprovals() {
-    await loadSchedule();
-    await loadApprovalRequests();
+    await mutateSchedule();
+    await mutateApprovalRequests();
+  }
+
+  function handleOptimisticUpdate(storeId: string, shiftTemplateId: string, date: string, slotIndex: number, employeeId: string | null) {
+    if (!data || !Array.isArray(data.slots)) return;
+    mutateSchedule((prevData: any) => {
+      if (!prevData || !Array.isArray(prevData.slots)) return prevData;
+      return {
+        ...prevData,
+        slots: prevData.slots.map((slot: any) => {
+          const slotDateStr = typeof slot.date === "string" ? slot.date.split("T")[0] : formatDateOnly(new Date(slot.date));
+          if (
+            slot.storeId === storeId &&
+            slot.shiftTemplateId === shiftTemplateId &&
+            slotDateStr === date &&
+            slot.slotIndex === slotIndex
+          ) {
+            return { ...slot, employeeId };
+          }
+          return slot;
+        }),
+      };
+    }, false);
   }
 
   async function decideApproval(requestId: string, action: "APPROVE" | "REJECT") {
@@ -728,6 +711,7 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
         canEdit={canEdit && !generating}
         isAdmin={user.role === "ADMIN"}
         onRefresh={refreshScheduleAndApprovals}
+        onOptimisticUpdate={handleOptimisticUpdate}
       />
     </div>
   );

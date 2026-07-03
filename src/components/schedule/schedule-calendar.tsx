@@ -76,6 +76,7 @@ type ScheduleCalendarProps = {
   canEdit: boolean;
   isAdmin?: boolean;
   onRefresh: () => void;
+  onOptimisticUpdate?: (storeId: string, shiftTemplateId: string, date: string, slotIndex: number, employeeId: string | null) => void;
 };
 
 function slotKey(slot: Pick<Slot, "storeId" | "shiftTemplateId" | "date" | "slotIndex">) {
@@ -550,6 +551,7 @@ export function ScheduleCalendar({
   canEdit,
   isAdmin,
   onRefresh,
+  onOptimisticUpdate,
 }: ScheduleCalendarProps) {
   const [activeSlot, setActiveSlot] = useState<Slot | null>(null);
   const [conflicts, setConflicts] = useState<ScheduleConflict[]>([]);
@@ -776,6 +778,9 @@ export function ScheduleCalendar({
     employeeId: string | null,
     confirmOverCapacity = false
   ) {
+    if (onOptimisticUpdate) {
+      onOptimisticUpdate(slot.storeId, slot.shiftTemplateId, slot.date, slot.slotIndex, employeeId);
+    }
     setLoading(true);
     setConflicts([]);
     setMessage(null);
@@ -797,6 +802,9 @@ export function ScheduleCalendar({
       const data = await res.json().catch(() => ({}));
 
       if (res.status === 409 && data.requiresConfirmation) {
+        if (onOptimisticUpdate) {
+          onOptimisticUpdate(slot.storeId, slot.shiftTemplateId, slot.date, slot.slotIndex, slot.employeeId);
+        }
         setPendingRequest({
           title: "Xác nhận yêu cầu xếp ca",
           description: typeof data.error === "string" ? data.error : "Vượt giới hạn xếp ca",
@@ -814,6 +822,9 @@ export function ScheduleCalendar({
       }
 
       if (!res.ok) {
+        if (onOptimisticUpdate) {
+          onOptimisticUpdate(slot.storeId, slot.shiftTemplateId, slot.date, slot.slotIndex, slot.employeeId);
+        }
         setConflicts(data.conflicts ?? []);
         setMessageType("error");
         setMessage(typeof data.error === "string" ? data.error : "Không thể cập nhật ca");
@@ -823,6 +834,10 @@ export function ScheduleCalendar({
       setMessageType("success");
       setMessage(data.message ?? "Đã cập nhật ca");
       await onRefresh();
+    } catch (err) {
+      if (onOptimisticUpdate) {
+        onOptimisticUpdate(slot.storeId, slot.shiftTemplateId, slot.date, slot.slotIndex, slot.employeeId);
+      }
     } finally {
       setLoading(false);
     }
@@ -863,6 +878,11 @@ export function ScheduleCalendar({
     if (!sourceSlot?.employeeId || !targetSlot) return;
     if (slotKey(sourceSlot) === slotKey(targetSlot)) return;
 
+    if (onOptimisticUpdate) {
+      onOptimisticUpdate(sourceSlot.storeId, sourceSlot.shiftTemplateId, sourceSlot.date, sourceSlot.slotIndex, null);
+      onOptimisticUpdate(targetSlot.storeId, targetSlot.shiftTemplateId, targetSlot.date, targetSlot.slotIndex, sourceSlot.employeeId);
+    }
+
     setLoading(true);
     setConflicts([]);
     setMessage(null);
@@ -871,16 +891,28 @@ export function ScheduleCalendar({
       const result = await moveAssignment(sourceSlot, targetSlot);
 
       if (result.data?.requiresConfirmation) {
+        if (onOptimisticUpdate) {
+          onOptimisticUpdate(sourceSlot.storeId, sourceSlot.shiftTemplateId, sourceSlot.date, sourceSlot.slotIndex, sourceSlot.employeeId);
+          onOptimisticUpdate(targetSlot.storeId, targetSlot.shiftTemplateId, targetSlot.date, targetSlot.slotIndex, targetSlot.employeeId);
+        }
         setPendingRequest({
           title: "Xác nhận yêu cầu đổi ca",
           description: typeof result.data.error === "string" ? result.data.error : "Vượt giới hạn đổi ca",
           conflicts: result.data.conflicts ?? [],
           onConfirm: async () => {
+            if (onOptimisticUpdate) {
+              onOptimisticUpdate(sourceSlot.storeId, sourceSlot.shiftTemplateId, sourceSlot.date, sourceSlot.slotIndex, null);
+              onOptimisticUpdate(targetSlot.storeId, targetSlot.shiftTemplateId, targetSlot.date, targetSlot.slotIndex, sourceSlot.employeeId);
+            }
             setPendingRequest(null);
             setLoading(true);
             const confirmed = await moveAssignment(sourceSlot, targetSlot, true);
             setLoading(false);
             if (!confirmed.ok) {
+              if (onOptimisticUpdate) {
+                onOptimisticUpdate(sourceSlot.storeId, sourceSlot.shiftTemplateId, sourceSlot.date, sourceSlot.slotIndex, sourceSlot.employeeId);
+                onOptimisticUpdate(targetSlot.storeId, targetSlot.shiftTemplateId, targetSlot.date, targetSlot.slotIndex, targetSlot.employeeId);
+              }
               setConflicts(confirmed.data.conflicts ?? []);
               setMessageType("error");
               setMessage(confirmed.data.error ?? "Không thể đổi ca");
@@ -899,6 +931,10 @@ export function ScheduleCalendar({
       }
 
       if (!result.ok) {
+        if (onOptimisticUpdate) {
+          onOptimisticUpdate(sourceSlot.storeId, sourceSlot.shiftTemplateId, sourceSlot.date, sourceSlot.slotIndex, sourceSlot.employeeId);
+          onOptimisticUpdate(targetSlot.storeId, targetSlot.shiftTemplateId, targetSlot.date, targetSlot.slotIndex, targetSlot.employeeId);
+        }
         setConflicts(result.data.conflicts ?? []);
         setMessageType("error");
         setMessage(result.data.error ?? "Không thể đổi ca");
@@ -908,6 +944,11 @@ export function ScheduleCalendar({
       setMessageType("success");
       setMessage(result.data.message ?? "Đã cập nhật ca");
       await onRefresh();
+    } catch {
+      if (onOptimisticUpdate) {
+        onOptimisticUpdate(sourceSlot.storeId, sourceSlot.shiftTemplateId, sourceSlot.date, sourceSlot.slotIndex, sourceSlot.employeeId);
+        onOptimisticUpdate(targetSlot.storeId, targetSlot.shiftTemplateId, targetSlot.date, targetSlot.slotIndex, targetSlot.employeeId);
+      }
     } finally {
       setLoading(false);
     }

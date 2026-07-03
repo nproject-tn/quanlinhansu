@@ -16,15 +16,15 @@ export default async function DashboardLayout({
   return (
     <div className="relative flex min-h-screen gap-4 bg-slate-50 p-4">
       <Sidebar user={session.user} />
-      <main className="flex flex-1 flex-col overflow-y-auto">
+      <main className="flex flex-1 flex-col pb-8">
         <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col">
           <ApprovalRequestWatcher enabled={session.user.role === "ADMIN"} />
-          <div className="flex-1 pb-10">{children}</div>
+          <div className="flex-1">{children}</div>
         </div>
-        <footer className="mt-auto w-full pb-4 pt-10 pr-[17rem] text-center text-sm text-slate-500">
-          © 2026 Tokyolife by ApexFlow
-        </footer>
       </main>
+      <footer className="absolute bottom-4 left-0 w-full pointer-events-none text-center text-sm text-slate-500">
+        © 2026 Tokyolife by ApexFlow
+      </footer>
     </div>
   );
 }
