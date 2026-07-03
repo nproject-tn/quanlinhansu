@@ -107,7 +107,7 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
       throw new Error(errorMsg);
     }
     return JSON.parse(text);
-  });
+  }, { revalidateOnFocus: false });
 
   const shouldLoadApprovals = user.role === "ADMIN" || user.role === "SCHEDULER";
   const { data: approvalRequests = [], mutate: mutateApprovalRequests, isValidating: refreshingApprovals } = useSWR<ApprovalRequest[]>(
@@ -118,7 +118,8 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
       if (!res.ok) return [];
       if (!text.trim()) return [];
       return JSON.parse(text);
-    }
+    },
+    { revalidateOnFocus: false }
   );
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -697,7 +698,6 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
         </div>
       )}
 
-      {refreshing && <p className="text-center text-sm text-slate-500">Đang cập nhật lịch...</p>}
 
       <ScheduleCalendar
         stores={stores}
