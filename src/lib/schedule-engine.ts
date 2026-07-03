@@ -48,30 +48,65 @@ export function parseTimeToMinutes(time: string): number {
   return h * 60 + m;
 }
 
-export function timesOverlap(
+export function checkIntervalOverlap(
+  dateA: Date,
   startA: string,
   endA: string,
+  dateB: Date,
   startB: string,
   endB: string
 ): boolean {
-  const buildVariants = (start: string, end: string) => {
-    const startMinutes = parseTimeToMinutes(start);
-    const endMinutes = parseTimeToMinutes(end);
-    const normalizedEnd =
-      endMinutes <= startMinutes ? endMinutes + 24 * 60 : endMinutes;
+  const baseA = Math.floor(dateA.getTime() / 60000);
+  const startAMins = baseA + parseTimeToMinutes(startA);
+  const durationA = parseTimeToMinutes(endA) - parseTimeToMinutes(startA);
+  const endAMins = startAMins + (durationA < 0 ? durationA + 24 * 60 : durationA);
 
-    return [
-      [startMinutes, normalizedEnd],
-      [startMinutes + 24 * 60, normalizedEnd + 24 * 60],
-    ] as const;
-  };
+  const baseB = Math.floor(dateB.getTime() / 60000);
+  const startBMins = baseB + parseTimeToMinutes(startB);
+  const durationB = parseTimeToMinutes(endB) - parseTimeToMinutes(startB);
+  const endBMins = startBMins + (durationB < 0 ? durationB + 24 * 60 : durationB);
 
-  const aVariants = buildVariants(startA, endA);
-  const bVariants = buildVariants(startB, endB);
+  return Math.max(startAMins, startBMins) < Math.min(endAMins, endBMins);
+}
 
-  return aVariants.some(([aStart, aEnd]) =>
-    bVariants.some(([bStart, bEnd]) => aStart < bEnd && bStart < aEnd)
-  );
+export function calculateTotalMonthlyHours(
+  assignments: { date: Date; shift: { startTime: string; endTime: string } }[]
+): number {
+  if (assignments.length === 0) return 0;
+
+  const byDay = new Map<number, { start: number; end: number }[]>();
+  
+  for (const a of assignments) {
+    const base = Math.floor(a.date.getTime() / 60000);
+    const startMins = base + parseTimeToMinutes(a.shift.startTime);
+    const duration = parseTimeToMinutes(a.shift.endTime) - parseTimeToMinutes(a.shift.startTime);
+    const endMins = startMins + (duration < 0 ? duration + 24 * 60 : duration);
+    
+    const dayKey = Math.floor(base / (24 * 60));
+    if (!byDay.has(dayKey)) byDay.set(dayKey, []);
+    byDay.get(dayKey)!.push({ start: startMins, end: endMins });
+  }
+
+  let totalMinutes = 0;
+  for (const intervals of byDay.values()) {
+    intervals.sort((a, b) => a.start - b.start);
+    
+    let currentStart = intervals[0].start;
+    let currentEnd = intervals[0].end;
+    
+    for (let i = 1; i < intervals.length; i++) {
+      if (intervals[i].start <= currentEnd) {
+        currentEnd = Math.max(currentEnd, intervals[i].end);
+      } else {
+        totalMinutes += (currentEnd - currentStart);
+        currentStart = intervals[i].start;
+        currentEnd = intervals[i].end;
+      }
+    }
+    totalMinutes += (currentEnd - currentStart);
+  }
+
+  return totalMinutes / 60;
 }
 
 export function getDateRange(
@@ -441,10 +476,7 @@ function scoreCandidate(
   ).length;
   const overPaceShifts = Math.max(0, monthShiftsThroughDate + 1 - monthPaceLimit);
 
-  const monthHours = employeeMonthAssignments.reduce(
-    (sum, a) => sum + a.shift.durationHours,
-    0
-  );
+  const monthHours = calculateTotalMonthlyHours(employeeMonthAssignments);
 
   const weekShifts = assigned.filter(
     (a) => {
@@ -593,32 +625,24 @@ export function validateAssignment(
     ) {
       continue;
     }
-    if (
-      !(existing.storeId === storeId && existing.shiftTemplateId === shiftTemplateId) &&
-      sameShiftPosition(targetShift, existing.shiftTemplate)
-    ) {
-      conflicts.push({
-        type: "OVERLAP",
-        message: `Nhân viên đã làm ${existing.shiftTemplate.name} trong ngày này, không thể xếp thêm ${targetShift.name} ở cửa hàng khác`,
-        employeeId,
-        date: dateStr,
-      });
-      continue;
-    }
-    if (
-      timesOverlap(
-        targetShift.startTime,
-        targetShift.endTime,
-        existing.shiftTemplate.startTime,
-        existing.shiftTemplate.endTime
-      )
-    ) {
-      conflicts.push({
-        type: "OVERLAP",
-        message: `Trùng giờ với ca ${existing.shiftTemplate.name} tại cửa hàng khác hoặc cùng ngày`,
-        employeeId,
-        date: dateStr,
-      });
+    if (existing.storeId !== storeId) {
+      if (
+        checkIntervalOverlap(
+          date,
+          targetShift.startTime,
+          targetShift.endTime,
+          existing.date,
+          existing.shiftTemplate.startTime,
+          existing.shiftTemplate.endTime
+        )
+      ) {
+        conflicts.push({
+          type: "OVERLAP",
+          message: `Trùng giờ với ca ${existing.shiftTemplate.name} tại cửa hàng khác`,
+          employeeId,
+          date: dateStr,
+        });
+      }
     }
   }
 
@@ -666,15 +690,18 @@ export function validateAssignment(
       });
     }
 
-    const monthHours = allAssignments
-      .filter(
-        (a) =>
-          a.employeeId === employeeId &&
-          getUtcMonthKey(a.date) === getUtcMonthKey(date)
-      )
-      .reduce((sum, a) => sum + a.shiftTemplate.durationHours, 0);
+    const monthHours = calculateTotalMonthlyHours(
+      allAssignments
+        .filter(
+          (a) =>
+            a.employeeId === employeeId &&
+            getUtcMonthKey(a.date) === getUtcMonthKey(date)
+        )
+        .map(a => ({ date: a.date, shift: { startTime: a.shiftTemplate.startTime, endTime: a.shiftTemplate.endTime } }))
+    );
 
-    const newTotalHours = monthHours + targetShift.durationHours;
+    const newTotalHours = monthHours + targetShift.durationHours; // This is a rough estimate for optimistic validation, real calculation is below
+
     if (newTotalHours > employee.maxHoursPerMonth) {
       const exceededHours = newTotalHours - employee.maxHoursPerMonth;
       conflicts.push({

@@ -2,7 +2,7 @@ import { format } from "date-fns";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/api-auth";
-import { getDateRange } from "@/lib/schedule-engine";
+import { getDateRange, calculateTotalMonthlyHours } from "@/lib/schedule-engine";
 import { parseDateOnly } from "@/lib/utils";
 
 export async function GET(request: Request) {
@@ -32,9 +32,12 @@ export async function GET(request: Request) {
       },
       select: {
         employeeId: true,
+        date: true,
         shiftTemplate: {
           select: {
             durationHours: true,
+            startTime: true,
+            endTime: true,
           },
         },
       },
@@ -42,6 +45,21 @@ export async function GET(request: Request) {
   ]);
 
   const totals = new Map<string, { actualHours: number; actualShifts: number }>();
+
+  const assignmentsByEmployee = new Map<string, any[]>();
+  for (const assignment of assignments) {
+    if (!assignment.employeeId) continue;
+    if (!assignmentsByEmployee.has(assignment.employeeId)) {
+      assignmentsByEmployee.set(assignment.employeeId, []);
+    }
+    assignmentsByEmployee.get(assignment.employeeId)!.push({
+      date: assignment.date,
+      shift: {
+        startTime: assignment.shiftTemplate.startTime,
+        endTime: assignment.shiftTemplate.endTime,
+      }
+    });
+  }
 
   for (const assignment of assignments) {
     if (!assignment.employeeId) continue;
@@ -51,7 +69,9 @@ export async function GET(request: Request) {
       actualShifts: 0,
     };
 
-    current.actualHours += assignment.shiftTemplate.durationHours;
+    if (current.actualShifts === 0) {
+      current.actualHours = calculateTotalMonthlyHours(assignmentsByEmployee.get(assignment.employeeId) || []);
+    }
     current.actualShifts += 1;
     totals.set(assignment.employeeId, current);
   }
