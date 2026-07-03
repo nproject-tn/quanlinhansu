@@ -95,7 +95,7 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
   if (storeId) scheduleParams.set("storeId", storeId);
   const scheduleUrl = `/api/schedule?${scheduleParams.toString()}`;
 
-  const { data, mutate: mutateSchedule, isValidating: refreshingSchedule, error: scheduleErrorObj } = useSWR(scheduleUrl, async (url) => {
+  const { data, mutate: mutateSchedule, isValidating: refreshingSchedule, error: scheduleErrorObj } = useSWR<Record<string, any>>(scheduleUrl, async (url: string) => {
     const res = await fetch(url);
     const text = await res.text();
     if (!res.ok) {
@@ -110,9 +110,9 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
   });
 
   const shouldLoadApprovals = user.role === "ADMIN" || user.role === "SCHEDULER";
-  const { data: approvalRequests = [], mutate: mutateApprovalRequests, isValidating: refreshingApprovals } = useSWR(
+  const { data: approvalRequests = [], mutate: mutateApprovalRequests, isValidating: refreshingApprovals } = useSWR<ApprovalRequest[]>(
     shouldLoadApprovals ? "/api/schedule/approval-requests" : null,
-    async (url) => {
+    async (url: string) => {
       const res = await fetch(url);
       const text = await res.text();
       if (!res.ok) return [];
@@ -121,7 +121,8 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
     }
   );
 
-  const refreshing = refreshingSchedule || refreshingApprovals;
+  const [isProcessing, setIsProcessing] = useState(false);
+  const refreshing = refreshingSchedule || refreshingApprovals || isProcessing;
 
   const [generating, setGenerating] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -215,7 +216,7 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
   }
 
   async function decideApproval(requestId: string, action: "APPROVE" | "REJECT") {
-    setRefreshing(true);
+    setIsProcessing(true);
     setError(null);
     try {
       const res = await fetch(`/api/schedule/approval-requests/${requestId}`, {
@@ -239,12 +240,12 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
     } catch {
       setError("Không kết nối được server");
     } finally {
-      setRefreshing(false);
+      setIsProcessing(false);
     }
   }
 
   async function cancelRequest(requestId: string) {
-    setRefreshing(true);
+    setIsProcessing(true);
     setError(null);
     try {
       const res = await fetch(`/api/schedule/approval-requests/${requestId}`, {
@@ -265,7 +266,7 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
     } catch {
       setError("Không kết nối được server");
     } finally {
-      setRefreshing(false);
+      setIsProcessing(false);
     }
   }
 
