@@ -1047,6 +1047,18 @@ export function ScheduleCalendar({
         return;
       }
 
+      if (result.data?.pendingApproval) {
+        if (onOptimisticUpdate) {
+          onOptimisticUpdate(sourceSlot.storeId, sourceSlot.shiftTemplateId, sourceSlot.date, sourceSlot.slotIndex, sourceSlot.employeeId);
+          onOptimisticUpdate(targetSlot.storeId, targetSlot.shiftTemplateId, targetSlot.date, targetSlot.slotIndex, targetSlot.employeeId);
+        }
+        notify({
+          title: "Chờ xác nhận",
+          body: result.data.message || "Đã gửi yêu cầu xác nhận",
+          tone: "success",
+        });
+      }
+
       // Removing success toast to avoid notification delay noise during optimistic updates
       await onRefresh();
     } catch (err) {
