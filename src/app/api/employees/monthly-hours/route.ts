@@ -5,6 +5,8 @@ import { requireAuth } from "@/lib/api-auth";
 import { getDateRange, calculateTotalMonthlyHours } from "@/lib/schedule-engine";
 import { parseDateOnly } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: Request) {
   const { error } = await requireAuth(["ADMIN", "SCHEDULER"]);
   if (error) return error;

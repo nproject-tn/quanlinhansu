@@ -14,6 +14,8 @@ import { formatDateOnly, parseDateOnly } from "@/lib/utils";
 import { isMissingStoreLogoColumn } from "@/lib/store-logo-fallback";
 import { scheduleGenerateSchema } from "@/lib/validations";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: Request) {
   try {
     const { session, error } = await requireAuth();
