@@ -3,6 +3,7 @@
 import {
   Fragment,
   useEffect,
+  useCallback,
   useMemo,
   useRef,
   useState,
@@ -325,6 +326,7 @@ function CompactSlotGroup({
   employees,
   canEdit,
   loading,
+  flashSlots,
   onAssign,
   onClear,
 }: {
@@ -335,6 +337,7 @@ function CompactSlotGroup({
   employees: Employee[];
   canEdit: boolean;
   loading: boolean;
+  flashSlots: Map<string, "success" | "error">;
   onAssign: (slot: Slot, employeeId: string) => Promise<void>;
   onClear: (slot: Slot) => Promise<void>;
 }) {
@@ -383,6 +386,7 @@ function CompactSlotGroup({
                   employee={employee}
                   canEdit={canEdit}
                   loading={loading}
+                  flash={flashSlots.get(slotKey(slot))}
                   onClear={() => onClear(slot)}
                 />
               );
@@ -404,6 +408,7 @@ function CompactSlotGroup({
               employees={availableEmployees}
               loading={loading}
               canEdit={canEdit}
+              flash={flashSlots.get(slotKey(slot))}
               onAssign={(employeeId) => onAssign(slot, employeeId)}
             />
           ))}
@@ -433,6 +438,7 @@ function CompactAssignedSlotRow({
   employee,
   canEdit,
   loading,
+  flash,
   onClear,
 }: {
   slot: Slot;
@@ -440,6 +446,7 @@ function CompactAssignedSlotRow({
   employee: Employee;
   canEdit: boolean;
   loading: boolean;
+  flash?: "success" | "error";
   onClear: () => Promise<void>;
 }) {
   const key = slotKey(slot);
@@ -458,9 +465,11 @@ function CompactAssignedSlotRow({
     <div
       ref={setDropRef}
       className={cn(
-        "flex items-center justify-between gap-2 rounded-md px-1 py-0.5 transition-colors",
+        "flex items-center justify-between gap-2 rounded-md px-1 py-0.5 transition-all duration-300",
         isOver && "ring-2 ring-blue-400",
-        isDragging && "opacity-40"
+        isDragging && "opacity-40",
+        flash === "success" && "bg-green-100 text-green-900 ring-1 ring-green-400",
+        flash === "error" && "bg-rose-100 text-rose-900 ring-1 ring-rose-400"
       )}
     >
       <p className="font-semibold text-slate-900">{employee.name}</p>
@@ -496,12 +505,14 @@ function CompactEmptySlotDropZone({
   employees,
   loading,
   canEdit,
+  flash,
   onAssign,
 }: {
   slot: Slot;
   employees: Employee[];
   loading: boolean;
   canEdit: boolean;
+  flash?: "success" | "error";
   onAssign: (employeeId: string) => Promise<void>;
 }) {
   const key = slotKey(slot);
@@ -515,8 +526,10 @@ function CompactEmptySlotDropZone({
     <div
       ref={setNodeRef}
       className={cn(
-        "rounded-lg transition-colors",
-        isOver && "ring-2 ring-blue-400"
+        "rounded-lg transition-all duration-300",
+        isOver && "ring-2 ring-blue-400",
+        flash === "success" && "ring-2 ring-green-400",
+        flash === "error" && "ring-2 ring-rose-400"
       )}
     >
       <Select
@@ -586,8 +599,24 @@ export function ScheduleCalendar({
   const [plannerContentWidth, setPlannerContentWidth] = useState(0);
   const [plannerViewportWidth, setPlannerViewportWidth] = useState(0);
   const [plannerScrollLeft, setPlannerScrollLeft] = useState(0);
+  const [flashSlots, setFlashSlots] = useState<Map<string, "success" | "error">>(new Map());
   const { notify } = useNotifications();
   const { confirm } = useConfirmDialog();
+
+  const triggerFlash = useCallback((ids: string[], type: "success" | "error") => {
+    setFlashSlots(prev => {
+      const next = new Map(prev);
+      ids.forEach(id => next.set(id, type));
+      return next;
+    });
+    setTimeout(() => {
+      setFlashSlots(prev => {
+        const next = new Map(prev);
+        ids.forEach(id => next.delete(id));
+        return next;
+      });
+    }, 1200);
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -960,18 +989,22 @@ export function ScheduleCalendar({
     if (!sourceSlot?.employeeId || !targetSlot) return;
     if (slotKey(sourceSlot) === slotKey(targetSlot)) return;
 
-    const conflicts = checkClientConflicts(targetSlot, sourceSlot.employeeId, sourceSlot);
-    if (conflicts.length > 0) {
-      const hardConflicts = conflicts.filter((c) => c.type !== "MAX_HOURS" && c.type !== "MAX_SHIFTS");
-      if (hardConflicts.length > 0) {
-        notify({
-          title: "Không thể đổi ca",
-          body: hardConflicts[0].message,
-          tone: "error",
-          dedupeKey: `error-${Date.now()}`,
-        });
-        return;
-      }
+    const conflictsA = checkClientConflicts(targetSlot, sourceSlot.employeeId, sourceSlot);
+    const conflictsB = targetSlot.employeeId ? checkClientConflicts(sourceSlot, targetSlot.employeeId, targetSlot) : [];
+
+    const hardConflictsA = conflictsA.filter((c) => c.type !== "MAX_HOURS" && c.type !== "MAX_SHIFTS");
+    const hardConflictsB = conflictsB.filter((c) => c.type !== "MAX_HOURS" && c.type !== "MAX_SHIFTS");
+
+    if (hardConflictsA.length > 0 || hardConflictsB.length > 0) {
+      const msg = hardConflictsA.length > 0 ? hardConflictsA[0].message : hardConflictsB[0].message;
+      notify({
+        title: "Không thể đổi ca",
+        body: msg,
+        tone: "error",
+        dedupeKey: `error-${Date.now()}`,
+      });
+      triggerFlash([slotKey(sourceSlot), slotKey(targetSlot)], "error");
+      return;
     }
 
     if (onOptimisticUpdate) {
@@ -994,6 +1027,8 @@ export function ScheduleCalendar({
     });
 
     try {
+      triggerFlash([slotKey(sourceSlot), slotKey(targetSlot)], "success");
+
       const result = await moveAssignment(sourceSlot, targetSlot, true);
 
       if (!result.ok) {
@@ -1008,6 +1043,7 @@ export function ScheduleCalendar({
           tone: "error",
           dedupeKey: `error-${Date.now()}`,
         });
+        triggerFlash([slotKey(sourceSlot), slotKey(targetSlot)], "error");
         return;
       }
 
@@ -1018,6 +1054,7 @@ export function ScheduleCalendar({
         onOptimisticUpdate(sourceSlot.storeId, sourceSlot.shiftTemplateId, sourceSlot.date, sourceSlot.slotIndex, sourceSlot.employeeId);
         onOptimisticUpdate(targetSlot.storeId, targetSlot.shiftTemplateId, targetSlot.date, targetSlot.slotIndex, targetSlot.employeeId);
       }
+      triggerFlash([slotKey(sourceSlot), slotKey(targetSlot)], "error");
     }
   }
 
@@ -1316,6 +1353,7 @@ export function ScheduleCalendar({
                                         employees={eligibleEmployeesByStore.get(store.id) ?? []}
                                         canEdit={canEdit}
                                         loading={loading}
+                                        flashSlots={flashSlots}
                                         onAssign={(slot, id) => assignEmployee(slot, id)}
                                         onClear={(slot) => assignEmployee(slot, null)}
                                       />
@@ -1432,6 +1470,7 @@ export function ScheduleCalendar({
                                   employees={eligibleEmployeesByStore.get(store.id) ?? []}
                                   canEdit={canEdit}
                                   loading={loading}
+                                  flashSlots={flashSlots}
                                   onAssign={(slot, id) => assignEmployee(slot, id)}
                                   onClear={(slot) => assignEmployee(slot, null)}
                                 />,
