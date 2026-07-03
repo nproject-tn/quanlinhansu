@@ -781,7 +781,6 @@ export function ScheduleCalendar({
     if (onOptimisticUpdate) {
       onOptimisticUpdate(slot.storeId, slot.shiftTemplateId, slot.date, slot.slotIndex, employeeId);
     }
-    setLoading(true);
     setConflicts([]);
     setMessage(null);
     try {
@@ -838,8 +837,6 @@ export function ScheduleCalendar({
       if (onOptimisticUpdate) {
         onOptimisticUpdate(slot.storeId, slot.shiftTemplateId, slot.date, slot.slotIndex, slot.employeeId);
       }
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -883,7 +880,6 @@ export function ScheduleCalendar({
       onOptimisticUpdate(targetSlot.storeId, targetSlot.shiftTemplateId, targetSlot.date, targetSlot.slotIndex, sourceSlot.employeeId);
     }
 
-    setLoading(true);
     setConflicts([]);
     setMessage(null);
 
@@ -905,9 +901,7 @@ export function ScheduleCalendar({
               onOptimisticUpdate(targetSlot.storeId, targetSlot.shiftTemplateId, targetSlot.date, targetSlot.slotIndex, sourceSlot.employeeId);
             }
             setPendingRequest(null);
-            setLoading(true);
             const confirmed = await moveAssignment(sourceSlot, targetSlot, true);
-            setLoading(false);
             if (!confirmed.ok) {
               if (onOptimisticUpdate) {
                 onOptimisticUpdate(sourceSlot.storeId, sourceSlot.shiftTemplateId, sourceSlot.date, sourceSlot.slotIndex, sourceSlot.employeeId);
@@ -944,13 +938,11 @@ export function ScheduleCalendar({
       setMessageType("success");
       setMessage(result.data.message ?? "Đã cập nhật ca");
       await onRefresh();
-    } catch {
+    } catch (err) {
       if (onOptimisticUpdate) {
         onOptimisticUpdate(sourceSlot.storeId, sourceSlot.shiftTemplateId, sourceSlot.date, sourceSlot.slotIndex, sourceSlot.employeeId);
         onOptimisticUpdate(targetSlot.storeId, targetSlot.shiftTemplateId, targetSlot.date, targetSlot.slotIndex, targetSlot.employeeId);
       }
-    } finally {
-      setLoading(false);
     }
   }
 
