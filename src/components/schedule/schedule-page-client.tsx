@@ -325,6 +325,8 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
     name: string;
     position: string;
     storeIds?: string[];
+    maxShiftsPerMonth?: number;
+    maxHoursPerMonth?: number;
   }>(data?.employees);
 
   useEffect(() => {
@@ -374,6 +376,7 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
     startTime: string;
     endTime: string;
     sortOrder: number;
+    durationHours: number;
   }>(data.shifts);
   const slots = ensureArray<{
     storeId: string;

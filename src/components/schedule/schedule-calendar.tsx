@@ -29,14 +29,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useConfirmDialog } from "@/components/confirm/confirm-dialog-provider";
 import { useNotifications } from "@/components/notifications/notification-center";
 import { getDayNoteColor } from "@/lib/day-note-colors";
-import { cn } from "@/lib/utils";
-import type { ScheduleConflict } from "@/lib/schedule-engine";
+import { cn, parseDateOnly } from "@/lib/utils";
+import { validateAssignment, type ScheduleConflict } from "@/lib/schedule-engine";
 
 type Employee = {
   id: string;
   name: string;
   position: string;
   storeIds?: string[];
+  maxShiftsPerMonth?: number;
+  maxHoursPerMonth?: number;
 };
 
 type Shift = {
@@ -46,6 +48,7 @@ type Shift = {
   startTime: string;
   endTime: string;
   sortOrder: number;
+  durationHours: number;
 };
 
 type Store = { id: string; name: string; logoUrl?: string };
@@ -773,11 +776,66 @@ export function ScheduleCalendar({
     return map;
   }, [selectedEmployeeId, shiftsByStore, stores, visibleGroupKeys]);
 
+  function checkClientConflicts(
+    targetSlot: Slot,
+    newEmployeeId: string,
+    ignoreSlot?: Slot
+  ): ScheduleConflict[] {
+    const employee = employees.find((e) => e.id === newEmployeeId);
+    if (!employee) return [];
+
+    const allAssignments = slots.map((s) => {
+      const isIgnored = ignoreSlot && slotKey(s) === slotKey(ignoreSlot);
+      return {
+        id: s.assignmentId || Math.random().toString(),
+        employeeId: isIgnored ? null : s.employeeId,
+        storeId: s.storeId,
+        shiftTemplateId: s.shiftTemplateId,
+        date: parseDateOnly(s.date),
+        slotIndex: s.slotIndex,
+        shiftTemplate: shifts.find((sh) => sh.id === s.shiftTemplateId)!,
+      };
+    });
+
+    const targetDate = parseDateOnly(targetSlot.date);
+
+    return validateAssignment(
+      newEmployeeId,
+      targetSlot.storeId,
+      targetSlot.shiftTemplateId,
+      targetDate,
+      targetSlot.slotIndex,
+      targetSlot.requiredStaff,
+      allAssignments as any,
+      shifts as any,
+      employee as any
+    );
+  }
+
   async function assignEmployee(
     slot: Slot,
     employeeId: string | null,
     confirmOverCapacity = false
   ) {
+    if (employeeId && !confirmOverCapacity) {
+      const conflicts = checkClientConflicts(slot, employeeId);
+      if (conflicts.length > 0) {
+        setPendingRequest({
+          title: "Xác nhận yêu cầu xếp ca",
+          description: "Vượt giới hạn xếp ca",
+          conflicts,
+          onConfirm: () => {
+            setPendingRequest(null);
+            void assignEmployee(slot, employeeId, true);
+          },
+          onCancel: () => {
+            setPendingRequest(null);
+          },
+        });
+        return;
+      }
+    }
+
     if (onOptimisticUpdate) {
       onOptimisticUpdate(slot.storeId, slot.shiftTemplateId, slot.date, slot.slotIndex, employeeId);
     }
@@ -830,8 +888,7 @@ export function ScheduleCalendar({
         return;
       }
 
-      setMessageType("success");
-      setMessage(data.message ?? "Đã cập nhật ca");
+      // Removing success toast to avoid notification delay noise during optimistic updates
       await onRefresh();
     } catch (err) {
       if (onOptimisticUpdate) {
@@ -878,6 +935,38 @@ export function ScheduleCalendar({
     if (onOptimisticUpdate) {
       onOptimisticUpdate(sourceSlot.storeId, sourceSlot.shiftTemplateId, sourceSlot.date, sourceSlot.slotIndex, null);
       onOptimisticUpdate(targetSlot.storeId, targetSlot.shiftTemplateId, targetSlot.date, targetSlot.slotIndex, sourceSlot.employeeId);
+    }
+
+    const conflicts = checkClientConflicts(targetSlot, sourceSlot.employeeId, sourceSlot);
+    if (conflicts.length > 0) {
+      setPendingRequest({
+        title: "Xác nhận yêu cầu đổi ca",
+        description: "Vượt giới hạn đổi ca",
+        conflicts,
+        onConfirm: async () => {
+          setPendingRequest(null);
+          const confirmed = await moveAssignment(sourceSlot, targetSlot, true);
+          if (!confirmed.ok) {
+            if (onOptimisticUpdate) {
+              onOptimisticUpdate(sourceSlot.storeId, sourceSlot.shiftTemplateId, sourceSlot.date, sourceSlot.slotIndex, sourceSlot.employeeId);
+              onOptimisticUpdate(targetSlot.storeId, targetSlot.shiftTemplateId, targetSlot.date, targetSlot.slotIndex, targetSlot.employeeId);
+            }
+            setConflicts(confirmed.data?.conflicts ?? []);
+            setMessageType("error");
+            setMessage(typeof confirmed.data?.error === "string" ? confirmed.data.error : "Lỗi khi đổi ca");
+          } else {
+            await onRefresh();
+          }
+        },
+        onCancel: () => {
+          setPendingRequest(null);
+          if (onOptimisticUpdate) {
+            onOptimisticUpdate(sourceSlot.storeId, sourceSlot.shiftTemplateId, sourceSlot.date, sourceSlot.slotIndex, sourceSlot.employeeId);
+            onOptimisticUpdate(targetSlot.storeId, targetSlot.shiftTemplateId, targetSlot.date, targetSlot.slotIndex, targetSlot.employeeId);
+          }
+        },
+      });
+      return;
     }
 
     setConflicts([]);
@@ -935,8 +1024,7 @@ export function ScheduleCalendar({
         return;
       }
 
-      setMessageType("success");
-      setMessage(result.data.message ?? "Đã cập nhật ca");
+      // Removing success toast to avoid notification delay noise during optimistic updates
       await onRefresh();
     } catch (err) {
       if (onOptimisticUpdate) {
