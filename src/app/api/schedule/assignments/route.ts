@@ -59,7 +59,10 @@ export async function POST(request: Request) {
 
   const body = await request.json();
   const input: MoveAssignmentInput = {
-    sourceAssignmentId: String(body.sourceAssignmentId ?? ""),
+    sourceStoreId: String(body.sourceStoreId ?? ""),
+    sourceShiftTemplateId: String(body.sourceShiftTemplateId ?? ""),
+    sourceDate: String(body.sourceDate ?? ""),
+    sourceSlotIndex: Number(body.sourceSlotIndex),
     targetStoreId: String(body.targetStoreId ?? ""),
     targetShiftTemplateId: String(body.targetShiftTemplateId ?? ""),
     targetDate: String(body.targetDate ?? ""),

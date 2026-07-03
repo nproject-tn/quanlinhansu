@@ -931,7 +931,10 @@ export function ScheduleCalendar({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        sourceAssignmentId: sourceSlot.assignmentId,
+        sourceStoreId: sourceSlot.storeId,
+        sourceShiftTemplateId: sourceSlot.shiftTemplateId,
+        sourceDate: sourceSlot.date,
+        sourceSlotIndex: sourceSlot.slotIndex,
         targetStoreId: targetSlot.storeId,
         targetShiftTemplateId: targetSlot.shiftTemplateId,
         targetDate: targetSlot.date,
@@ -972,39 +975,8 @@ export function ScheduleCalendar({
     }
 
     if (onOptimisticUpdate) {
-      onOptimisticUpdate(sourceSlot.storeId, sourceSlot.shiftTemplateId, sourceSlot.date, sourceSlot.slotIndex, null);
+      onOptimisticUpdate(sourceSlot.storeId, sourceSlot.shiftTemplateId, sourceSlot.date, sourceSlot.slotIndex, targetSlot.employeeId ?? null);
       onOptimisticUpdate(targetSlot.storeId, targetSlot.shiftTemplateId, targetSlot.date, targetSlot.slotIndex, sourceSlot.employeeId);
-    }
-
-    if (conflicts.length > 0) {
-      setPendingRequest({
-        title: "Xác nhận yêu cầu đổi ca",
-        description: "Vượt giới hạn đổi ca",
-        conflicts,
-        onConfirm: async () => {
-          setPendingRequest(null);
-          const confirmed = await moveAssignment(sourceSlot, targetSlot, true);
-          if (!confirmed.ok) {
-            if (onOptimisticUpdate) {
-              onOptimisticUpdate(sourceSlot.storeId, sourceSlot.shiftTemplateId, sourceSlot.date, sourceSlot.slotIndex, sourceSlot.employeeId);
-              onOptimisticUpdate(targetSlot.storeId, targetSlot.shiftTemplateId, targetSlot.date, targetSlot.slotIndex, targetSlot.employeeId);
-            }
-            setConflicts(confirmed.data?.conflicts ?? []);
-            setMessageType("error");
-            setMessage(typeof confirmed.data?.error === "string" ? confirmed.data.error : "Lỗi khi đổi ca");
-          } else {
-            await onRefresh();
-          }
-        },
-        onCancel: () => {
-          setPendingRequest(null);
-          if (onOptimisticUpdate) {
-            onOptimisticUpdate(sourceSlot.storeId, sourceSlot.shiftTemplateId, sourceSlot.date, sourceSlot.slotIndex, sourceSlot.employeeId);
-            onOptimisticUpdate(targetSlot.storeId, targetSlot.shiftTemplateId, targetSlot.date, targetSlot.slotIndex, targetSlot.employeeId);
-          }
-        },
-      });
-      return;
     }
 
     setConflicts([]);
@@ -1022,54 +994,20 @@ export function ScheduleCalendar({
     });
 
     try {
-      const result = await moveAssignment(sourceSlot, targetSlot);
-
-      if (result.data?.requiresConfirmation) {
-        if (onOptimisticUpdate) {
-          onOptimisticUpdate(sourceSlot.storeId, sourceSlot.shiftTemplateId, sourceSlot.date, sourceSlot.slotIndex, sourceSlot.employeeId);
-          onOptimisticUpdate(targetSlot.storeId, targetSlot.shiftTemplateId, targetSlot.date, targetSlot.slotIndex, targetSlot.employeeId);
-        }
-        setPendingRequest({
-          title: "Xác nhận yêu cầu đổi ca",
-          description: typeof result.data.error === "string" ? result.data.error : "Vượt giới hạn đổi ca",
-          conflicts: result.data.conflicts ?? [],
-          onConfirm: async () => {
-            if (onOptimisticUpdate) {
-              onOptimisticUpdate(sourceSlot.storeId, sourceSlot.shiftTemplateId, sourceSlot.date, sourceSlot.slotIndex, null);
-              onOptimisticUpdate(targetSlot.storeId, targetSlot.shiftTemplateId, targetSlot.date, targetSlot.slotIndex, sourceSlot.employeeId);
-            }
-            setPendingRequest(null);
-            const confirmed = await moveAssignment(sourceSlot, targetSlot, true);
-            if (!confirmed.ok) {
-              if (onOptimisticUpdate) {
-                onOptimisticUpdate(sourceSlot.storeId, sourceSlot.shiftTemplateId, sourceSlot.date, sourceSlot.slotIndex, sourceSlot.employeeId);
-                onOptimisticUpdate(targetSlot.storeId, targetSlot.shiftTemplateId, targetSlot.date, targetSlot.slotIndex, targetSlot.employeeId);
-              }
-              setConflicts(confirmed.data.conflicts ?? []);
-              setMessageType("error");
-              setMessage(confirmed.data.error ?? "Không thể đổi ca");
-              return;
-            }
-            setMessageType("success");
-            setMessage(confirmed.data.message ?? "Đã cập nhật ca");
-            await onRefresh();
-          },
-          onCancel: () => {
-            setPendingRequest(null);
-            setConflicts(result.data.conflicts ?? []);
-          },
-        });
-        return;
-      }
+      const result = await moveAssignment(sourceSlot, targetSlot, true);
 
       if (!result.ok) {
         if (onOptimisticUpdate) {
           onOptimisticUpdate(sourceSlot.storeId, sourceSlot.shiftTemplateId, sourceSlot.date, sourceSlot.slotIndex, sourceSlot.employeeId);
           onOptimisticUpdate(targetSlot.storeId, targetSlot.shiftTemplateId, targetSlot.date, targetSlot.slotIndex, targetSlot.employeeId);
         }
-        setConflicts(result.data.conflicts ?? []);
-        setMessageType("error");
-        setMessage(result.data.error ?? "Không thể đổi ca");
+        setConflicts(result.data?.conflicts ?? []);
+        notify({
+          title: "Không thể đổi ca",
+          body: result.data?.error || "Đã có lỗi xảy ra",
+          tone: "error",
+          dedupeKey: `error-${Date.now()}`,
+        });
         return;
       }
 

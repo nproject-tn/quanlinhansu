@@ -622,18 +622,19 @@ export function validateAssignment(
     }
   }
 
-  if (requiredStaff <= 1 && slotIndex === 0) {
+  if (requiredStaff >= 1) {
     const filled = allAssignments.filter(
       (a) =>
         a.storeId === storeId &&
         a.shiftTemplateId === shiftTemplateId &&
         formatDateOnly(a.date) === dateStr &&
-        a.employeeId
+        a.employeeId &&
+        a.slotIndex !== slotIndex
     );
-    if (filled.length >= 1 && !filled.some((f) => f.employeeId === employeeId)) {
+    if (filled.length >= requiredStaff) {
       conflicts.push({
         type: "SINGLE_STAFF",
-        message: "Ca này chỉ cần 1 nhân viên, không thể thêm người khác",
+        message: "Ca này đã đủ nhân viên, không thể thêm người khác",
         date: dateStr,
       });
     }

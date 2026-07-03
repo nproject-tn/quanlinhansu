@@ -15,7 +15,10 @@ export type UpdateAssignmentInput = {
 };
 
 export type MoveAssignmentInput = {
-  sourceAssignmentId: string;
+  sourceStoreId: string;
+  sourceShiftTemplateId: string;
+  sourceDate: string;
+  sourceSlotIndex: number;
   targetStoreId: string;
   targetShiftTemplateId: string;
   targetDate: string;
@@ -212,7 +215,14 @@ export async function moveAssignment(input: MoveAssignmentInput) {
 
   const [source, targetAssignment, targetShift] = await prisma.$transaction([
     prisma.shiftAssignment.findUnique({
-      where: { id: input.sourceAssignmentId },
+      where: {
+        storeId_shiftTemplateId_date_slotIndex: {
+          storeId: input.sourceStoreId,
+          shiftTemplateId: input.sourceShiftTemplateId,
+          date: parseDateOnly(input.sourceDate),
+          slotIndex: input.sourceSlotIndex,
+        },
+      },
       select: {
         id: true,
         employeeId: true,
