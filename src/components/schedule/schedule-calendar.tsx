@@ -820,6 +820,17 @@ export function ScheduleCalendar({
     if (employeeId && !confirmOverCapacity) {
       const conflicts = checkClientConflicts(slot, employeeId);
       if (conflicts.length > 0) {
+        const hardConflicts = conflicts.filter((c) => c.type !== "MAX_HOURS" && c.type !== "MAX_SHIFTS");
+        if (hardConflicts.length > 0) {
+          notify({
+            title: "Không thể xếp ca",
+            body: hardConflicts[0].message,
+            tone: "error",
+            dedupeKey: `error-${Date.now()}`,
+          });
+          return;
+        }
+
         setPendingRequest({
           title: "Xác nhận yêu cầu xếp ca",
           description: "Vượt giới hạn xếp ca",
@@ -839,9 +850,17 @@ export function ScheduleCalendar({
     if (onOptimisticUpdate) {
       onOptimisticUpdate(slot.storeId, slot.shiftTemplateId, slot.date, slot.slotIndex, employeeId);
     }
+    
+    const employee = employees.find((e) => e.id === employeeId);
+    const shift = shifts.find((sh) => sh.id === slot.shiftTemplateId);
+    const formattedDate = format(parseDateOnly(slot.date), "dd/MM/yyyy");
+    const msg = employee 
+      ? `Đã thêm ${employee.name} vào ${shift?.name || "ca"} ngày ${formattedDate}`
+      : `Đã xoá phân công ${shift?.name || "ca"} ngày ${formattedDate}`;
+
     notify({
       title: "Cập nhật thành công",
-      body: "Đã cập nhật ca",
+      body: msg,
       tone: "success",
       dedupeKey: `success-${Date.now()}-${Math.random()}`,
     });
@@ -938,12 +957,25 @@ export function ScheduleCalendar({
     if (!sourceSlot?.employeeId || !targetSlot) return;
     if (slotKey(sourceSlot) === slotKey(targetSlot)) return;
 
+    const conflicts = checkClientConflicts(targetSlot, sourceSlot.employeeId, sourceSlot);
+    if (conflicts.length > 0) {
+      const hardConflicts = conflicts.filter((c) => c.type !== "MAX_HOURS" && c.type !== "MAX_SHIFTS");
+      if (hardConflicts.length > 0) {
+        notify({
+          title: "Không thể đổi ca",
+          body: hardConflicts[0].message,
+          tone: "error",
+          dedupeKey: `error-${Date.now()}`,
+        });
+        return;
+      }
+    }
+
     if (onOptimisticUpdate) {
       onOptimisticUpdate(sourceSlot.storeId, sourceSlot.shiftTemplateId, sourceSlot.date, sourceSlot.slotIndex, null);
       onOptimisticUpdate(targetSlot.storeId, targetSlot.shiftTemplateId, targetSlot.date, targetSlot.slotIndex, sourceSlot.employeeId);
     }
 
-    const conflicts = checkClientConflicts(targetSlot, sourceSlot.employeeId, sourceSlot);
     if (conflicts.length > 0) {
       setPendingRequest({
         title: "Xác nhận yêu cầu đổi ca",
@@ -977,9 +1009,14 @@ export function ScheduleCalendar({
 
     setConflicts([]);
     setMessage(null);
+    
+    const sourceEmployee = employees.find((e) => e.id === sourceSlot.employeeId);
+    const targetShift = shifts.find((sh) => sh.id === targetSlot.shiftTemplateId);
+    const formattedTargetDate = format(parseDateOnly(targetSlot.date), "dd/MM/yyyy");
+    
     notify({
       title: "Cập nhật thành công",
-      body: "Đã cập nhật ca",
+      body: `Đã đổi ${sourceEmployee?.name} sang ${targetShift?.name || "ca"} ngày ${formattedTargetDate}`,
       tone: "success",
       dedupeKey: `success-${Date.now()}-${Math.random()}`,
     });
