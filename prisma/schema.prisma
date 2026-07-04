@@ -115,7 +115,6 @@ model ShiftTemplate {
   staffingOverrides StaffingOverride[]
   shiftAssignments  ShiftAssignment[]
 
-  @@unique([storeId, name])
   @@index([storeId, isActive, sortOrder])
 }
 
