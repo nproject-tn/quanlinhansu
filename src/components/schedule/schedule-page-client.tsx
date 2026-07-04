@@ -176,7 +176,7 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
         if (shouldReloadSchedule) void mutateSchedule();
         if (shouldReloadRequests) void mutateApprovalRequests();
       } catch (err) {}
-    }, 2000);
+    }, 10000);
 
     return () => clearInterval(interval);
   }, [
