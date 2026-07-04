@@ -119,6 +119,12 @@ export default function ShiftConfigPage() {
     startTime: "",
     endTime: "",
   });
+  const [isAddingShift, setIsAddingShift] = useState(false);
+  const [newShiftForm, setNewShiftForm] = useState({
+    name: "Ca Mới",
+    startTime: "08:00",
+    endTime: "16:00",
+  });
   const colorPickerShellRef = useRef<HTMLDivElement | null>(null);
   const configScrollRef = useRef<HTMLDivElement | null>(null);
   const configTableRef = useRef<HTMLTableElement | null>(null);
@@ -618,20 +624,36 @@ export default function ShiftConfigPage() {
     if (!res.ok) return;
 
     setEditingShift(null);
-    setShifts((current) =>
-      current.map((item) =>
-        item.id === shift.id
-          ? {
-              ...item,
-              name: editForm.name,
-              startTime: editForm.startTime,
-              endTime: editForm.endTime,
-              durationHours,
-            }
-          : item
-      )
-    );
+    await loadStoreConfig(selectedStore, selectedMonth);
     setMessage("Đã cập nhật ca");
+  }
+
+  async function saveNewShift() {
+    const durationHours = calcDurationHours(newShiftForm.startTime, newShiftForm.endTime);
+    const res = await fetch(`/api/shift-templates`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        storeId: selectedStore,
+        name: newShiftForm.name,
+        startTime: newShiftForm.startTime,
+        endTime: newShiftForm.endTime,
+        durationHours,
+        sortOrder: 99, // Backend sẽ tự sắp xếp lại
+        isActive: true,
+      }),
+    });
+
+    if (!res.ok) {
+      const data = await readJsonSafely<{ error?: string }>(res, {});
+      setMessage(data.error ?? "Lỗi thêm ca");
+      return;
+    }
+
+    setIsAddingShift(false);
+    setNewShiftForm({ name: "Ca Mới", startTime: "08:00", endTime: "16:00" });
+    await loadStoreConfig(selectedStore, selectedMonth);
+    setMessage("Đã thêm ca mới");
   }
 
   async function deleteShift(shift: ShiftTemplate) {
@@ -963,6 +985,58 @@ export default function ShiftConfigPage() {
                     })}
                   </tr>
                 ))}
+                {isAddingShift && (
+                  <tr className="border-b border-slate-100 align-top bg-slate-50/50">
+                    <td className="py-3 pr-4 font-medium">
+                      <Input
+                        value={newShiftForm.name}
+                        onChange={(e) => setNewShiftForm({ ...newShiftForm, name: e.target.value })}
+                        className="h-8 w-28"
+                        placeholder="Tên ca"
+                      />
+                    </td>
+                    <td className="py-3 pr-4">
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="time"
+                          value={newShiftForm.startTime}
+                          onChange={(e) => setNewShiftForm({ ...newShiftForm, startTime: e.target.value })}
+                          className="h-8 w-28"
+                        />
+                        <span>-</span>
+                        <Input
+                          type="time"
+                          value={newShiftForm.endTime}
+                          onChange={(e) => setNewShiftForm({ ...newShiftForm, endTime: e.target.value })}
+                          className="h-8 w-28"
+                        />
+                        <span className="text-xs text-slate-500">
+                          ({calcDurationHours(newShiftForm.startTime, newShiftForm.endTime)}h)
+                        </span>
+                      </div>
+                    </td>
+                    <td className="py-3 pr-4">
+                      <div className="flex min-w-[150px] flex-col gap-1">
+                        <Button size="sm" onClick={saveNewShift}>
+                          Lưu
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setIsAddingShift(false)}>
+                          Hủy
+                        </Button>
+                      </div>
+                    </td>
+                    <td colSpan={monthDays.length}></td>
+                  </tr>
+                )}
+                {!isAddingShift && (
+                  <tr>
+                    <td colSpan={3 + monthDays.length} className="py-4">
+                      <Button variant="outline" size="sm" onClick={() => setIsAddingShift(true)}>
+                        + Thêm ca mới
+                      </Button>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
             </div>

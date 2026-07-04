@@ -50,6 +50,11 @@ export async function POST(request: Request) {
   const template = await prisma.shiftTemplate.create({
     data: { ...parsed.data, durationHours },
   });
+
+  // Đồng bộ số lượng ca và thứ tự ca
+  const { syncStoreShifts } = await import("@/lib/api-shift-utils");
+  await syncStoreShifts(parsed.data.storeId);
+
   return NextResponse.json(template, { status: 201 });
 }
 
@@ -69,6 +74,10 @@ export async function PUT(request: Request) {
     where: { id },
     data: { ...parsed.data, durationHours },
   });
+
+  // Đồng bộ thứ tự ca
+  const { syncStoreShifts } = await import("@/lib/api-shift-utils");
+  await syncStoreShifts(parsed.data.storeId);
 
   return NextResponse.json(template);
 }

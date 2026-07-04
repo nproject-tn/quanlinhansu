@@ -24,6 +24,9 @@ export async function PUT(request: Request, { params }: Params) {
     data: { ...parsed.data, durationHours },
   });
 
+  const { syncStoreShifts } = await import("@/lib/api-shift-utils");
+  await syncStoreShifts(template.storeId);
+
   return NextResponse.json(template);
 }
 
@@ -32,6 +35,11 @@ export async function DELETE(_request: Request, { params }: Params) {
   if (error) return error;
 
   const { id } = await params;
+
+  const shiftTemplate = await prisma.shiftTemplate.findUnique({ where: { id } });
+  if (!shiftTemplate) {
+    return NextResponse.json({ error: "Ca không tồn tại" }, { status: 404 });
+  }
 
   const assignmentCount = await prisma.shiftAssignment.count({
     where: { shiftTemplateId: id },
@@ -42,6 +50,10 @@ export async function DELETE(_request: Request, { params }: Params) {
       where: { id },
       data: { isActive: false },
     });
+    
+    const { syncStoreShifts } = await import("@/lib/api-shift-utils");
+    await syncStoreShifts(shiftTemplate.storeId);
+
     return NextResponse.json({
       success: true,
       message: "Ca đã có lịch xếp — đã ẩn thay vì xóa hẳn",
@@ -52,6 +64,9 @@ export async function DELETE(_request: Request, { params }: Params) {
   await prisma.staffingRule.deleteMany({ where: { shiftTemplateId: id } });
   await prisma.staffingOverride.deleteMany({ where: { shiftTemplateId: id } });
   await prisma.shiftTemplate.delete({ where: { id } });
+
+  const { syncStoreShifts } = await import("@/lib/api-shift-utils");
+  await syncStoreShifts(shiftTemplate.storeId);
 
   return NextResponse.json({ success: true, message: "Đã xóa ca" });
 }
