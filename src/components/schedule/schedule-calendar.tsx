@@ -681,10 +681,16 @@ export function ScheduleCalendar({
 
     updatePlannerMetrics();
 
+    let timeoutId: NodeJS.Timeout;
+    const debouncedUpdate = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(updatePlannerMetrics, 150);
+    };
+
     const resizeObserver =
       typeof ResizeObserver === "undefined" || !plannerTableRef.current
         ? null
-        : new ResizeObserver(() => updatePlannerMetrics());
+        : new ResizeObserver(debouncedUpdate);
 
     if (resizeObserver && plannerTableRef.current) {
       resizeObserver.observe(plannerTableRef.current);
@@ -693,10 +699,11 @@ export function ScheduleCalendar({
       resizeObserver.observe(plannerScrollRef.current);
     }
 
-    window.addEventListener("resize", updatePlannerMetrics);
+    window.addEventListener("resize", debouncedUpdate);
     return () => {
+      clearTimeout(timeoutId);
       resizeObserver?.disconnect();
-      window.removeEventListener("resize", updatePlannerMetrics);
+      window.removeEventListener("resize", debouncedUpdate);
     };
   }, [stores.length, shifts.length, slots.length, layoutMode]);
 
@@ -1503,11 +1510,17 @@ export function ScheduleCalendar({
           </div>
         )}
 
-        <DragOverlay>
+        <DragOverlay dropAnimation={null}>
           {activeEmployee ? (
-            <div className="rounded-lg border border-blue-300 bg-blue-100 px-4 py-2 shadow-lg">
-              <p className="font-semibold">{activeEmployee.name}</p>
-            </div>
+            layoutMode === "horizontal" ? (
+              <div className="flex min-w-[120px] items-center justify-between gap-2 rounded-md bg-blue-100 px-1 py-0.5 opacity-90 shadow-lg ring-1 ring-blue-400">
+                <p className="text-xs font-semibold text-slate-900">{activeEmployee.name}</p>
+              </div>
+            ) : (
+              <div className="min-w-[180px] rounded-lg border border-blue-400 bg-card p-2 text-xs opacity-90 shadow-lg ring-2 ring-blue-400">
+                <p className="font-medium text-slate-800">{activeEmployee.name}</p>
+              </div>
+            )
           ) : null}
         </DragOverlay>
       </DndContext>
