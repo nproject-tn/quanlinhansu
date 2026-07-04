@@ -308,10 +308,16 @@ export default function ShiftConfigPage() {
 
     updateConfigMetrics();
 
+    let timeoutId: NodeJS.Timeout;
+    const debouncedUpdate = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(updateConfigMetrics, 150);
+    };
+
     const resizeObserver =
       typeof ResizeObserver === "undefined"
         ? null
-        : new ResizeObserver(() => updateConfigMetrics());
+        : new ResizeObserver(debouncedUpdate);
 
     if (resizeObserver && configTableRef.current) {
       resizeObserver.observe(configTableRef.current);
@@ -320,10 +326,11 @@ export default function ShiftConfigPage() {
       resizeObserver.observe(configScrollRef.current);
     }
 
-    window.addEventListener("resize", updateConfigMetrics);
+    window.addEventListener("resize", debouncedUpdate);
     return () => {
+      clearTimeout(timeoutId);
       resizeObserver?.disconnect();
-      window.removeEventListener("resize", updateConfigMetrics);
+      window.removeEventListener("resize", debouncedUpdate);
     };
   }, [monthDays.length, shifts.length, selectedStore, loading]);
 

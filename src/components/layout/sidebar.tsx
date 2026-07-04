@@ -45,7 +45,7 @@ export function Sidebar({ user }: SidebarProps) {
   return (
     <aside
       className={cn(
-        "glass-control sticky top-4 flex h-[calc(100vh-2rem)] shrink-0 flex-col overflow-hidden rounded-[28px] border border-white/65 bg-white/68 shadow-[0_18px_40px_rgba(15,23,42,0.08)] backdrop-blur-xl transition-[width] duration-300",
+        "glass-control sticky top-4 flex h-[calc(100vh-2rem)] shrink-0 flex-col overflow-hidden rounded-[28px] border border-white/65 bg-white/68 shadow-[0_18px_40px_rgba(15,23,42,0.08)] backdrop-blur-xl transition-[width] duration-300 will-change-[width]",
         isCollapsed ? "w-[5.5rem]" : "w-64"
       )}
     >

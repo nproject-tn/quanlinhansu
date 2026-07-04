@@ -1264,10 +1264,11 @@ export function ScheduleCalendar({
               ref={plannerScrollRef}
               onMouseDown={handlePlannerMouseDown}
               className={cn(
-                "hover-scrollbars max-h-[calc(100vh-16rem)] overflow-auto",
+                "hover-scrollbars max-h-[calc(100vh-16rem)] overflow-auto transform-gpu",
                 isSpacePressed && "cursor-grab",
                 isPanning && "cursor-grabbing select-none"
               )}
+              style={{ contain: "paint layout" }}
             >
               <table
                 ref={plannerTableRef}
