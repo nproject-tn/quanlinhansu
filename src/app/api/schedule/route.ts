@@ -201,6 +201,8 @@ export async function GET(request: Request) {
         employmentType: e.employmentType,
         maxShiftsPerMonth: e.maxShiftsPerMonth,
         maxHoursPerMonth: e.maxHoursPerMonth,
+        isActive: e.isActive,
+        deletedAt: e.deletedAt,
         storeIds: e.stores.map((s) => s.storeId),
       })),
       unfilled,
