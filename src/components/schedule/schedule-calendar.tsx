@@ -202,7 +202,7 @@ function SlotCard({
       ref={setDropRef}
       className={cn(
         "rounded-lg border p-2 text-xs transition-colors",
-        employee ? "border-blue-200 bg-blue-50" : "border-dashed border-slate-300 bg-slate-50",
+        employee ? "border-blue-200 bg-blue-50 assigned-slot" : "border-dashed border-slate-300 bg-slate-50",
         isOver && canEdit && "ring-2 ring-blue-400",
         isDragging && "opacity-40"
       )}
@@ -465,7 +465,7 @@ function CompactAssignedSlotRow({
     <div
       ref={setDropRef}
       className={cn(
-        "flex items-center justify-between gap-2 rounded-md px-1 py-0.5 transition-all duration-300",
+        "assigned-slot flex items-center justify-between gap-2 rounded-md px-1 py-0.5 transition-all duration-300",
         isOver && "ring-2 ring-blue-400",
         isDragging && "opacity-40",
         flash === "success" && "bg-green-100 text-green-900 ring-1 ring-green-400",
@@ -574,6 +574,7 @@ export function ScheduleCalendar({
   const [message, setMessage] = useState<string | null>(null);
   const [messageType, setMessageType] = useState<"success" | "error">("success");
   const [loading, setLoading] = useState(false);
+  const [isMoving, setIsMoving] = useState(false);
   const [pendingRequest, setPendingRequest] = useState<{
     title: string;
     description: string;
@@ -978,7 +979,7 @@ export function ScheduleCalendar({
 
   async function handleDragEnd(event: DragEndEvent) {
     setActiveSlot(null);
-    if (!canEdit) return;
+    if (!canEdit || isMoving) return;
 
     const { active, over } = event;
     if (!over) return;
@@ -1026,6 +1027,7 @@ export function ScheduleCalendar({
       dedupeKey: `success-${Date.now()}-${Math.random()}`,
     });
 
+    setIsMoving(true);
     try {
       triggerFlash([slotKey(sourceSlot), slotKey(targetSlot)], "success");
 
@@ -1067,6 +1069,8 @@ export function ScheduleCalendar({
         onOptimisticUpdate(targetSlot.storeId, targetSlot.shiftTemplateId, targetSlot.date, targetSlot.slotIndex, targetSlot.employeeId);
       }
       triggerFlash([slotKey(sourceSlot), slotKey(targetSlot)], "error");
+    } finally {
+      setIsMoving(false);
     }
   }
 
@@ -1230,7 +1234,7 @@ export function ScheduleCalendar({
       : 0;
 
   return (
-    <div className="space-y-4">
+    <div className={cn("space-y-4", isMoving && "[&_.assigned-slot]:opacity-50 [&_.assigned-slot]:pointer-events-none")}>
       {canEdit && (
         <p className="text-sm text-slate-600">
           Chọn nhân viên từ dropdown, kéo biểu tượng <GripVertical className="inline h-3 w-3" /> để đổi ca,
