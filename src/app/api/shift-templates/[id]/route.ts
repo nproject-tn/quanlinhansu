@@ -17,6 +17,23 @@ export async function PUT(request: Request, { params }: Params) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
+  // Kiểm tra tên ca có bị trùng với các ca ĐANG HOẠT ĐỘNG khác không
+  const existingActiveShift = await prisma.shiftTemplate.findFirst({
+    where: {
+      storeId: parsed.data.storeId,
+      name: parsed.data.name,
+      isActive: true,
+      id: { not: id }, // Bỏ qua chính ca đang cập nhật
+    },
+  });
+
+  if (existingActiveShift) {
+    return NextResponse.json(
+      { error: "Tên ca này đã tồn tại, vui lòng chọn tên khác." },
+      { status: 400 }
+    );
+  }
+
   const durationHours = calcDurationHours(parsed.data.startTime, parsed.data.endTime);
 
   const template = await prisma.shiftTemplate.update({
@@ -48,7 +65,10 @@ export async function DELETE(_request: Request, { params }: Params) {
   if (assignmentCount > 0) {
     await prisma.shiftTemplate.update({
       where: { id },
-      data: { isActive: false },
+      data: { 
+        isActive: false,
+        name: `${shiftTemplate.name} (đã xóa ${Date.now().toString().slice(-6)})`
+      },
     });
     
     const { syncStoreShifts } = await import("@/lib/api-shift-utils");

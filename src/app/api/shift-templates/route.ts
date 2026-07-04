@@ -46,6 +46,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
+  // Kiểm tra tên ca có bị trùng với các ca ĐANG HOẠT ĐỘNG không
+  const existingActiveShift = await prisma.shiftTemplate.findFirst({
+    where: {
+      storeId: parsed.data.storeId,
+      name: parsed.data.name,
+      isActive: true,
+    },
+  });
+
+  if (existingActiveShift) {
+    return NextResponse.json(
+      { error: "Tên ca này đã tồn tại, vui lòng chọn tên khác." },
+      { status: 400 }
+    );
+  }
+
   const durationHours = calcDurationHours(parsed.data.startTime, parsed.data.endTime);
   const template = await prisma.shiftTemplate.create({
     data: { ...parsed.data, durationHours },
@@ -67,6 +83,23 @@ export async function PUT(request: Request) {
   const parsed = shiftTemplateSchema.safeParse(rest);
   if (!parsed.success || !id) {
     return NextResponse.json({ error: "Dữ liệu không hợp lệ" }, { status: 400 });
+  }
+
+  // Kiểm tra tên ca có bị trùng với các ca ĐANG HOẠT ĐỘNG khác không
+  const existingActiveShift = await prisma.shiftTemplate.findFirst({
+    where: {
+      storeId: parsed.data.storeId,
+      name: parsed.data.name,
+      isActive: true,
+      id: { not: id },
+    },
+  });
+
+  if (existingActiveShift) {
+    return NextResponse.json(
+      { error: "Tên ca này đã tồn tại, vui lòng chọn tên khác." },
+      { status: 400 }
+    );
   }
 
   const durationHours = calcDurationHours(parsed.data.startTime, parsed.data.endTime);
