@@ -1517,7 +1517,7 @@ export function ScheduleCalendar({
                 <p className="text-xs font-semibold text-slate-900">{activeEmployee.name}</p>
               </div>
             ) : (
-              <div className="min-w-[180px] rounded-lg border border-blue-400 bg-card p-2 text-xs opacity-90 shadow-lg ring-2 ring-blue-400">
+              <div className="min-w-[180px] rounded-lg border border-blue-400 bg-blue-50 p-2 text-xs opacity-90 shadow-lg ring-2 ring-blue-400">
                 <p className="font-medium text-slate-800">{activeEmployee.name}</p>
               </div>
             )
