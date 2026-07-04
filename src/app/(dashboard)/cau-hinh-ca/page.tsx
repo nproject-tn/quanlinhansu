@@ -127,9 +127,9 @@ export default function ShiftConfigPage() {
     pointerStartX: number;
     scrollLeftStart: number;
   } | null>(null);
+  const configScrollbarThumbRef = useRef<HTMLDivElement | null>(null);
   const [configContentWidth, setConfigContentWidth] = useState(0);
   const [configViewportWidth, setConfigViewportWidth] = useState(0);
-  const [configScrollLeft, setConfigScrollLeft] = useState(0);
   const { notify } = useNotifications();
   const { confirm } = useConfirmDialog();
 
@@ -303,7 +303,6 @@ export default function ShiftConfigPage() {
     const updateConfigMetrics = () => {
       setConfigContentWidth(configTableRef.current?.scrollWidth ?? 0);
       setConfigViewportWidth(configScrollRef.current?.clientWidth ?? 0);
-      setConfigScrollLeft(configScrollRef.current?.scrollLeft ?? 0);
     };
 
     updateConfigMetrics();
@@ -339,8 +338,15 @@ export default function ShiftConfigPage() {
     if (!scroller) return;
 
     const handleScroll = () => {
-      setConfigScrollLeft(scroller.scrollLeft);
-      setConfigViewportWidth(scroller.clientWidth);
+      if (scroller.scrollWidth > scroller.clientWidth) {
+        const thumb = configScrollbarThumbRef.current;
+        if (thumb) {
+          const maxScrollLeft = Math.max(scroller.scrollWidth - scroller.clientWidth, 0);
+          const thumbWidthPercent = Math.max((scroller.clientWidth / scroller.scrollWidth) * 100, 12);
+          const offsetPercent = (scroller.scrollLeft / maxScrollLeft) * (100 - thumbWidthPercent);
+          thumb.style.left = `${offsetPercent}%`;
+        }
+      }
     };
 
     scroller.addEventListener("scroll", handleScroll);
@@ -660,15 +666,11 @@ export default function ShiftConfigPage() {
     .filter((shift) => shift.storeId === selectedStore)
     .sort((a, b) => a.sortOrder - b.sortOrder);
   const selectedStoreData = stores.find((store) => store.id === selectedStore);
+
   const hasConfigHorizontalOverflow = configContentWidth > configViewportWidth + 4;
   const configScrollbarThumbWidthPercent = hasConfigHorizontalOverflow
     ? Math.max((configViewportWidth / configContentWidth) * 100, 12)
     : 100;
-  const configMaxScrollLeft = Math.max(configContentWidth - configViewportWidth, 0);
-  const configScrollbarThumbOffsetPercent =
-    hasConfigHorizontalOverflow && configMaxScrollLeft > 0
-      ? (configScrollLeft / configMaxScrollLeft) * (100 - configScrollbarThumbWidthPercent)
-      : 0;
 
   function handleConfigScrollbarTrackPointerDown(event: React.MouseEvent<HTMLDivElement>) {
     if (!configScrollRef.current || !configScrollbarTrackRef.current) return;
@@ -980,11 +982,11 @@ export default function ShiftConfigPage() {
                 className={`relative h-2 rounded-full bg-slate-200/70 opacity-0 transition-opacity duration-200 group-hover:opacity-100 ${hasConfigHorizontalOverflow ? "cursor-pointer" : "pointer-events-none"}`}
               >
                 <div
+                  ref={configScrollbarThumbRef}
                   onMouseDown={handleConfigScrollbarThumbPointerDown}
                   className={`absolute top-0 h-2 rounded-full bg-slate-500/70 shadow-sm transition-colors ${hasConfigHorizontalOverflow ? "cursor-grab hover:bg-slate-600/80 active:cursor-grabbing" : "hidden"}`}
                   style={{
                     width: `${configScrollbarThumbWidthPercent}%`,
-                    left: `${configScrollbarThumbOffsetPercent}%`,
                   }}
                 />
               </div>
