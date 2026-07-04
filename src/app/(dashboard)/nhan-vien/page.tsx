@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useState, useMemo } from "react";
 import useSWR from "swr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +32,7 @@ type Employee = {
   maxShiftsPerMonth: number;
   maxHoursPerMonth: number;
   isActive: boolean;
+  deletedAt?: string | null;
   stores: { store: Store }[];
 };
 
@@ -98,6 +99,8 @@ async function readJsonSafely<T>(response: Response, fallback: T): Promise<T> {
 }
 
 export default function EmployeesPage() {
+  const [filterType, setFilterType] = useState<"ACTIVE" | "RESIGNED" | "ALL">("ACTIVE");
+
   const fetcher = async () => {
     const [empRes, storeRes, shiftRes] = await Promise.all([
       fetch("/api/employees"),
@@ -113,15 +116,27 @@ export default function EmployeesPage() {
       const avg = shifts.reduce((s: number, t: { durationHours: number }) => s + t.durationHours, 0) / shifts.length;
       avgShiftHours = Math.round(avg * 10) / 10 || DEFAULT_SHIFT_HOURS;
     }
-    return { employees: empData.filter(e => e.isActive), stores, avgShiftHours };
+    return { employees: empData, stores, avgShiftHours };
   };
 
   const { data: pageData, mutate: load } = useSWR("employees_page_data", fetcher);
-  const employees = pageData?.employees ?? [];
+  const allEmployees = pageData?.employees ?? [];
+  const employees = useMemo(() => {
+    switch (filterType) {
+      case "ACTIVE": return allEmployees.filter(e => !e.deletedAt);
+      case "RESIGNED": return allEmployees.filter(e => e.deletedAt != null);
+      case "ALL": return allEmployees;
+      default: return allEmployees;
+    }
+  }, [allEmployees, filterType]);
   const stores = pageData?.stores ?? [];
   const avgShiftHours = pageData?.avgShiftHours ?? DEFAULT_SHIFT_HOURS;
 
   const [monthlyHours, setMonthlyHours] = useState<EmployeeMonthlyHours[]>([]);
+  const filteredMonthlyHours = useMemo(() => {
+    const validIds = new Set(employees.map(e => e.id));
+    return monthlyHours.filter(mh => validIds.has(mh.id));
+  }, [monthlyHours, employees]);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [currentRole, setCurrentRole] = useState<UserRole | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -260,16 +275,16 @@ export default function EmployeesPage() {
     }
   }
 
-  async function handleDelete(id: string, name: string) {
+  async function handleDelete(id: string, name: string, isPermanent: boolean = false) {
     if (!canManageEmployees) {
       setMessage("Bạn không có quyền xoá nhân viên");
       return;
     }
 
     const approved = await confirm({
-      title: `Xóa nhân viên "${name}"?`,
-      description: "Nhân viên đã có lịch xếp trước đó sẽ được ẩn thay vì xoá hẳn khỏi dữ liệu.",
-      confirmLabel: "Xóa nhân viên",
+      title: isPermanent ? `Xóa vĩnh viễn "${name}"?` : `Xóa nhân viên "${name}"?`,
+      description: isPermanent ? "Hành động này không thể hoàn tác. Toàn bộ dữ liệu của nhân viên sẽ bị xoá." : "Lịch sử các ca làm trước đó sẽ được giữ lại. Các ca làm từ hôm nay trở về sau sẽ bị làm trống.",
+      confirmLabel: isPermanent ? "Xóa vĩnh viễn" : "Xóa nhân viên",
       cancelLabel: "Huỷ",
       tone: "destructive",
     });
@@ -283,6 +298,30 @@ export default function EmployeesPage() {
     }
     void load();
     void loadMonthlyHours(hoursMonth);
+  }
+
+  async function handleRestore(id: string, name: string) {
+    if (!canManageEmployees) return;
+    
+    const approved = await confirm({
+      title: `Khôi phục nhân viên "${name}"?`,
+      description: "Nhân viên sẽ được hiển thị lại trong danh sách đang làm việc.",
+      confirmLabel: "Khôi phục",
+      cancelLabel: "Huỷ",
+    });
+    if (!approved) return;
+
+    const res = await fetch(`/api/employees/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ restore: true })
+    });
+    if (res.ok) {
+      setMessage("Đã khôi phục nhân viên");
+      void load();
+    } else {
+      setMessage("Lỗi khôi phục nhân viên");
+    }
   }
 
   function startEdit(emp: Employee) {
@@ -452,8 +491,19 @@ export default function EmployeesPage() {
       )}
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <CardTitle>Danh sách nhân viên ({employees.length})</CardTitle>
+          <div className="w-48">
+            <Select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value as "ACTIVE" | "RESIGNED" | "ALL")}
+              className="w-full glass-control bg-white/60"
+            >
+              <option value="ALL">Tất cả nhân viên</option>
+              <option value="ACTIVE">Nhân viên đang làm</option>
+              <option value="RESIGNED">Nhân viên đã nghỉ</option>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -484,8 +534,17 @@ export default function EmployeesPage() {
                       {canManageEmployees && (
                         <td className="py-3">
                           <div className="flex gap-2">
-                            <Button size="sm" variant="outline" onClick={() => startEdit(emp)}>Sửa</Button>
-                            <Button size="sm" variant="destructive" onClick={() => handleDelete(emp.id, emp.name)}>Xóa</Button>
+                            {!emp.deletedAt ? (
+                              <>
+                                <Button size="sm" variant="outline" onClick={() => startEdit(emp)}>Sửa</Button>
+                                <Button size="sm" variant="destructive" onClick={() => handleDelete(emp.id, emp.name, false)}>Xóa</Button>
+                              </>
+                            ) : (
+                              <>
+                                <Button size="sm" variant="outline" onClick={() => handleRestore(emp.id, emp.name)}>Khôi phục</Button>
+                                <Button size="sm" variant="destructive" onClick={() => handleDelete(emp.id, emp.name, true)}>Xóa vĩnh viễn</Button>
+                              </>
+                            )}
                           </div>
                         </td>
                       )}
@@ -552,7 +611,7 @@ export default function EmployeesPage() {
                 </tr>
               </thead>
               <tbody>
-                {monthlyHours.map((emp) => (
+                {filteredMonthlyHours.map((emp) => (
                   <tr key={`${emp.id}-${emp.month}`} className="border-b border-slate-100">
                     <td className="py-3 pr-4 font-medium">{emp.name}</td>
                     <td className="py-3 pr-4">{emp.position}</td>

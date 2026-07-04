@@ -40,6 +40,8 @@ type Employee = {
   storeIds?: string[];
   maxShiftsPerMonth?: number;
   maxHoursPerMonth?: number;
+  isActive?: boolean;
+  deletedAt?: string | null;
 };
 
 type Shift = {
@@ -183,7 +185,16 @@ function SlotCard({
   onClear: () => Promise<void>;
 }) {
   const key = slotKey(slot);
-  const eligible = employees.filter((e) => !e.storeIds || e.storeIds.includes(slot.storeId));
+  const slotDate = new Date(slot.date);
+  slotDate.setHours(0, 0, 0, 0);
+
+  const eligible = employees.filter((e) => {
+    if (e.storeIds && !e.storeIds.includes(slot.storeId)) return false;
+    if (!e.deletedAt) return true;
+    const deletedDate = new Date(e.deletedAt);
+    deletedDate.setHours(0, 0, 0, 0);
+    return slotDate <= deletedDate;
+  });
 
   const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
     id: dragId(key),
@@ -522,6 +533,18 @@ function CompactEmptySlotDropZone({
     data: { slot },
   });
 
+  const slotDate = new Date(slot.date);
+  slotDate.setHours(0, 0, 0, 0);
+
+  const filteredEmployees = employees.filter((employee) => {
+    if (!employee.deletedAt) return true;
+    const deletedDate = new Date(employee.deletedAt);
+    deletedDate.setHours(0, 0, 0, 0);
+    // If deletedDate is 5/7, and slotDate is 6/7, then slotDate > deletedDate (exclude)
+    // If slotDate is 5/7, slotDate <= deletedDate (include)
+    return slotDate <= deletedDate;
+  });
+
   return (
     <div
       ref={setNodeRef}
@@ -535,16 +558,16 @@ function CompactEmptySlotDropZone({
       <Select
         className="h-8 text-xs"
         value=""
-        disabled={loading || employees.length === 0}
+        disabled={loading || filteredEmployees.length === 0}
         onChange={(e) => {
           const val = e.target.value;
           if (val) void onAssign(val);
         }}
       >
         <option value="">
-          {employees.length > 0 ? "— Chọn nhân viên —" : "Không còn nhân viên phù hợp"}
+          {filteredEmployees.length > 0 ? "— Chọn nhân viên —" : "Không còn nhân viên phù hợp"}
         </option>
-        {employees.map((employee) => (
+        {filteredEmployees.map((employee) => (
           <option key={employee.id} value={employee.id}>
             {employee.name}
           </option>

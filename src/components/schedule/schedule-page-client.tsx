@@ -327,6 +327,8 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
     storeIds?: string[];
     maxShiftsPerMonth?: number;
     maxHoursPerMonth?: number;
+    isActive?: boolean;
+    deletedAt?: string | null;
   }>(data?.employees);
 
   useEffect(() => {
@@ -488,7 +490,7 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
             className="min-w-[220px] max-w-[260px]"
           >
             <option value="">Tất cả nhân viên</option>
-            {employees.map((employee) => (
+            {employees.filter(e => e.isActive !== false && !e.deletedAt).map((employee) => (
               <option key={employee.id} value={employee.id}>
                 {employee.name}
               </option>

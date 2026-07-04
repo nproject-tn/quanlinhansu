@@ -124,7 +124,6 @@ export async function GET(request: Request) {
       }),
       prisma.employee.findMany({
         where: {
-          isActive: true,
           stores: { some: { storeId: { in: storeIds } } },
         },
         select: {
@@ -134,6 +133,8 @@ export async function GET(request: Request) {
           employmentType: true,
           maxShiftsPerMonth: true,
           maxHoursPerMonth: true,
+          isActive: true,
+          deletedAt: true,
           stores: { select: { storeId: true } },
         },
         orderBy: { name: "asc" },
@@ -383,7 +384,10 @@ export async function POST(request: Request) {
       date: Date,
       slotIndex: number
     ) => `${storeId}|${shiftTemplateId}|${formatDateOnly(date)}|${slotIndex}`;
-    const isTargetDate = (date: Date) => date >= start && date <= end;
+    const now = new Date();
+    now.setUTCHours(now.getUTCHours() + 7);
+    const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const isTargetDate = (date: Date) => date >= start && date <= end && date >= today;
     const selectedSlotKeys = new Set(
       slots.map((slot) => slotKey(slot.storeId, slot.shiftTemplateId, slot.date, slot.slotIndex))
     );

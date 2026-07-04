@@ -85,6 +85,7 @@ model Employee {
   shiftAssignments  ShiftAssignment[]
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
+  deletedAt         DateTime?
 
   @@index([isActive, name])
 }

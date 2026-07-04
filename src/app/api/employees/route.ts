@@ -8,7 +8,6 @@ export async function GET() {
   if (error) return error;
 
   const employees = await prisma.employee.findMany({
-    where: { isActive: true },
     select: {
       id: true,
       name: true,
@@ -22,6 +21,7 @@ export async function GET() {
       maxShiftsPerMonth: true,
       maxHoursPerMonth: true,
       isActive: true,
+      deletedAt: true,
       stores: {
         select: {
           store: { select: { id: true, name: true } },
