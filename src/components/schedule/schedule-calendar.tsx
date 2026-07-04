@@ -597,9 +597,9 @@ export function ScheduleCalendar({
     pointerStartX: number;
     scrollLeftStart: number;
   } | null>(null);
-  const plannerScrollbarThumbRef = useRef<HTMLDivElement | null>(null);
   const [plannerContentWidth, setPlannerContentWidth] = useState(0);
   const [plannerViewportWidth, setPlannerViewportWidth] = useState(0);
+  const [plannerScrollLeft, setPlannerScrollLeft] = useState(0);
   const [flashSlots, setFlashSlots] = useState<Map<string, "success" | "error">>(new Map());
   const { notify } = useNotifications();
   const { confirm } = useConfirmDialog();
@@ -676,6 +676,7 @@ export function ScheduleCalendar({
     const updatePlannerMetrics = () => {
       setPlannerContentWidth(plannerTableRef.current?.scrollWidth ?? 0);
       setPlannerViewportWidth(plannerScrollRef.current?.clientWidth ?? 0);
+      setPlannerScrollLeft(plannerScrollRef.current?.scrollLeft ?? 0);
     };
 
     updatePlannerMetrics();
@@ -711,15 +712,8 @@ export function ScheduleCalendar({
     if (!mainScroller) return;
 
     const syncFromMain = () => {
-      if (mainScroller.scrollWidth > mainScroller.clientWidth) {
-        const thumb = plannerScrollbarThumbRef.current;
-        if (thumb) {
-          const maxScrollLeft = Math.max(mainScroller.scrollWidth - mainScroller.clientWidth, 0);
-          const thumbWidthPercent = Math.max((mainScroller.clientWidth / mainScroller.scrollWidth) * 100, 12);
-          const offsetPercent = (mainScroller.scrollLeft / maxScrollLeft) * (100 - thumbWidthPercent);
-          thumb.style.left = `${offsetPercent}%`;
-        }
-      }
+      setPlannerScrollLeft(mainScroller.scrollLeft);
+      setPlannerViewportWidth(mainScroller.clientWidth);
     };
 
     mainScroller.addEventListener("scroll", syncFromMain);
@@ -1241,6 +1235,11 @@ export function ScheduleCalendar({
     ? Math.max((plannerViewportWidth / plannerContentWidth) * 100, 12)
     : 100;
   const maxScrollLeft = Math.max(plannerContentWidth - plannerViewportWidth, 0);
+  const scrollbarThumbOffsetPercent =
+    hasHorizontalOverflow && maxScrollLeft > 0
+      ? (plannerScrollLeft / maxScrollLeft) * (100 - scrollbarThumbWidthPercent)
+      : 0;
+
   return (
     <div className={cn("space-y-4", isMoving && "[&_.assigned-slot]:opacity-50 [&_.assigned-slot]:pointer-events-none")}>
       {canEdit && (
@@ -1265,11 +1264,10 @@ export function ScheduleCalendar({
               ref={plannerScrollRef}
               onMouseDown={handlePlannerMouseDown}
               className={cn(
-                "hover-scrollbars max-h-[calc(100vh-16rem)] overflow-auto transform-gpu",
+                "hover-scrollbars max-h-[calc(100vh-16rem)] overflow-auto",
                 isSpacePressed && "cursor-grab",
                 isPanning && "cursor-grabbing select-none"
               )}
-              style={{ contain: "paint layout" }}
             >
               <table
                 ref={plannerTableRef}
@@ -1411,7 +1409,6 @@ export function ScheduleCalendar({
                 )}
               >
                 <div
-                  ref={plannerScrollbarThumbRef}
                   onMouseDown={handleScrollbarThumbPointerDown}
                   className={cn(
                     "absolute top-0 h-2 rounded-full bg-slate-500/70 shadow-sm transition-colors",
@@ -1419,6 +1416,7 @@ export function ScheduleCalendar({
                   )}
                   style={{
                     width: `${scrollbarThumbWidthPercent}%`,
+                    left: `${scrollbarThumbOffsetPercent}%`,
                   }}
                 />
               </div>
