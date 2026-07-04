@@ -465,7 +465,7 @@ function CompactAssignedSlotRow({
     <div
       ref={setDropRef}
       className={cn(
-        "assigned-slot flex items-center justify-between gap-2 rounded-md px-1 py-0.5 transition-all duration-300",
+        "assigned-slot flex items-center justify-between gap-2 rounded-md px-1 py-0.5 transition-colors duration-200",
         isOver && "ring-2 ring-blue-400",
         isDragging && "opacity-40",
         flash === "success" && "bg-green-100 text-green-900 ring-1 ring-green-400",
@@ -526,7 +526,7 @@ function CompactEmptySlotDropZone({
     <div
       ref={setNodeRef}
       className={cn(
-        "rounded-lg transition-all duration-300",
+        "rounded-lg transition-colors duration-200",
         isOver && "ring-2 ring-blue-400",
         flash === "success" && "ring-2 ring-green-400",
         flash === "error" && "ring-2 ring-rose-400"

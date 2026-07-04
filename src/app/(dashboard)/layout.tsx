@@ -16,7 +16,7 @@ export default async function DashboardLayout({
   return (
     <div className="relative flex min-h-screen gap-4 bg-slate-50 p-4">
       <Sidebar user={session.user} />
-      <main className="flex flex-1 flex-col pb-8">
+      <main className="flex flex-1 min-w-0 flex-col pb-8">
         <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col">
           <ApprovalRequestWatcher enabled={session.user.role === "ADMIN"} />
           <div className="flex-1">{children}</div>
