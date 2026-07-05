@@ -310,9 +310,9 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
     const isConfirmed = await confirm({
       title: "Xác nhận xoá ca",
       description: `Bạn có chắc chắn muốn xoá toàn bộ ca làm việc ${mode === "day" ? "trong ngày này" : mode === "week" ? "trong tuần này" : "trong tháng này"}? Hành động này không thể hoàn tác.`,
-      confirmText: "Xoá ca",
-      cancelText: "Huỷ",
-      destructive: true,
+      confirmLabel: "Xoá ca",
+      cancelLabel: "Huỷ",
+      tone: "destructive",
     });
     if (!isConfirmed) return;
 
