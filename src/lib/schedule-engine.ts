@@ -110,12 +110,17 @@ export function calculateTotalMonthlyHours(
 }
 
 export function getDateRange(
-  mode: "week" | "month",
+  mode: "day" | "week" | "month",
   referenceDate: Date
 ): { start: Date; end: Date } {
   const year = referenceDate.getUTCFullYear();
   const month = referenceDate.getUTCMonth();
   const day = referenceDate.getUTCDate();
+
+  if (mode === "day") {
+    const date = new Date(Date.UTC(year, month, day));
+    return { start: date, end: date };
+  }
 
   if (mode === "week") {
     const dayOfWeek = referenceDate.getUTCDay();
@@ -466,17 +471,24 @@ function scoreCandidate(
   const yesterday = formatDateOnly(addDays(slot.date, -1));
   const monthKey = getUtcMonthKey(slot.date);
   const slotDateKey = formatDateOnly(slot.date);
-  const monthPaceLimit = getMonthlyPaceLimit(employee.maxShiftsPerMonth, slot.date);
+  
+  // Tính hạn mức giờ làm trong ngày để giữ tốc độ dàn đều trong tháng (pacing)
+  const monthHourPaceLimit = (employee.maxHoursPerMonth * slot.date.getUTCDate()) / getUtcDaysInMonth(slot.date);
 
   const employeeMonthAssignments = assigned.filter(
     (a) => a.employeeId === employee.id && getUtcMonthKey(a.date) === monthKey
   );
-  const monthShiftsThroughDate = employeeMonthAssignments.filter(
-    (a) => formatDateOnly(a.date) <= slotDateKey
-  ).length;
-  const overPaceShifts = Math.max(0, monthShiftsThroughDate + 1 - monthPaceLimit);
+  
+  const monthHoursThroughDate = calculateTotalMonthlyHours(
+    employeeMonthAssignments
+      .filter((a) => formatDateOnly(a.date) <= slotDateKey)
+      .map((a) => ({ date: a.date, shift: a.shift }))
+  );
+  const overPaceHours = Math.max(0, monthHoursThroughDate + shift.durationHours - monthHourPaceLimit);
 
-  const monthHours = calculateTotalMonthlyHours(employeeMonthAssignments);
+  const monthHours = calculateTotalMonthlyHours(
+    employeeMonthAssignments.map((a) => ({ date: a.date, shift: a.shift }))
+  );
 
   const weekShifts = assigned.filter(
     (a) => {
@@ -487,7 +499,6 @@ function scoreCandidate(
     }
   ).length;
 
-  const monthShifts = employeeMonthAssignments.length;
   const storeMonthShifts = employeeMonthAssignments.filter(
     (a) => a.storeId === slot.storeId
   ).length;
@@ -495,12 +506,16 @@ function scoreCandidate(
     sameShiftPosition(a.shift, shift)
   ).length;
 
-  score -= monthHours * 2;
-  score -= monthShifts * 10;
+  score -= monthHours * 5;
   score -= weekShifts * 5;
   score -= storeMonthShifts * 18;
   score -= shiftPositionMonthShifts * 22;
-  score -= overPaceShifts * 120;
+  score -= overPaceHours * 30;
+
+  const newMonthHours = monthHours + shift.durationHours;
+  if (newMonthHours > employee.maxHoursPerMonth) {
+    score -= (newMonthHours - employee.maxHoursPerMonth) * 100;
+  }
 
   const yesterdayShift = assigned.find(
     (a) =>
@@ -523,17 +538,11 @@ function scoreCandidate(
   }
 
   score -= sameDayShifts.length * 40;
-  score += Math.max(0, employee.maxShiftsPerMonth - monthShifts) * 2;
+  score += Math.max(0, employee.maxHoursPerMonth - monthHours) * 0.5;
 
   score += stableNoise(`${employee.id}|${slot.storeId}|${slot.shiftTemplateId}|${slotDateKey}`);
 
   return score;
-}
-
-function getMonthlyPaceLimit(maxShiftsPerMonth: number, date: Date): number {
-  const elapsedDays = date.getUTCDate();
-  const daysInMonth = getUtcDaysInMonth(date);
-  return Math.ceil((maxShiftsPerMonth * elapsedDays) / daysInMonth);
 }
 
 function getUtcMonthKey(date: Date): string {
@@ -674,22 +683,6 @@ export function validateAssignment(
       });
     }
 
-    const monthShifts = allAssignments.filter(
-      (a) =>
-        a.employeeId === employeeId &&
-        getUtcMonthKey(a.date) === getUtcMonthKey(date)
-    ).length;
-
-    if (monthShifts >= employee.maxShiftsPerMonth) {
-      const exceededShifts = (monthShifts + 1) - employee.maxShiftsPerMonth;
-      conflicts.push({
-        type: "MAX_SHIFTS",
-        message: `Vượt số ca tối đa/tháng (${employee.maxShiftsPerMonth} ca). Số ca đã vượt trong tháng: ${exceededShifts} ca`,
-        employeeId,
-        date: dateStr,
-      });
-    }
-
     const monthHours = calculateTotalMonthlyHours(
       allAssignments
         .filter(
@@ -700,7 +693,7 @@ export function validateAssignment(
         .map(a => ({ date: a.date, shift: { startTime: a.shiftTemplate.startTime, endTime: a.shiftTemplate.endTime } }))
     );
 
-    const newTotalHours = monthHours + targetShift.durationHours; // This is a rough estimate for optimistic validation, real calculation is below
+    const newTotalHours = monthHours + targetShift.durationHours;
 
     if (newTotalHours > employee.maxHoursPerMonth) {
       const exceededHours = newTotalHours - employee.maxHoursPerMonth;

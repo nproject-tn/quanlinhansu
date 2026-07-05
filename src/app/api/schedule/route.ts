@@ -472,7 +472,7 @@ export async function POST(request: Request) {
     await prisma.shiftAssignment.deleteMany({
       where: {
         storeId: { in: storeIds },
-        date: { gte: start, lte: end },
+        date: { gte: start >= today ? start : today, lte: end },
         ...(parsed.data.preserveManual ? { isManual: false } : {}),
       },
     });
@@ -522,5 +522,46 @@ export async function POST(request: Request) {
       },
       { status: 500 }
     );
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const { error } = await requireAuth(["ADMIN", "SCHEDULER"]);
+    if (error) return error;
+
+    const { searchParams } = new URL(request.url);
+    const mode = (searchParams.get("mode") ?? "week") as "day" | "week" | "month";
+    const referenceDate = parseDateOnly(searchParams.get("date") ?? format(new Date(), "yyyy-MM-dd"));
+    const storeId = searchParams.get("storeId");
+
+    const { start, end } = getDateRange(mode, referenceDate);
+
+    let storeIds: string[] = [];
+    if (storeId) {
+      storeIds = [storeId];
+    } else {
+      const activeStores = await prisma.store.findMany({
+        where: { isActive: true },
+        select: { id: true },
+      });
+      storeIds = activeStores.map((store) => store.id);
+    }
+
+    if (storeIds.length === 0) {
+      return NextResponse.json({ message: "Không có cửa hàng nào để xoá ca" });
+    }
+
+    const { count } = await prisma.shiftAssignment.deleteMany({
+      where: {
+        storeId: { in: storeIds },
+        date: { gte: start, lte: end },
+      },
+    });
+
+    return NextResponse.json({ message: `Đã xoá thành công ${count} ca` });
+  } catch (error: any) {
+    console.error("Lỗi xoá ca:", error);
+    return NextResponse.json({ error: "Lỗi server khi xoá ca" }, { status: 500 });
   }
 }

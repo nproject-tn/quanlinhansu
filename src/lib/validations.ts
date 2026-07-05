@@ -55,7 +55,7 @@ export const scheduleDayNoteSchema = z.object({
 });
 
 export const scheduleGenerateSchema = z.object({
-  mode: z.enum(["week", "month"]),
+  mode: z.enum(["day", "week", "month"]),
   referenceDate: z.string(),
   storeIds: z.array(z.string()).optional(),
   preserveManual: z.boolean().default(true),

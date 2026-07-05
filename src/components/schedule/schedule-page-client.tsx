@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScheduleCalendar } from "@/components/schedule/schedule-calendar";
-import { ChevronLeft, ChevronRight, Wand2, AlertTriangle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Wand2, AlertTriangle, Trash2 } from "lucide-react";
 import { formatDateOnly, parseDateOnly } from "@/lib/utils";
 import { useNotifications } from "@/components/notifications/notification-center";
+import { useConfirmDialog } from "@/components/confirm/confirm-dialog-provider";
 import type { UserRole } from "@/generated/prisma/client";
 import { DatePicker } from "@/components/ui/date-picker";
 import { MonthPicker } from "@/components/ui/month-picker";
@@ -71,8 +72,8 @@ function normalizeToMonthStart(dateStr: string) {
 }
 
 export function SchedulePageClient({ user }: SchedulePageClientProps) {
-  const [mode, setMode] = useState<"week" | "month">(() => {
-    if (typeof window !== "undefined") return (sessionStorage.getItem("schedule_mode") as "week" | "month") || "week";
+  const [mode, setMode] = useState<"day" | "week" | "month">(() => {
+    if (typeof window !== "undefined") return (sessionStorage.getItem("schedule_mode") as "day" | "week" | "month") || "week";
     return "week";
   });
   const [layoutMode, setLayoutMode] = useState<"horizontal" | "vertical">(() => {
@@ -129,8 +130,10 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmingApproval, setConfirmingApproval] = useState<ApprovalRequest | null>(null);
+  const [isClearing, setIsClearing] = useState(false);
 
   const { notify } = useNotifications();
+  const { confirm } = useConfirmDialog();
   
   const statusHashRef = useRef<{ assignments: string | null; requests: string | null }>({ assignments: null, requests: null });
 
@@ -303,13 +306,49 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
     }
   }
 
+  async function clearSchedule() {
+    const isConfirmed = await confirm({
+      title: "Xác nhận xoá ca",
+      description: `Bạn có chắc chắn muốn xoá toàn bộ ca làm việc ${mode === "day" ? "trong ngày này" : mode === "week" ? "trong tuần này" : "trong tháng này"}? Hành động này không thể hoàn tác.`,
+      confirmText: "Xoá ca",
+      cancelText: "Huỷ",
+      destructive: true,
+    });
+    if (!isConfirmed) return;
+
+    setIsClearing(true);
+    setMessage(null);
+    setError(null);
+    try {
+      const res = await fetch(scheduleUrl, {
+        method: "DELETE",
+      });
+      const json = ensureObject<{ message?: string; error?: string }>(
+        await readJsonSafely<{ message?: string; error?: string }>(res, {}),
+        {}
+      );
+      if (!res.ok) {
+        setError(json.error ?? `Xoá ca thất bại (${res.status})`);
+        return;
+      }
+      setMessage(json.message ?? "Đã xoá ca thành công");
+      await refreshScheduleAndApprovals();
+    } catch {
+      setError("Không kết nối được server.");
+    } finally {
+      setIsClearing(false);
+    }
+  }
+
   function navigate(direction: -1 | 1) {
     setReferenceDate(
-      mode === "week" ? addUtcDays(referenceDate, direction * 7) : addUtcMonths(referenceDate, direction)
+      mode === "month" 
+        ? addUtcMonths(referenceDate, direction)
+        : addUtcDays(referenceDate, mode === "week" ? direction * 7 : direction)
     );
   }
 
-  function handleModeChange(nextMode: "week" | "month") {
+  function handleModeChange(nextMode: "day" | "week" | "month") {
     setMode(nextMode);
     if (nextMode === "month") {
       setReferenceDate((current) => normalizeToMonthStart(current));
@@ -435,9 +474,10 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
         <CardContent className="flex flex-wrap items-center gap-4 py-4">
           <Select
             value={mode}
-            onChange={(e) => handleModeChange(e.target.value as "week" | "month")}
+            onChange={(e) => handleModeChange(e.target.value as "day" | "week" | "month")}
             className="max-w-[140px]"
           >
+            <option value="day">Theo ngày</option>
             <option value="week">Theo tuần</option>
             <option value="month">Theo tháng</option>
           </Select>
@@ -498,10 +538,16 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
           </Select>
 
           {canEdit ? (
-            <Button onClick={autoGenerate} disabled={generating || refreshing}>
-              <Wand2 className="mr-2 h-4 w-4" />
-              {generating ? "Đang xếp..." : "Xếp ca tự động"}
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={autoGenerate} disabled={generating || refreshing}>
+                <Wand2 className="mr-2 h-4 w-4" />
+                {generating ? "Đang xếp..." : "Xếp ca tự động"}
+              </Button>
+              <Button variant="destructive" onClick={clearSchedule} disabled={isClearing || refreshing}>
+                <Trash2 className="mr-2 h-4 w-4" />
+                {isClearing ? "Đang xoá..." : "Xoá ca"}
+              </Button>
+            </div>
           ) : null}
 
           <div className="ml-auto text-sm text-slate-600">

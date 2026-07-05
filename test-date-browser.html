@@ -1,0 +1,14 @@
+<script>
+const slotDateStr = "2026-07-06";
+const deletedAtStr = "2026-07-04T19:40:00.000Z";
+
+const slotDate = new Date(slotDateStr);
+slotDate.setHours(0,0,0,0);
+
+const deletedDate = new Date(deletedAtStr);
+deletedDate.setHours(0,0,0,0);
+
+console.log("slotDate:", slotDate.toISOString());
+console.log("deletedDate:", deletedDate.toISOString());
+console.log("slotDate <= deletedDate:", slotDate <= deletedDate);
+</script>
