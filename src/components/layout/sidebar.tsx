@@ -56,7 +56,7 @@ export function Sidebar({ user }: SidebarProps) {
             isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100"
           )}
         >
-          <img src="/logo-shapextext.svg" alt="Apexflow HR" className="h-[18px] mt-2.5 w-auto object-contain object-left mb-0.5" />
+          <img src="/logo-text.svg" alt="Apexflow HR" className="h-[18px] mt-2.5 w-auto object-contain object-left mb-0.5" />
           <h1 className="text-sm font-medium text-slate-500">Quản lý nhân sự</h1>
         </div>
         
