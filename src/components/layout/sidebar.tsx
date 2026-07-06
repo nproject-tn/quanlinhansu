@@ -56,8 +56,8 @@ export function Sidebar({ user }: SidebarProps) {
             isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100"
           )}
         >
-          <p className="text-sm font-semibold text-blue-600">Apexflow HR</p>
-          <h1 className="text-lg font-bold text-slate-900">Quản lý nhân sự</h1>
+          <img src="/logo-shapextext.svg" alt="Apexflow HR" className="h-[18px] mt-2.5 w-auto object-contain object-left mb-0.5" />
+          <h1 className="text-sm font-medium text-slate-500">Quản lý nhân sự</h1>
         </div>
         
         <button
@@ -68,7 +68,11 @@ export function Sidebar({ user }: SidebarProps) {
           )}
           title={isCollapsed ? "Mở rộng" : "Thu nhỏ"}
         >
-          <PanelLeft className="h-5 w-5" />
+          {isCollapsed ? (
+            <img src="/logo-shape.svg" alt="Apexflow" className="h-6 w-6 object-contain" />
+          ) : (
+            <PanelLeft className="h-5 w-5" />
+          )}
         </button>
       </div>
 

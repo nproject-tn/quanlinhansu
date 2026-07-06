@@ -5,6 +5,9 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Apexflow HR - Quản lý nhân sự & Xếp ca",
   description: "Hệ thống quản lý nhân sự, xếp ca tự động multi-store",
+  icons: {
+    icon: "/logo-shape.svg",
+  },
 };
 
 export default function RootLayout({

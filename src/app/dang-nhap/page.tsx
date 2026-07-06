@@ -29,7 +29,9 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-slate-100 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <p className="text-sm font-semibold text-blue-600">Apexflow HR</p>
+          <div className="flex justify-center mb-1">
+            <img src="/logo-shapextext.svg" alt="Apexflow HR" className="h-5 w-auto object-contain" />
+          </div>
           <CardTitle>Đăng nhập hệ thống</CardTitle>
           <p className="text-sm text-slate-500">Quản lý nhân sự & xếp ca</p>
         </CardHeader>
