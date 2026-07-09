@@ -237,6 +237,7 @@ function SlotCard({
               disabled={loading}
               className="rounded p-1 text-slate-400 hover:bg-white hover:text-slate-600"
               aria-label="Thêm lỗi nhân viên"
+              title="Thêm lỗi nhân viên"
             >
               <Plus className="h-4 w-4" />
             </button>
@@ -247,6 +248,7 @@ function SlotCard({
               {...listeners}
               {...attributes}
               aria-label="Kéo để đổi ca"
+              title="Kéo để đổi ca"
             >
               <GripVertical className="h-4 w-4" />
             </button>
@@ -276,10 +278,11 @@ function SlotCard({
                 type="button"
                 onClick={() => onClear()}
                 disabled={loading}
-                className="rounded p-0.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                className="rounded p-1 text-slate-400 hover:bg-white hover:text-red-500"
                 aria-label="Xóa phân công"
+                title="Xóa phân công"
               >
-                <X className="h-3 w-3" />
+                <X className="h-4 w-4" />
               </button>
             </div>
           )}
@@ -541,6 +544,7 @@ function CompactAssignedSlotRow({
             disabled={loading}
             className="rounded p-0.5 text-slate-400 hover:bg-white hover:text-slate-600"
             aria-label={`Thêm lỗi cho ${employee.name}`}
+            title={`Thêm lỗi cho ${employee.name}`}
           >
             <Plus className="h-3 w-3" />
           </button>
@@ -551,6 +555,7 @@ function CompactAssignedSlotRow({
             {...listeners}
             {...attributes}
             aria-label={`Kéo ${employee.name} để đổi ca ${shift.name}`}
+            title={`Kéo ${employee.name} để đổi ca`}
           >
             <GripVertical className="h-3.5 w-3.5" />
           </button>
@@ -558,10 +563,11 @@ function CompactAssignedSlotRow({
             type="button"
             onClick={() => void onClear()}
             disabled={loading}
-            className="rounded p-0.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
+            className="rounded p-0.5 text-slate-400 hover:bg-white hover:text-red-500"
             aria-label={`Xóa ${employee.name} khỏi ${shift.name}`}
+            title={`Xóa khỏi ca ${shift.name}`}
           >
-            <X className="h-3 w-3" />
+            <X className="h-3.5 w-3.5" />
           </button>
         </div>
       )}
