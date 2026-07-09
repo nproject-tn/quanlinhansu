@@ -22,7 +22,8 @@ import {
 } from "@dnd-kit/core";
 import { format, parseISO } from "date-fns";
 import { vi } from "date-fns/locale";
-import { AlertCircle, AlertTriangle, GripVertical, X } from "lucide-react";
+import { AlertCircle, AlertTriangle, GripVertical, X, Plus } from "lucide-react";
+import { FaultModal } from "./fault-modal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -64,6 +65,7 @@ type Slot = {
   requiredStaff: number;
   employeeId: string | null;
   assignmentId?: string;
+  faults?: { id: string; note: string | null; evidenceUrl: string | null; createdAt: Date | string }[];
 };
 
 type Unfilled = { storeName: string; shiftName: string; date: string };
@@ -173,6 +175,7 @@ function SlotCard({
   loading,
   onAssign,
   onClear,
+  onAddFault,
 }: {
   slot: Slot;
   shift?: Shift;
@@ -183,6 +186,7 @@ function SlotCard({
   loading: boolean;
   onAssign: (employeeId: string) => Promise<void>;
   onClear: () => Promise<void>;
+  onAddFault: (slot: Slot) => void;
 }) {
   const key = slotKey(slot);
   const slotDate = new Date(slot.date);
@@ -226,32 +230,58 @@ function SlotCard({
           <p className="text-slate-500">{store.name}</p>
         </div>
         {canEdit && employee && (
-          <button
-            ref={setDragRef}
-            type="button"
-            className="touch-none rounded p-1 text-slate-400 hover:bg-white hover:text-slate-600"
-            {...listeners}
-            {...attributes}
-            aria-label="Kéo để đổi ca"
-          >
-            <GripVertical className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => onAddFault(slot)}
+              disabled={loading}
+              className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              aria-label="Thêm lỗi nhân viên"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+            <button
+              ref={setDragRef}
+              type="button"
+              className="touch-none rounded p-1 text-slate-400 hover:bg-white hover:text-slate-600"
+              {...listeners}
+              {...attributes}
+              aria-label="Kéo để đổi ca"
+            >
+              <GripVertical className="h-4 w-4" />
+            </button>
+          </div>
         )}
       </div>
 
       {employee ? (
         <div className="mt-1 flex items-center justify-between gap-1">
-          <p className="font-semibold text-slate-900">{employee.name}</p>
+          <div className="flex flex-col">
+            <p className="font-semibold text-slate-900">{employee.name}</p>
+            {slot.faults && slot.faults.length > 0 && (
+              <button 
+                type="button"
+                onClick={() => onAddFault(slot)}
+                className="flex items-center gap-0.5 text-[10px] text-red-500 font-medium mt-0.5 hover:underline text-left cursor-pointer"
+                aria-label="Xem chi tiết lỗi"
+              >
+                <AlertTriangle className="h-3 w-3" />
+                <span>lỗi : {slot.faults.length}</span>
+              </button>
+            )}
+          </div>
           {canEdit && (
-            <button
-              type="button"
-              onClick={() => onClear()}
-              disabled={loading}
-              className="rounded p-0.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
-              aria-label="Xóa phân công"
-            >
-              <X className="h-3 w-3" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => onClear()}
+                disabled={loading}
+                className="rounded p-0.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                aria-label="Xóa phân công"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
           )}
         </div>
       ) : canEdit ? (
@@ -340,6 +370,7 @@ function CompactSlotGroup({
   flashSlots,
   onAssign,
   onClear,
+  onAddFault,
 }: {
   slots: Slot[];
   shift: Shift;
@@ -351,6 +382,7 @@ function CompactSlotGroup({
   flashSlots: Map<string, "success" | "error">;
   onAssign: (slot: Slot, employeeId: string) => Promise<void>;
   onClear: (slot: Slot) => Promise<void>;
+  onAddFault: (slot: Slot) => void;
 }) {
   const orderedSlots = [...slots].sort((a, b) => a.slotIndex - b.slotIndex);
   const assignedSlots = orderedSlots.filter((slot) => Boolean(slot.employeeId));
@@ -399,6 +431,7 @@ function CompactSlotGroup({
                   loading={loading}
                   flash={flashSlots.get(slotKey(slot))}
                   onClear={() => onClear(slot)}
+                  onAddFault={() => onAddFault(slot)}
                 />
               );
             })}
@@ -451,6 +484,7 @@ function CompactAssignedSlotRow({
   loading,
   flash,
   onClear,
+  onAddFault,
 }: {
   slot: Slot;
   shift: Shift;
@@ -459,6 +493,7 @@ function CompactAssignedSlotRow({
   loading: boolean;
   flash?: "success" | "error";
   onClear: () => Promise<void>;
+  onAddFault: (slot: Slot) => void;
 }) {
   const key = slotKey(slot);
   const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
@@ -483,9 +518,32 @@ function CompactAssignedSlotRow({
         flash === "error" && "bg-rose-100 text-rose-900 ring-1 ring-rose-400"
       )}
     >
-      <p className="font-semibold text-slate-900">{employee.name}</p>
+      <div className="flex flex-col justify-center min-w-[120px]">
+        <p className="font-semibold text-slate-900">{employee.name}</p>
+        {slot.faults && slot.faults.length > 0 && (
+          <button 
+            type="button"
+            onClick={() => onAddFault(slot)}
+            className="flex items-center gap-0.5 text-[10px] text-red-500 font-medium mt-0.5 hover:underline text-left cursor-pointer"
+            aria-label="Xem chi tiết lỗi"
+          >
+            <AlertTriangle className="h-3 w-3" />
+            <span>lỗi : {slot.faults.length}</span>
+          </button>
+        )}
+      </div>
+
       {canEdit && (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5 ml-auto">
+          <button
+            type="button"
+            onClick={() => onAddFault(slot)}
+            disabled={loading}
+            className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            aria-label={`Thêm lỗi cho ${employee.name}`}
+          >
+            <Plus className="h-3 w-3" />
+          </button>
           <button
             ref={setDragRef}
             type="button"
@@ -593,6 +651,7 @@ export function ScheduleCalendar({
   onOptimisticUpdate,
 }: ScheduleCalendarProps) {
   const [activeSlot, setActiveSlot] = useState<Slot | null>(null);
+  const [faultSlot, setFaultSlot] = useState<Slot | null>(null);
   const [conflicts, setConflicts] = useState<ScheduleConflict[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [messageType, setMessageType] = useState<"success" | "error">("success");
@@ -641,6 +700,88 @@ export function ScheduleCalendar({
       });
     }, 1200);
   }, []);
+
+  const handleSaveFault = async (note: string, evidenceUrl?: string, time?: string) => {
+    if (!faultSlot?.assignmentId || !faultSlot?.employeeId) return;
+    try {
+      setLoading(true);
+      
+      let createdAt = undefined;
+      if (time && faultSlot.date) {
+        const [hours, minutes] = time.split(':');
+        const dt = new Date(faultSlot.date);
+        dt.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        createdAt = dt.toISOString();
+      }
+
+      const res = await fetch("/api/schedule/fault", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          assignmentId: faultSlot.assignmentId,
+          employeeId: faultSlot.employeeId,
+          note,
+          evidenceUrl,
+          createdAt,
+        }),
+      });
+      if (!res.ok) throw new Error("Lỗi khi thêm");
+      notify({ title: "Thành công", body: "Đã thêm lỗi thành công", tone: "success" });
+      onRefresh();
+    } catch (error: any) {
+      notify({ title: "Lỗi", body: error.message, tone: "error" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditFault = async (id: string, note: string, evidenceUrl?: string, time?: string) => {
+    try {
+      setLoading(true);
+
+      let createdAt = undefined;
+      if (time && faultSlot?.date) {
+        const [hours, minutes] = time.split(':');
+        const dt = new Date(faultSlot.date);
+        dt.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        createdAt = dt.toISOString();
+      }
+
+      const res = await fetch("/api/schedule/fault", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, note, evidenceUrl, createdAt }),
+      });
+      if (!res.ok) throw new Error("Lỗi khi cập nhật");
+      notify({ title: "Thành công", body: "Đã cập nhật lỗi thành công", tone: "success" });
+      onRefresh();
+    } catch (error: any) {
+      notify({ title: "Lỗi", body: error.message, tone: "error" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteFault = async (id: string) => {
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/schedule/fault?id=${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Lỗi khi xóa");
+      const data = await res.json();
+      if (data.pendingApproval) {
+        notify({ title: "Đã gửi yêu cầu", body: "Yêu cầu xoá lỗi đã được gửi đến Quản lý để duyệt", tone: "warning" });
+      } else {
+        notify({ title: "Thành công", body: "Đã xóa lỗi thành công", tone: "success" });
+        onRefresh();
+      }
+    } catch (error: any) {
+      notify({ title: "Lỗi", body: error.message, tone: "error" });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -1402,6 +1543,7 @@ export function ScheduleCalendar({
                                         flashSlots={flashSlots}
                                         onAssign={(slot, id) => assignEmployee(slot, id)}
                                         onClear={(slot) => assignEmployee(slot, null)}
+                                        onAddFault={(slot) => setFaultSlot(slot)}
                                       />
                                     ) : selectedEmployeeId ? (
                                       <div className="min-h-[112px]" />
@@ -1519,6 +1661,7 @@ export function ScheduleCalendar({
                                   flashSlots={flashSlots}
                                   onAssign={(slot, id) => assignEmployee(slot, id)}
                                   onClear={(slot) => assignEmployee(slot, null)}
+                                  onAddFault={(slot) => setFaultSlot(slot)}
                                 />,
                               ];
                             })()
@@ -1600,6 +1743,20 @@ export function ScheduleCalendar({
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {faultSlot && faultSlot.employeeId && (
+        <FaultModal
+          isOpen={!!faultSlot}
+          onClose={() => setFaultSlot(null)}
+          employeeName={employees.find((e) => e.id === faultSlot?.employeeId)?.name || ""}
+          shiftName={shifts.find((s) => s.id === faultSlot?.shiftTemplateId)?.name || ""}
+          faults={faultSlot ? slots.find(s => slotKey(s) === slotKey(faultSlot))?.faults : undefined}
+          onAddFault={handleSaveFault}
+          onEditFault={handleEditFault}
+          onDeleteFault={handleDeleteFault}
+          readOnly={!canEdit}
+        />
       )}
     </div>
   );

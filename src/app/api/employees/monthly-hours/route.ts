@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   const month = searchParams.get("month") ?? format(new Date(), "yyyy-MM");
   const { start, end } = getDateRange("month", parseDateOnly(`${month}-01`));
 
-  const [employees, assignments] = await Promise.all([
+  const [employees, assignments, faultsRaw] = await Promise.all([
     prisma.employee.findMany({
       select: {
         id: true,
@@ -43,9 +43,28 @@ export async function GET(request: Request) {
         },
       },
     }),
+    prisma.shiftFault.findMany({
+      where: {
+        assignment: { date: { gte: start, lte: end } }
+      },
+      select: {
+        id: true,
+        employeeId: true,
+        note: true,
+        evidenceUrl: true,
+        createdAt: true,
+        assignment: {
+          select: {
+            date: true,
+            shiftTemplate: { select: { name: true } }
+          }
+        }
+      },
+      orderBy: { createdAt: "desc" }
+    }),
   ]);
 
-  const totals = new Map<string, { actualHours: number; actualShifts: number }>();
+  const totals = new Map<string, { actualHours: number; actualShifts: number; faults: any[] }>();
 
   const assignmentsByEmployee = new Map<string, any[]>();
   for (const assignment of assignments) {
@@ -62,24 +81,38 @@ export async function GET(request: Request) {
     });
   }
 
+  for (const employee of employees) {
+    totals.set(employee.id, { actualHours: 0, actualShifts: 0, faults: [] });
+  }
+
+  for (const fault of faultsRaw) {
+    if (totals.has(fault.employeeId)) {
+      totals.get(fault.employeeId)!.faults.push({
+        id: fault.id,
+        note: fault.note,
+        evidenceUrl: fault.evidenceUrl,
+        date: fault.assignment.date,
+        shiftName: fault.assignment.shiftTemplate.name,
+        createdAt: fault.createdAt
+      });
+    }
+  }
+
   for (const assignment of assignments) {
     if (!assignment.employeeId) continue;
 
-    const current = totals.get(assignment.employeeId) ?? {
-      actualHours: 0,
-      actualShifts: 0,
-    };
+    const current = totals.get(assignment.employeeId);
+    if (!current) continue;
 
     if (current.actualShifts === 0) {
       current.actualHours = calculateTotalMonthlyHours(assignmentsByEmployee.get(assignment.employeeId) || []);
     }
     current.actualShifts += 1;
-    totals.set(assignment.employeeId, current);
   }
 
   return NextResponse.json(
     employees.map((employee) => {
-      const total = totals.get(employee.id) ?? { actualHours: 0, actualShifts: 0 };
+      const total = totals.get(employee.id)!;
       return {
         ...employee,
         month,
@@ -87,6 +120,8 @@ export async function GET(request: Request) {
         actualShifts: total.actualShifts,
         hoursDelta: Math.round((total.actualHours - employee.maxHoursPerMonth) * 10) / 10,
         shiftsDelta: total.actualShifts - employee.maxShiftsPerMonth,
+        faults: total.faults,
+        totalFaults: total.faults.length,
       };
     })
   );

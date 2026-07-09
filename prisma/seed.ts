@@ -13,6 +13,11 @@ const adapter = new PrismaPg({
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
+  if (process.env.NODE_ENV === 'production') {
+    console.warn("⚠️ CẢNH BÁO: Đang ở môi trường Production. Bỏ qua việc seed dữ liệu rác để bảo vệ DB.");
+    return;
+  }
+
   console.log("🌱 Đang seed dữ liệu mẫu...");
 
   await prisma.scheduleConfig.upsert({

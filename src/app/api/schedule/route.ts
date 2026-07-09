@@ -120,6 +120,7 @@ export async function GET(request: Request) {
           date: true,
           slotIndex: true,
           employeeId: true,
+          faults: { select: { id: true, note: true, evidenceUrl: true, createdAt: true } },
         },
       }),
       prisma.employee.findMany({
@@ -171,6 +172,7 @@ export async function GET(request: Request) {
         date: e.date,
         slotIndex: e.slotIndex,
         employeeId: e.employeeId,
+        faults: e.faults,
       }))
     );
 

@@ -49,16 +49,32 @@ export async function PATCH(
     return NextResponse.json({ success: true, message: "Đã từ chối yêu cầu" });
   }
 
-  const result =
-    approvalRequest.actionType === "ASSIGN_EMPLOYEE"
-      ? await updateAssignment({
-          ...((approvalRequest.payload as ApprovalPayload).input ?? {}),
-          confirmOverCapacity: true,
-        } as UpdateAssignmentInput)
-      : await moveAssignment({
-          ...(approvalRequest.payload as unknown as MoveAssignmentInput),
-          confirmOverCapacity: true,
-        });
+  let result;
+  if (approvalRequest.actionType === "ASSIGN_EMPLOYEE") {
+    result = await updateAssignment({
+      ...((approvalRequest.payload as ApprovalPayload).input ?? {}),
+      confirmOverCapacity: true,
+    } as UpdateAssignmentInput);
+  } else if (approvalRequest.actionType === "MOVE_ASSIGNMENT") {
+    result = await moveAssignment({
+      ...(approvalRequest.payload as unknown as MoveAssignmentInput),
+      confirmOverCapacity: true,
+    });
+  } else if (approvalRequest.actionType === "DELETE_FAULT") {
+    const faultId = (approvalRequest.payload as any).faultId;
+    try {
+      await prisma.shiftFault.delete({ where: { id: faultId } });
+      result = { success: true, message: "Đã xoá lỗi thành công" };
+    } catch (e: any) {
+      if (e.code === 'P2025') { // Record to delete does not exist
+        result = { success: true, message: "Lỗi đã bị xoá trước đó" };
+      } else {
+        result = { error: "Không thể xoá lỗi", status: 500 };
+      }
+    }
+  } else {
+    result = { error: "Loại yêu cầu không hợp lệ", status: 400 };
+  }
 
   if ("error" in result && !("success" in result)) {
     // Tự động xoá yêu cầu nếu duyệt bị lỗi (ví dụ ca đã được điền, người dùng không thể nhận thêm)

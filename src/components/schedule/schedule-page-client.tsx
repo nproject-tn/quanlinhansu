@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, Fragment } from "react";
+import { createPortal } from "react-dom";
 import useSWR from "swr";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -24,7 +25,7 @@ type SchedulePageClientProps = {
 
 type ApprovalRequest = {
   id: string;
-  actionType: "ASSIGN_EMPLOYEE" | "MOVE_ASSIGNMENT";
+  actionType: "ASSIGN_EMPLOYEE" | "MOVE_ASSIGNMENT" | "DELETE_FAULT";
   message: string;
   conflicts?: Array<{ message?: string; employeeId?: string; date?: string; storeId?: string; shiftTemplateId?: string }>;
   requestedBy?: {
@@ -633,8 +634,8 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
       )}
 
       {/* Full-screen Modal for Admin Approval */}
-      {confirmingApproval && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      {confirmingApproval && typeof window !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <Card className="w-full max-w-2xl shadow-2xl">
             <CardHeader className="border-b bg-slate-50/50 pb-4">
               <CardTitle className="text-xl text-blue-700">Xác nhận duyệt yêu cầu xếp ca</CardTitle>
@@ -706,6 +707,11 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
                           <span className="font-medium">Ngày:</span> {targetDate}
                         </p>
                       )}
+                      {confirmingApproval.actionType === "DELETE_FAULT" && confirmingApproval.payload?.input?.faultNote !== undefined && (
+                        <p>
+                          <span className="font-medium">Lỗi:</span> {confirmingApproval.payload.input.faultNote || "Không có ghi chú"}{confirmingApproval.payload.input.faultTime ? ` - ${format(new Date(confirmingApproval.payload.input.faultTime), "HH:mm")}` : ""}
+                        </p>
+                      )}
                     </div>
                   </div>
                 );
@@ -746,7 +752,8 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
               </div>
             </CardContent>
           </Card>
-        </div>
+        </div>,
+        document.body
       )}
 
 

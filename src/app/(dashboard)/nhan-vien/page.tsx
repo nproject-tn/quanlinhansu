@@ -17,6 +17,7 @@ import {
   calcMaxShiftsFromHours,
   DEFAULT_SHIFT_HOURS,
 } from "@/lib/shift-utils";
+import { EmployeeFaultsModal } from "@/components/employees/employee-faults-modal";
 
 type Store = { id: string; name: string };
 type Employee = {
@@ -47,6 +48,8 @@ type EmployeeMonthlyHours = {
   actualShifts: number;
   hoursDelta: number;
   shiftsDelta: number;
+  totalFaults: number;
+  faults: any[];
 };
 
 type UserRole = "ADMIN" | "SCHEDULER" | "EMPLOYEE";
@@ -137,6 +140,8 @@ export default function EmployeesPage() {
     const validIds = new Set(employees.map(e => e.id));
     return monthlyHours.filter(mh => validIds.has(mh.id));
   }, [monthlyHours, employees]);
+  const [selectedFaultsEmployee, setSelectedFaultsEmployee] = useState<EmployeeMonthlyHours | null>(null);
+
   const [form, setForm] = useState<FormState>(emptyForm);
   const [currentRole, setCurrentRole] = useState<UserRole | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -607,7 +612,8 @@ export default function EmployeesPage() {
                   <th className="pb-2 pr-4">Ca thực tế</th>
                   <th className="pb-2 pr-4">Giờ tối đa</th>
                   <th className="pb-2 pr-4">Chênh lệch giờ</th>
-                  <th className="pb-2">Chênh lệch ca</th>
+                  <th className="pb-2 pr-4">Chênh lệch ca</th>
+                  <th className="pb-2">Số lỗi</th>
                 </tr>
               </thead>
               <tbody>
@@ -623,10 +629,23 @@ export default function EmployeesPage() {
                         {emp.hoursDelta > 0 ? "+" : ""}{emp.hoursDelta}h
                       </span>
                     </td>
-                    <td className="py-3">
+                    <td className="py-3 pr-4">
                       <span className={emp.shiftsDelta > 0 ? "font-medium text-red-600" : emp.shiftsDelta < 0 ? "text-amber-600" : "text-emerald-600"}>
                         {emp.shiftsDelta > 0 ? "+" : ""}{emp.shiftsDelta}
                       </span>
+                    </td>
+                    <td className="py-3">
+                      {emp.totalFaults > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedFaultsEmployee(emp)}
+                          className="font-medium text-red-600 hover:text-red-700 underline underline-offset-2"
+                        >
+                          {emp.totalFaults}
+                        </button>
+                      ) : (
+                        <span className="text-slate-400">0</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -635,6 +654,16 @@ export default function EmployeesPage() {
           </div>
         </CardContent>
       </Card>
+
+      {selectedFaultsEmployee && (
+        <EmployeeFaultsModal
+          isOpen={!!selectedFaultsEmployee}
+          onClose={() => setSelectedFaultsEmployee(null)}
+          employeeName={selectedFaultsEmployee.name}
+          month={selectedFaultsEmployee.month}
+          faults={selectedFaultsEmployee.faults}
+        />
+      )}
     </div>
   );
 }

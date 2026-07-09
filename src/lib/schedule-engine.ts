@@ -25,6 +25,7 @@ export type AssignmentSlot = {
   requiredStaff: number;
   employeeId: string | null;
   assignmentId?: string;
+  faults?: { id: string; note: string | null }[];
 };
 
 export type ScheduleConflict = {
@@ -180,6 +181,7 @@ export function buildAssignmentSlots(
     date: Date;
     slotIndex: number;
     employeeId: string | null;
+    faults?: { id: string; note: string | null }[];
   }[]
 ): AssignmentSlot[] {
   const slots: AssignmentSlot[] = [];
@@ -243,6 +245,7 @@ export function buildAssignmentSlots(
             requiredStaff: required,
             employeeId: found?.employeeId ?? null,
             assignmentId: found?.id,
+            faults: found?.faults,
           });
         }
       }
