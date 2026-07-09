@@ -45,6 +45,8 @@ type EmployeeMonthlyHours = {
   maxHoursPerMonth: number;
   month: string;
   actualHours: number;
+  overtimeHours: number;
+  totalHours: number;
   actualShifts: number;
   hoursDelta: number;
   shiftsDelta: number;
@@ -608,7 +610,9 @@ export default function EmployeesPage() {
                 <tr className="border-b text-left text-slate-500">
                   <th className="pb-2 pr-4">Tên</th>
                   <th className="pb-2 pr-4">Chức vụ</th>
-                  <th className="pb-2 pr-4">Giờ thực tế</th>
+                  <th className="pb-2 pr-4">Giờ làm chính</th>
+                  <th className="pb-2 pr-4">Giờ làm thêm</th>
+                  <th className="pb-2 pr-4">Tổng giờ thực tế</th>
                   <th className="pb-2 pr-4">Ca thực tế</th>
                   <th className="pb-2 pr-4">Giờ tối đa</th>
                   <th className="pb-2 pr-4">Chênh lệch giờ</th>
@@ -622,6 +626,8 @@ export default function EmployeesPage() {
                     <td className="py-3 pr-4 font-medium">{emp.name}</td>
                     <td className="py-3 pr-4">{emp.position}</td>
                     <td className="py-3 pr-4">{emp.actualHours}h</td>
+                    <td className="py-3 pr-4">{emp.overtimeHours}h</td>
+                    <td className="py-3 pr-4 font-medium text-blue-600">{emp.totalHours}h</td>
                     <td className="py-3 pr-4">{emp.actualShifts}</td>
                     <td className="py-3 pr-4">{emp.maxHoursPerMonth}h</td>
                     <td className="py-3 pr-4">

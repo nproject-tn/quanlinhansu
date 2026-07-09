@@ -73,7 +73,7 @@ export async function GET(request: Request) {
       });
     }
 
-    const [shifts, rules, overrides, existing, employees] = await prisma.$transaction([
+    const [shifts, rules, overrides, existing, employees, overtimes] = await prisma.$transaction([
       prisma.shiftTemplate.findMany({
         where: { storeId: { in: storeIds }, isActive: true },
         select: {
@@ -140,6 +140,20 @@ export async function GET(request: Request) {
         },
         orderBy: { name: "asc" },
       }),
+      prisma.shiftOvertime.findMany({
+        where: {
+          storeId: { in: storeIds },
+          date: { gte: start, lte: end },
+        },
+        select: {
+          id: true,
+          storeId: true,
+          shiftTemplateId: true,
+          date: true,
+          employeeId: true,
+          hours: true,
+        },
+      }),
     ]);
 
     const dayNotes = await prisma.scheduleDayNote
@@ -194,6 +208,14 @@ export async function GET(request: Request) {
       dayNotes: dayNotes.map((note) => ({
         ...note,
         date: formatDateOnly(note.date),
+      })),
+      overtimes: overtimes.map((o) => ({
+        id: o.id,
+        storeId: o.storeId,
+        shiftTemplateId: o.shiftTemplateId,
+        date: formatDateOnly(o.date),
+        employeeId: o.employeeId,
+        hours: o.hours,
       })),
       slots,
       employees: employees.map((e) => ({

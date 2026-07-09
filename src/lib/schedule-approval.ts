@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/generated/prisma/client";
 import type { ScheduleConflict } from "@/lib/schedule-engine";
 
-type ApprovalAction = "ASSIGN_EMPLOYEE" | "MOVE_ASSIGNMENT" | "DELETE_FAULT";
+type ApprovalAction = "ASSIGN_EMPLOYEE" | "MOVE_ASSIGNMENT" | "DELETE_FAULT" | "ADD_OVERTIME" | "UPDATE_OVERTIME" | "DELETE_OVERTIME";
 
 type CreateApprovalRequestInput = {
   actionType: ApprovalAction;

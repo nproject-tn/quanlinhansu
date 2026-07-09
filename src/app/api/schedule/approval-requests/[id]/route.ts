@@ -72,6 +72,47 @@ export async function PATCH(
         result = { error: "Không thể xoá lỗi", status: 500 };
       }
     }
+  } else if (approvalRequest.actionType === "ADD_OVERTIME") {
+    const payload = approvalRequest.payload as any;
+    try {
+      await prisma.shiftOvertime.create({
+        data: {
+          storeId: payload.storeId,
+          shiftTemplateId: payload.shiftTemplateId,
+          date: new Date(payload.date),
+          employeeId: payload.employeeId,
+          hours: Number(payload.hours),
+        },
+      });
+      result = { success: true, message: "Đã duyệt thêm giờ làm thêm" };
+    } catch (e: any) {
+      result = { error: "Không thể thêm giờ làm thêm", status: 500 };
+    }
+  } else if (approvalRequest.actionType === "UPDATE_OVERTIME") {
+    const payload = approvalRequest.payload as any;
+    try {
+      await prisma.shiftOvertime.update({
+        where: { id: payload.id },
+        data: { hours: Number(payload.hours) },
+      });
+      result = { success: true, message: "Đã duyệt cập nhật giờ làm thêm" };
+    } catch (e: any) {
+      result = { error: "Không thể cập nhật giờ làm thêm", status: 500 };
+    }
+  } else if (approvalRequest.actionType === "DELETE_OVERTIME") {
+    const payload = approvalRequest.payload as any;
+    try {
+      await prisma.shiftOvertime.delete({
+        where: { id: payload.id },
+      });
+      result = { success: true, message: "Đã duyệt xóa giờ làm thêm" };
+    } catch (e: any) {
+      if (e.code === 'P2025') {
+        result = { success: true, message: "Giờ làm thêm đã bị xóa trước đó" };
+      } else {
+        result = { error: "Không thể xóa giờ làm thêm", status: 500 };
+      }
+    }
   } else {
     result = { error: "Loại yêu cầu không hợp lệ", status: 400 };
   }

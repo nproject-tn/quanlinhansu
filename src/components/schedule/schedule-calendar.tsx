@@ -24,6 +24,7 @@ import { format, parseISO } from "date-fns";
 import { vi } from "date-fns/locale";
 import { AlertCircle, AlertTriangle, GripVertical, X, Plus } from "lucide-react";
 import { FaultModal } from "./fault-modal";
+import { OvertimeModal } from "./overtime-modal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -77,14 +78,25 @@ type ScheduleCalendarProps = {
   slots: Slot[];
   employees: Employee[];
   dayNotes: DayNote[];
+  overtimes: { id: string; storeId: string; shiftTemplateId: string; date: string; employeeId: string; hours: number }[];
   unfilled: Unfilled[];
   selectedEmployeeId: string;
   layoutMode: "horizontal" | "vertical";
   onLayoutModeChange: (mode: "horizontal" | "vertical") => void;
   canEdit: boolean;
-  isAdmin?: boolean;
+  isAdmin: boolean;
   onRefresh: () => void;
-  onOptimisticUpdate?: (storeId: string, shiftTemplateId: string, date: string, slotIndex: number, employeeId: string | null) => void;
+  onOptimisticUpdate: (
+    storeId: string,
+    shiftTemplateId: string,
+    date: string,
+    slotIndex: number,
+    employeeId: string | null
+  ) => void;
+  onOptimisticOvertimeUpdate?: (
+    action: "add" | "edit" | "delete",
+    payload: { id?: string; storeId?: string; shiftTemplateId?: string; date?: string; employeeId?: string; hours?: number }
+  ) => void;
 };
 
 function slotKey(slot: Pick<Slot, "storeId" | "shiftTemplateId" | "date" | "slotIndex">) {
@@ -371,6 +383,10 @@ function CompactSlotGroup({
   canEdit,
   loading,
   flashSlots,
+  overtimes,
+  onAddOvertime,
+  onEditOvertime,
+  onDeleteOvertime,
   onAssign,
   onClear,
   onAddFault,
@@ -383,6 +399,10 @@ function CompactSlotGroup({
   canEdit: boolean;
   loading: boolean;
   flashSlots: Map<string, "success" | "error">;
+  overtimes: { id: string; employeeId: string; hours: number }[];
+  onAddOvertime: () => void;
+  onEditOvertime: (id: string, employeeId: string, hours: number) => void;
+  onDeleteOvertime: (id: string) => void;
   onAssign: (slot: Slot, employeeId: string) => Promise<void>;
   onClear: (slot: Slot) => Promise<void>;
   onAddFault: (slot: Slot) => void;
@@ -415,6 +435,19 @@ function CompactSlotGroup({
           </p>
           <p className="text-slate-500">{store.name}</p>
         </div>
+        {canEdit && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onAddOvertime}
+            disabled={!hasAssigned || loading}
+            className="h-6 w-6 p-0 rounded-md text-slate-400 hover:text-blue-600 hover:bg-white hover:shadow-sm focus-visible:ring-1 focus-visible:ring-blue-400 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:shadow-none transition-all"
+            title={!hasAssigned ? "Ca trống không thể thêm giờ làm thêm" : "Thêm giờ làm thêm"}
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       {assignedSlots.length > 0 ? (
@@ -439,6 +472,41 @@ function CompactSlotGroup({
               );
             })}
           </div>
+          {overtimes.length > 0 && (
+            <div className="min-w-0 flex-1 space-y-0.5 pt-1">
+              {overtimes.map((ot) => {
+                const emp = employeeMap.get(ot.employeeId);
+                if (!emp) return null;
+                return (
+                  <div key={ot.id} className="group/ot flex items-center justify-between text-[11px] italic text-slate-500">
+                    <span>{emp.name} làm thêm {ot.hours} tiếng</span>
+                    {canEdit && (
+                      <div className="flex items-center gap-1 opacity-0 group-hover/ot:opacity-100 transition-opacity">
+                        <button
+                          type="button"
+                          onClick={() => onEditOvertime(ot.id, ot.employeeId, ot.hours)}
+                          disabled={loading}
+                          className="text-slate-400 hover:text-blue-600"
+                          title="Sửa giờ làm thêm"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onDeleteOvertime(ot.id)}
+                          disabled={loading}
+                          className="text-slate-400 hover:text-red-600"
+                          title="Xoá giờ làm thêm"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       ) : canEdit ? (
         <p className="mt-1 font-semibold text-slate-400">— Trống —</p>
@@ -647,6 +715,7 @@ export function ScheduleCalendar({
   slots,
   employees,
   dayNotes,
+  overtimes,
   unfilled,
   selectedEmployeeId,
   layoutMode,
@@ -655,6 +724,7 @@ export function ScheduleCalendar({
   isAdmin,
   onRefresh,
   onOptimisticUpdate,
+  onOptimisticOvertimeUpdate,
 }: ScheduleCalendarProps) {
   const [activeSlot, setActiveSlot] = useState<Slot | null>(null);
   const [faultSlot, setFaultSlot] = useState<Slot | null>(null);
@@ -1129,7 +1199,96 @@ export function ScheduleCalendar({
     }
   }
 
+
+  const [overtimeModalOpen, setOvertimeModalOpen] = useState(false);
+  const [overtimeModalMode, setOvertimeModalMode] = useState<"add" | "edit">("add");
+  const [overtimeSlotContext, setOvertimeSlotContext] = useState<{ storeId: string; shiftTemplateId: string; date: string } | null>(null);
+  const [editingOvertimeId, setEditingOvertimeId] = useState<string | null>(null);
+  const [editingOvertimeInitialHours, setEditingOvertimeInitialHours] = useState<number | undefined>(undefined);
+  const [editingOvertimeEmployeeId, setEditingOvertimeEmployeeId] = useState<string | undefined>(undefined);
+  const [confirmingDeleteOvertimeId, setConfirmingDeleteOvertimeId] = useState<string | null>(null);
+
+  async function submitOvertime(employeeId: string, hours: number) {
+    if (!overtimeSlotContext && overtimeModalMode === "add") return;
+    
+    try {
+      const url = overtimeModalMode === "add" ? "/api/schedule/overtime" : `/api/schedule/overtime/${editingOvertimeId}`;
+      const method = overtimeModalMode === "add" ? "POST" : "PUT";
+      const body = overtimeModalMode === "add" 
+        ? { ...overtimeSlotContext, employeeId, hours }
+        : { hours };
+        
+      if (isAdmin && onOptimisticOvertimeUpdate) {
+        if (overtimeModalMode === "add" && overtimeSlotContext) {
+          onOptimisticOvertimeUpdate("add", {
+            storeId: overtimeSlotContext.storeId,
+            shiftTemplateId: overtimeSlotContext.shiftTemplateId,
+            date: overtimeSlotContext.date,
+            employeeId,
+            hours,
+          });
+        } else if (overtimeModalMode === "edit" && editingOvertimeId) {
+          onOptimisticOvertimeUpdate("edit", { id: editingOvertimeId, hours });
+        }
+      }
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      
+      if (!res.ok) {
+        notify({ title: "Lỗi", body: data.error || "Không thể lưu giờ làm thêm", tone: "error" });
+        return;
+      }
+      
+      if (data.pendingApproval) {
+        notify({ title: "Chờ duyệt", body: data.message, tone: "warning" });
+      } else {
+        notify({ title: "Thành công", body: "Đã lưu giờ làm thêm", tone: "success" });
+      }
+      setOvertimeModalOpen(false);
+      onRefresh();
+    } catch (e) {
+      notify({ title: "Lỗi", body: "Không kết nối được server", tone: "error" });
+    }
+  }
+
+  function deleteOvertime(id: string) {
+    setConfirmingDeleteOvertimeId(id);
+  }
+
+  async function confirmDeleteOvertime() {
+    if (!confirmingDeleteOvertimeId) return;
+    const id = confirmingDeleteOvertimeId;
+    setConfirmingDeleteOvertimeId(null);
+
+    if (isAdmin && onOptimisticOvertimeUpdate) {
+      onOptimisticOvertimeUpdate("delete", { id });
+    }
+
+    try {
+      const res = await fetch(`/api/schedule/overtime/${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) {
+        notify({ title: "Lỗi", body: data.error || "Không thể xoá", tone: "error" });
+        return;
+      }
+      if (data.pendingApproval) {
+        notify({ title: "Chờ duyệt", body: data.message, tone: "warning" });
+      } else {
+        notify({ title: "Thành công", body: "Đã xoá giờ làm thêm", tone: "success" });
+      }
+      onRefresh();
+    } catch (e) {
+      notify({ title: "Lỗi", body: "Không kết nối được server", tone: "error" });
+    }
+  }
+
   async function moveAssignment(
+
     sourceSlot: Slot,
     targetSlot: Slot,
     confirmMove = false
@@ -1547,6 +1706,20 @@ export function ScheduleCalendar({
                                         canEdit={canEdit}
                                         loading={loading}
                                         flashSlots={flashSlots}
+                                        overtimes={overtimes.filter((ot) => ot.storeId === store.id && ot.shiftTemplateId === shift.id && ot.date === date)}
+                                        onAddOvertime={() => {
+                                          setOvertimeSlotContext({ storeId: store.id, shiftTemplateId: shift.id, date });
+                                          setOvertimeModalMode("add");
+                                          setOvertimeModalOpen(true);
+                                        }}
+                                        onEditOvertime={(id, empId, hours) => {
+                                          setEditingOvertimeId(id);
+                                          setEditingOvertimeEmployeeId(empId);
+                                          setEditingOvertimeInitialHours(hours);
+                                          setOvertimeModalMode("edit");
+                                          setOvertimeModalOpen(true);
+                                        }}
+                                        onDeleteOvertime={deleteOvertime}
                                         onAssign={(slot, id) => assignEmployee(slot, id)}
                                         onClear={(slot) => assignEmployee(slot, null)}
                                         onAddFault={(slot) => setFaultSlot(slot)}
@@ -1665,6 +1838,20 @@ export function ScheduleCalendar({
                                   canEdit={canEdit}
                                   loading={loading}
                                   flashSlots={flashSlots}
+                                  overtimes={overtimes.filter((ot) => ot.storeId === store.id && ot.shiftTemplateId === shift.id && ot.date === date)}
+                                  onAddOvertime={() => {
+                                    setOvertimeSlotContext({ storeId: store.id, shiftTemplateId: shift.id, date });
+                                    setOvertimeModalMode("add");
+                                    setOvertimeModalOpen(true);
+                                  }}
+                                  onEditOvertime={(id, empId, hours) => {
+                                    setEditingOvertimeId(id);
+                                    setEditingOvertimeEmployeeId(empId);
+                                    setEditingOvertimeInitialHours(hours);
+                                    setOvertimeModalMode("edit");
+                                    setOvertimeModalOpen(true);
+                                  }}
+                                  onDeleteOvertime={deleteOvertime}
                                   onAssign={(slot, id) => assignEmployee(slot, id)}
                                   onClear={(slot) => assignEmployee(slot, null)}
                                   onAddFault={(slot) => setFaultSlot(slot)}
@@ -1763,6 +1950,61 @@ export function ScheduleCalendar({
           onDeleteFault={handleDeleteFault}
           readOnly={!canEdit}
         />
+      )}
+
+      {overtimeModalOpen && (
+        <OvertimeModal
+          isOpen={overtimeModalOpen}
+          onClose={() => {
+            setOvertimeModalOpen(false);
+            setEditingOvertimeId(null);
+            setEditingOvertimeEmployeeId(undefined);
+            setEditingOvertimeInitialHours(undefined);
+          }}
+          onSubmit={submitOvertime}
+          employees={employees}
+          existingEmployeeIds={
+            overtimeSlotContext
+              ? new Set(
+                  overtimes
+                    .filter(
+                      (ot) =>
+                        ot.storeId === overtimeSlotContext.storeId &&
+                        ot.shiftTemplateId === overtimeSlotContext.shiftTemplateId &&
+                        ot.date === overtimeSlotContext.date
+                    )
+                    .map((ot) => ot.employeeId)
+                )
+              : new Set()
+          }
+          loading={loading}
+          mode={overtimeModalMode}
+          initialEmployeeId={editingOvertimeEmployeeId}
+          initialHours={editingOvertimeInitialHours}
+        />
+      )}
+
+      {confirmingDeleteOvertimeId && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <Card className="w-full max-w-sm shadow-xl">
+            <CardHeader className="border-b pb-4">
+              <CardTitle className="text-lg">Xác nhận xoá</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-4">
+              <p className="text-sm text-slate-600">
+                Bạn có chắc chắn muốn xoá giờ làm thêm này?
+              </p>
+              <div className="flex justify-end gap-3 pt-2">
+                <Button variant="outline" onClick={() => setConfirmingDeleteOvertimeId(null)} disabled={loading}>
+                  Huỷ bỏ
+                </Button>
+                <Button variant="destructive" onClick={confirmDeleteOvertime} disabled={loading}>
+                  Xác nhận xoá
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );

@@ -109,7 +109,7 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
       throw new Error(errorMsg);
     }
     return JSON.parse(text);
-  }, { revalidateOnFocus: false });
+  }, { revalidateOnFocus: false, refreshInterval: 10000 });
 
   const shouldLoadApprovals = user.role === "ADMIN" || user.role === "SCHEDULER";
   const { data: approvalRequests = [], mutate: mutateApprovalRequests, isValidating: refreshingApprovals } = useSWR<ApprovalRequest[]>(
@@ -121,7 +121,7 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
       if (!text.trim()) return [];
       return JSON.parse(text);
     },
-    { revalidateOnFocus: false }
+    { revalidateOnFocus: false, refreshInterval: 10000 }
   );
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -216,6 +216,40 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
           }
           return slot;
         }),
+      };
+    }, false);
+  }
+
+  function handleOptimisticOvertimeUpdate(
+    action: "add" | "edit" | "delete",
+    payload: { id?: string; storeId?: string; shiftTemplateId?: string; date?: string; employeeId?: string; hours?: number }
+  ) {
+    if (!data || !Array.isArray(data.overtimes)) return;
+    mutateSchedule((prevData: any) => {
+      if (!prevData || !Array.isArray(prevData.overtimes)) return prevData;
+      let newOvertimes = [...prevData.overtimes];
+      
+      if (action === "add") {
+        newOvertimes.push({
+          id: payload.id || `temp-${Date.now()}`,
+          storeId: payload.storeId!,
+          shiftTemplateId: payload.shiftTemplateId!,
+          date: payload.date!,
+          employeeId: payload.employeeId!,
+          hours: payload.hours!,
+        });
+      } else if (action === "edit") {
+        const idx = newOvertimes.findIndex((o: any) => o.id === payload.id);
+        if (idx !== -1) {
+          newOvertimes[idx] = { ...newOvertimes[idx], hours: payload.hours! };
+        }
+      } else if (action === "delete") {
+        newOvertimes = newOvertimes.filter((o: any) => o.id !== payload.id);
+      }
+      
+      return {
+        ...prevData,
+        overtimes: newOvertimes,
       };
     }, false);
   }
@@ -654,7 +688,8 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
               {(() => {
                 const targetEmployeeId =
                   confirmingApproval.conflicts?.[0]?.employeeId ||
-                  confirmingApproval.payload?.input?.employeeId;
+                  confirmingApproval.payload?.input?.employeeId ||
+                  confirmingApproval.payload?.employeeId;
                 const employeeName = targetEmployeeId
                   ? employees.find((e) => e.id === targetEmployeeId)?.name
                   : "Không xác định";
@@ -662,6 +697,7 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
                 let targetDate =
                   confirmingApproval.payload?.input?.date ||
                   confirmingApproval.payload?.targetDate ||
+                  confirmingApproval.payload?.date ||
                   confirmingApproval.conflicts?.[0]?.date;
                 if (targetDate) {
                   try {
@@ -673,14 +709,16 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
 
                 const targetStoreId =
                   confirmingApproval.payload?.input?.storeId ||
-                  confirmingApproval.payload?.targetStoreId;
+                  confirmingApproval.payload?.targetStoreId ||
+                  confirmingApproval.payload?.storeId;
                 const storeName = targetStoreId
                   ? stores.find((s) => s.id === targetStoreId)?.name
                   : undefined;
 
                 const targetShiftId =
                   confirmingApproval.payload?.input?.shiftTemplateId ||
-                  confirmingApproval.payload?.targetShiftTemplateId;
+                  confirmingApproval.payload?.targetShiftTemplateId ||
+                  confirmingApproval.payload?.shiftTemplateId;
                 const shiftName = targetShiftId
                   ? shifts.find((s) => s.id === targetShiftId)?.name
                   : undefined;
@@ -705,6 +743,11 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
                       {targetDate && (
                         <p>
                           <span className="font-medium">Ngày:</span> {targetDate}
+                        </p>
+                      )}
+                      {confirmingApproval.payload?.hours !== undefined && (
+                        <p>
+                          <span className="font-medium">Số giờ làm thêm:</span> {confirmingApproval.payload.hours} tiếng
                         </p>
                       )}
                       {confirmingApproval.actionType === "DELETE_FAULT" && confirmingApproval.payload?.input?.faultNote !== undefined && (
@@ -764,6 +807,7 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
         employees={employees}
         dayNotes={dayNotes}
         unfilled={unfilled}
+        overtimes={data.overtimes || []}
         selectedEmployeeId={selectedEmployeeId}
         layoutMode={layoutMode}
         onLayoutModeChange={setLayoutMode}
@@ -771,6 +815,7 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
         isAdmin={user.role === "ADMIN"}
         onRefresh={refreshScheduleAndApprovals}
         onOptimisticUpdate={handleOptimisticUpdate}
+        onOptimisticOvertimeUpdate={handleOptimisticOvertimeUpdate}
       />
     </div>
   );

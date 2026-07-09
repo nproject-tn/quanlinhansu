@@ -33,6 +33,9 @@ enum ScheduleApprovalAction {
   ASSIGN_EMPLOYEE
   MOVE_ASSIGNMENT
   DELETE_FAULT
+  ADD_OVERTIME
+  UPDATE_OVERTIME
+  DELETE_OVERTIME
 }
 
 model User {
@@ -61,6 +64,7 @@ model Store {
   staffingRules     StaffingRule[]
   staffingOverrides StaffingOverride[]
   shiftAssignments  ShiftAssignment[]
+  shiftOvertimes    ShiftOvertime[]
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
 
@@ -84,6 +88,7 @@ model Employee {
   stores            EmployeeStore[]
   user              User?
   shiftAssignments  ShiftAssignment[]
+  shiftOvertimes    ShiftOvertime[]
   faults            ShiftFault[]
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
@@ -116,6 +121,7 @@ model ShiftTemplate {
   staffingRules     StaffingRule[]
   staffingOverrides StaffingOverride[]
   shiftAssignments  ShiftAssignment[]
+  shiftOvertimes    ShiftOvertime[]
 
   @@index([storeId, isActive, sortOrder])
 }
@@ -165,6 +171,25 @@ model ShiftAssignment {
   @@index([date])
   @@index([storeId, date])
   @@index([storeId, date, isManual])
+}
+
+model ShiftOvertime {
+  id              String        @id @default(cuid())
+  storeId         String
+  store           Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  shiftTemplateId String
+  shiftTemplate   ShiftTemplate @relation(fields: [shiftTemplateId], references: [id], onDelete: Cascade)
+  employeeId      String
+  employee        Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date            DateTime      @db.Date
+  hours           Float
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([storeId, shiftTemplateId, date, employeeId])
+  @@index([employeeId, date])
+  @@index([storeId, date])
 }
 
 model ScheduleApprovalRequest {
