@@ -22,7 +22,7 @@ console.log("🚀 Đang tiến hành đồng bộ CSDL Production...");
 console.log(`🔗 Target: ${directUrl.split('@')[1].split('/')[0]}`);
 
 try {
-  execSync(`npx prisma db push --skip-generate`, {
+  execSync(`npx prisma db push`, {
     env: {
       ...process.env,
       DATABASE_URL: databaseUrl,
