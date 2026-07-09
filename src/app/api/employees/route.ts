@@ -23,6 +23,9 @@ export async function GET() {
       isActive: true,
       deletedAt: true,
       stores: {
+        where: {
+          store: { isActive: true },
+        },
         select: {
           store: { select: { id: true, name: true } },
         },

@@ -12,7 +12,12 @@ export async function GET(_request: Request, { params }: Params) {
   const { id } = await params;
   const employee = await prisma.employee.findUnique({
     where: { id },
-    include: { stores: { include: { store: true } } },
+    include: {
+      stores: {
+        where: { store: { isActive: true } },
+        include: { store: true }
+      }
+    },
   });
 
   if (!employee) {
@@ -33,7 +38,12 @@ export async function PUT(request: Request, { params }: Params) {
     const employee = await prisma.employee.update({
       where: { id },
       data: { deletedAt: null, isActive: true },
-      include: { stores: { include: { store: true } } },
+      include: {
+      stores: {
+        where: { store: { isActive: true } },
+        include: { store: true }
+      }
+    },
     });
     return NextResponse.json(employee);
   }
@@ -57,7 +67,12 @@ export async function PUT(request: Request, { params }: Params) {
         create: storeIds.map((storeId) => ({ storeId })),
       },
     },
-    include: { stores: { include: { store: true } } },
+    include: {
+      stores: {
+        where: { store: { isActive: true } },
+        include: { store: true }
+      }
+    },
   });
 
   return NextResponse.json(employee);
