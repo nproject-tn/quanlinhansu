@@ -18,7 +18,7 @@
     "db:setup": "prisma db push && tsx prisma/seed.ts",
     "db:test": "tsx scripts/test-db-connection.ts",
     "db:test:prod": "dotenv_config_path=.env.production.manual tsx scripts/test-db-connection.ts",
-    "db:push:prod": "dotenv_config_path=.env.production.manual prisma db push",
+    "db:push:prod": "tsx scripts/push-prod-db.ts",
     "db:seed:prod": "dotenv_config_path=.env.production.manual tsx prisma/seed.ts",
     "db:migrate:deploy:prod": "dotenv_config_path=.env.production.manual prisma migrate deploy"
   },
