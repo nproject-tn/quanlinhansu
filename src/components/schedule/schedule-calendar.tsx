@@ -235,7 +235,7 @@ function SlotCard({
               type="button"
               onClick={() => onAddFault(slot)}
               disabled={loading}
-              className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              className="rounded p-1 text-slate-400 hover:bg-white hover:text-slate-600"
               aria-label="Thêm lỗi nhân viên"
             >
               <Plus className="h-4 w-4" />
@@ -539,7 +539,7 @@ function CompactAssignedSlotRow({
             type="button"
             onClick={() => onAddFault(slot)}
             disabled={loading}
-            className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            className="rounded p-0.5 text-slate-400 hover:bg-white hover:text-slate-600"
             aria-label={`Thêm lỗi cho ${employee.name}`}
           >
             <Plus className="h-3 w-3" />
