@@ -8,6 +8,7 @@ import {
   findUnfilledShifts,
   getDateRange,
   getDaysInRange,
+  calculateTotalMonthlyHours,
   type AssignmentRecord,
 } from "@/lib/schedule-engine";
 import { formatDateOnly, parseDateOnly } from "@/lib/utils";
@@ -18,7 +19,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   try {
-    const { session, error } = await requireAuth();
+    const { session, error, companyId } = await requireAuth(["OWNER"], { module: "schedule", action: "VIEW" });
     if (error) return error;
 
     const { searchParams } = new URL(request.url);
@@ -30,15 +31,16 @@ export async function GET(request: Request) {
     const dates = getDaysInRange(start, end);
     const isEmployee = session!.user.role === "EMPLOYEE";
 
-    let stores;
+    let stores: { id: string; name: string; logoUrl?: string | null; maxHoursPerDay: number | null; maxShiftsPerDay: number | null }[];
     try {
       stores = await prisma.store.findMany({
         where: {
+          companyId,
           isActive: true,
           ...(storeId ? { id: storeId } : {}),
         },
-        select: { id: true, name: true, logoUrl: true },
-        orderBy: { name: "asc" },
+        select: { id: true, name: true, logoUrl: true, maxHoursPerDay: true, maxShiftsPerDay: true },
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
       });
     } catch (storeError) {
       if (!isMissingStoreLogoColumn(storeError)) {
@@ -47,11 +49,12 @@ export async function GET(request: Request) {
 
       stores = await prisma.store.findMany({
         where: {
+          companyId,
           isActive: true,
           ...(storeId ? { id: storeId } : {}),
         },
-        select: { id: true, name: true },
-        orderBy: { name: "asc" },
+        select: { id: true, name: true, maxHoursPerDay: true, maxShiftsPerDay: true },
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
       });
     }
 
@@ -73,7 +76,7 @@ export async function GET(request: Request) {
       });
     }
 
-    const [shifts, rules, overrides, existing, employees, overtimes] = await prisma.$transaction([
+    const [shifts, rules, overrides, existing, employees, overtimes, monthlyAssignments] = await prisma.$transaction([
       prisma.shiftTemplate.findMany({
         where: { storeId: { in: storeIds }, isActive: true },
         select: {
@@ -126,6 +129,10 @@ export async function GET(request: Request) {
       prisma.employee.findMany({
         where: {
           stores: { some: { storeId: { in: storeIds } } },
+          OR: [
+            { isArchived: false, deletedAt: null },
+            { shiftAssignments: { some: { date: { gte: start, lte: end } } } }
+          ]
         },
         select: {
           id: true,
@@ -154,11 +161,23 @@ export async function GET(request: Request) {
           hours: true,
         },
       }),
+      prisma.shiftAssignment.findMany({
+        where: {
+          employeeId: { not: null },
+          date: { gte: getDateRange("month", referenceDate).start, lte: getDateRange("month", referenceDate).end },
+        },
+        select: {
+          employeeId: true,
+          date: true,
+          shiftTemplate: { select: { durationHours: true, startTime: true, endTime: true } },
+        },
+      }),
     ]);
 
     const dayNotes = await prisma.scheduleDayNote
       .findMany({
         where: {
+          companyId,
           date: { gte: start, lte: end },
         },
         select: {
@@ -218,17 +237,28 @@ export async function GET(request: Request) {
         hours: o.hours,
       })),
       slots,
-      employees: employees.map((e) => ({
-        id: e.id,
-        name: e.name,
-        position: e.position,
-        employmentType: e.employmentType,
-        maxShiftsPerMonth: e.maxShiftsPerMonth,
-        maxHoursPerMonth: e.maxHoursPerMonth,
-        isActive: e.isActive,
-        deletedAt: e.deletedAt,
-        storeIds: e.stores.map((s) => s.storeId),
-      })),
+      employees: employees.map((e) => {
+        const empAssignments = monthlyAssignments.filter(a => a.employeeId === e.id).map(a => ({
+          date: a.date,
+          shift: {
+            startTime: a.shiftTemplate.startTime,
+            endTime: a.shiftTemplate.endTime,
+          }
+        }));
+        const empOvertimes = overtimes.filter(o => o.employeeId === e.id).reduce((sum, o) => sum + o.hours, 0);
+        return {
+          id: e.id,
+          name: e.name,
+          position: e.position,
+          employmentType: e.employmentType,
+          maxShiftsPerMonth: e.maxShiftsPerMonth,
+          maxHoursPerMonth: e.maxHoursPerMonth,
+          isActive: e.isActive,
+          storeIds: e.stores.map((s) => s.storeId),
+          currentMonthHours: Math.round((calculateTotalMonthlyHours(empAssignments) + empOvertimes) * 10) / 10,
+          currentMonthShifts: empAssignments.length,
+        };
+      }),
       unfilled,
       stats: {
         totalSlots: slots.length,
@@ -244,7 +274,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { error } = await requireAuth(["ADMIN", "SCHEDULER"]);
+    const { error, companyId } = await requireAuth(["OWNER"], { module: "schedule", action: "EDIT" });
     if (error) return error;
 
     const body = await request.json();
@@ -261,12 +291,13 @@ export async function POST(request: Request) {
 
     const stores = await prisma.store.findMany({
       where: {
+        companyId,
         isActive: true,
         ...(parsed.data.storeIds?.length
           ? { id: { in: parsed.data.storeIds } }
           : {}),
       },
-      select: { id: true, name: true },
+      select: { id: true, name: true, maxHoursPerDay: true, maxShiftsPerDay: true },
     });
 
     const storeIds = stores.map((s) => s.id);
@@ -278,7 +309,7 @@ export async function POST(request: Request) {
     }
 
     const activeStores = await prisma.store.findMany({
-      where: { isActive: true },
+      where: { companyId, isActive: true },
       select: { id: true },
     });
     const activeStoreIds = activeStores.map((store) => store.id);
@@ -375,6 +406,7 @@ export async function POST(request: Request) {
         prisma.employee.findMany({
           where: {
             isActive: true,
+            deletedAt: null,
             stores: { some: { storeId: { in: storeIds } } },
           },
           select: {
@@ -474,41 +506,31 @@ export async function POST(request: Request) {
         storeIds: e.stores.map((s) => s.storeId),
       })),
       contextShifts,
+      stores as any,
       {
         preserveManual: true,
         contextAssignments,
       }
     );
 
-    const manualKeys = new Set(
-      existing
-        .filter((assignment) => parsed.data.preserveManual && assignment.isManual && isTargetDate(assignment.date))
-        .map((assignment) =>
-          slotKey(
-            assignment.storeId,
-            assignment.shiftTemplateId,
-            assignment.date,
-            assignment.slotIndex
-          )
-        )
+    const keptAssignmentIds = new Set<string>(
+      slots.filter(s => s.assignmentId).map(s => s.assignmentId as string)
     );
 
     await prisma.shiftAssignment.deleteMany({
       where: {
+        companyId,
         storeId: { in: storeIds },
         date: { gte: start >= today ? start : today, lte: end },
-        ...(parsed.data.preserveManual ? { isManual: false } : {}),
+        ...(parsed.data.preserveManual ? { id: { notIn: Array.from(keptAssignmentIds) } } : {}),
       },
     });
 
     const targetSlots = slots.filter((slot) => isTargetDate(slot.date));
     const toCreate = targetSlots
-      .filter((slot) => slot.employeeId)
-      .filter((slot) => {
-        const key = slotKey(slot.storeId, slot.shiftTemplateId, slot.date, slot.slotIndex);
-        return !manualKeys.has(key);
-      })
+      .filter((slot) => slot.employeeId && !slot.assignmentId)
       .map((slot) => ({
+        companyId,
         storeId: slot.storeId,
         shiftTemplateId: slot.shiftTemplateId,
         date: slot.date,
@@ -551,7 +573,7 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const { error } = await requireAuth(["ADMIN", "SCHEDULER"]);
+    const { error, companyId } = await requireAuth(["OWNER"], { module: "schedule", action: "EDIT" });
     if (error) return error;
 
     const { searchParams } = new URL(request.url);
@@ -566,7 +588,7 @@ export async function DELETE(request: Request) {
       storeIds = [storeId];
     } else {
       const activeStores = await prisma.store.findMany({
-        where: { isActive: true },
+        where: { companyId, isActive: true },
         select: { id: true },
       });
       storeIds = activeStores.map((store) => store.id);
@@ -578,6 +600,7 @@ export async function DELETE(request: Request) {
 
     const { count } = await prisma.shiftAssignment.deleteMany({
       where: {
+        companyId,
         storeId: { in: storeIds },
         date: { gte: start, lte: end },
       },

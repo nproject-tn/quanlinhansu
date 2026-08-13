@@ -188,7 +188,7 @@ export function DatePicker({
           setOpen((current) => !current);
         }}
         className={cn(
-          "glass-control flex h-10 min-w-[150px] items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-800 outline-none ring-blue-500 transition-[border-color,box-shadow] hover:border-slate-400 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-55",
+          "glass-control flex h-10 min-w-[150px] items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-800 outline-none ring-slate-900 transition-[border-color,box-shadow] hover:border-slate-400 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-55",
           className
         )}
       >
@@ -253,13 +253,13 @@ export function DatePicker({
                         className={cn(
                           "relative flex h-10 items-center justify-center rounded-xl text-sm transition-colors",
                           active
-                            ? "bg-blue-600 font-semibold text-white shadow-[0_12px_26px_rgba(37,99,235,0.28)]"
+                            ? "bg-slate-900 font-semibold text-white shadow-[0_12px_26px_rgba(15,23,42,0.28)]"
                             : muted
-                              ? "text-slate-300 hover:bg-white/55"
+                              ? "text-slate-300 hover:bg-slate-900/10 hover:text-slate-900"
                               : weekend
-                                ? "bg-white/35 text-slate-700 hover:bg-white/70"
-                                : "text-slate-700 hover:bg-white/70",
-                          today && !active ? "font-semibold text-blue-600" : ""
+                                ? "bg-white/35 text-slate-700 hover:bg-slate-900/10 hover:text-slate-900"
+                                : "text-slate-700 hover:bg-slate-900/10 hover:text-slate-900",
+                          today && !active ? "font-semibold text-slate-900" : ""
                         )}
                       >
                         {format(day, "d")}
@@ -279,7 +279,7 @@ export function DatePicker({
                   <button
                     type="button"
                     onClick={selectToday}
-                    className="text-sm font-medium text-blue-600 hover:text-blue-700"
+                    className="text-sm font-medium text-slate-900 hover:text-slate-800"
                   >
                     Hôm nay
                   </button>

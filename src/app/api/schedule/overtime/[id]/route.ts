@@ -7,8 +7,8 @@ import type { Prisma } from "@/generated/prisma/client";
 type Params = { params: Promise<{ id: string }> };
 
 export async function PUT(request: Request, { params }: Params) {
-  const { session, error } = await requireAuth(["ADMIN", "SCHEDULER"]);
-  if (error) return error;
+  const { session, error, companyId } = await requireAuth(["OWNER"], { module: "schedule", action: "EDIT" });
+  if (error || !companyId) return error;
 
   const { id } = await params;
   const body = await request.json();
@@ -20,10 +20,11 @@ export async function PUT(request: Request, { params }: Params) {
 
   // If SCHEDULER, require approval
   if (session!.user.role === "SCHEDULER") {
-    const existing = await prisma.shiftOvertime.findUnique({ where: { id } });
+    const existing = await prisma.shiftOvertime.findUnique({ where: { id, companyId } });
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    await createScheduleApprovalRequest({
+    const approvalReq = await createScheduleApprovalRequest({
+      companyId,
       actionType: "UPDATE_OVERTIME",
       requestedById: session!.user.id,
       payload: { 
@@ -37,6 +38,10 @@ export async function PUT(request: Request, { params }: Params) {
       conflicts: [],
       message: "Yêu cầu xác nhận cập nhật giờ làm thêm",
     });
+
+    if ("isDuplicate" in approvalReq && approvalReq.isDuplicate) {
+      return NextResponse.json({ error: "Yêu cầu này đã được gửi và đang chờ quản lý duyệt." }, { status: 409 });
+    }
 
     return NextResponse.json(
       { success: true, pendingApproval: true, message: "Đã gửi yêu cầu xác nhận cập nhật giờ làm thêm" },
@@ -58,17 +63,18 @@ export async function PUT(request: Request, { params }: Params) {
 }
 
 export async function DELETE(request: Request, { params }: Params) {
-  const { session, error } = await requireAuth(["ADMIN", "SCHEDULER"]);
-  if (error) return error;
+  const { session, error, companyId } = await requireAuth(["OWNER"], { module: "schedule", action: "EDIT" });
+  if (error || !companyId) return error;
 
   const { id } = await params;
 
   // If SCHEDULER, require approval
   if (session!.user.role === "SCHEDULER") {
-    const existing = await prisma.shiftOvertime.findUnique({ where: { id } });
+    const existing = await prisma.shiftOvertime.findUnique({ where: { id, companyId } });
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    await createScheduleApprovalRequest({
+    const approvalReq = await createScheduleApprovalRequest({
+      companyId,
       actionType: "DELETE_OVERTIME",
       requestedById: session!.user.id,
       payload: { 
@@ -79,8 +85,12 @@ export async function DELETE(request: Request, { params }: Params) {
         shiftTemplateId: existing.shiftTemplateId 
       } as Prisma.InputJsonValue,
       conflicts: [],
-      message: "Yêu cầu xác nhận xóa giờ làm thêm",
+      message: "Yêu cầu xác nhận xoá giờ làm thêm",
     });
+
+    if ("isDuplicate" in approvalReq && approvalReq.isDuplicate) {
+      return NextResponse.json({ error: "Yêu cầu này đã được gửi và đang chờ quản lý duyệt." }, { status: 409 });
+    }
 
     return NextResponse.json(
       { success: true, pendingApproval: true, message: "Đã gửi yêu cầu xác nhận xóa giờ làm thêm" },

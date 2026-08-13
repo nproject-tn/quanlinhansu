@@ -200,7 +200,7 @@ export function FaultModal({
                         href={fault.evidenceUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-[11px] text-blue-600 hover:underline ml-3 whitespace-nowrap flex items-center"
+                        className="text-[11px] text-slate-900 hover:underline ml-3 whitespace-nowrap flex items-center"
                       >
                         <ImageIcon className="h-3 w-3 mr-1" />
                         Xem ảnh

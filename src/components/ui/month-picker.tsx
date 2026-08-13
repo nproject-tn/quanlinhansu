@@ -180,7 +180,7 @@ export function MonthPicker({
           setOpen((current) => !current);
         }}
         className={cn(
-          "glass-control flex h-11 min-w-[220px] items-center justify-between gap-3 rounded-xl px-4 py-3 text-left text-sm text-slate-800 outline-none ring-blue-500 transition-[border-color,box-shadow] hover:border-slate-400 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-55",
+          "glass-control flex h-11 min-w-[220px] items-center justify-between gap-3 rounded-xl px-4 py-3 text-left text-sm text-slate-800 outline-none ring-slate-900 transition-[border-color,box-shadow] hover:border-slate-400 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-55",
           className
         )}
       >
@@ -234,8 +234,8 @@ export function MonthPicker({
                         className={cn(
                           "rounded-xl px-2 py-3 text-sm transition-colors",
                           isActive
-                            ? "bg-blue-600 font-semibold text-white shadow-[0_12px_26px_rgba(37,99,235,0.28)]"
-                            : "bg-white/45 text-slate-700 hover:bg-white/70"
+                            ? "bg-slate-900 font-semibold text-white shadow-[0_12px_26px_rgba(15,23,42,0.28)]"
+                            : "bg-white/10 text-slate-700 hover:bg-slate-900/10 hover:text-slate-900"
                         )}
                       >
                         {month.label}
@@ -255,7 +255,7 @@ export function MonthPicker({
                   <button
                     type="button"
                     onClick={selectCurrentMonth}
-                    className="text-sm font-medium text-blue-600 hover:text-blue-700"
+                    className="text-sm font-medium text-slate-900 hover:text-slate-800"
                   >
                     Tháng này
                   </button>

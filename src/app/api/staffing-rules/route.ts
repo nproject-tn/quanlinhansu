@@ -4,14 +4,17 @@ import { requireAuth } from "@/lib/api-auth";
 import { staffingRuleSchema } from "@/lib/validations";
 
 export async function GET(request: Request) {
-  const { error } = await requireAuth(["ADMIN", "SCHEDULER"]);
-  if (error) return error;
+  const { error, companyId } = await requireAuth(["OWNER"], [
+    { module: "schedule", action: "VIEW" },
+    { module: "shift_config", action: "VIEW" }
+  ]);
+  if (error || !companyId) return error;
 
   const { searchParams } = new URL(request.url);
   const storeId = searchParams.get("storeId");
 
   const rules = await prisma.staffingRule.findMany({
-    where: storeId ? { storeId } : undefined,
+    where: { companyId, ...(storeId ? { storeId } : {}) },
     select: {
       id: true,
       storeId: true,
@@ -26,8 +29,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const { error } = await requireAuth(["ADMIN"]);
-  if (error) return error;
+  const { error, companyId } = await requireAuth(["OWNER"], { module: "shift_config", action: "EDIT" });
+  if (error || !companyId) return error;
 
   const body = await request.json();
 
@@ -45,7 +48,7 @@ export async function POST(request: Request) {
               dayOfWeek: parsed.data.dayOfWeek,
             },
           },
-          create: parsed.data,
+          create: { ...parsed.data, companyId },
           update: { requiredStaff: parsed.data.requiredStaff },
         })
       );
@@ -67,7 +70,7 @@ export async function POST(request: Request) {
         dayOfWeek: parsed.data.dayOfWeek,
       },
     },
-    create: parsed.data,
+    create: { ...parsed.data, companyId },
     update: { requiredStaff: parsed.data.requiredStaff },
   });
 

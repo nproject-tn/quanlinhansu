@@ -184,7 +184,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSel
             setOpen((current) => !current);
           }}
           className={cn(
-            "glass-control flex h-10 w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm text-slate-800 outline-none ring-blue-500 transition-[border-color,box-shadow,transform] focus:ring-2 disabled:cursor-not-allowed disabled:opacity-55",
+            "glass-control flex h-10 w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm text-slate-800 outline-none ring-slate-900 transition-[border-color,box-shadow,transform] focus:ring-2 disabled:cursor-not-allowed disabled:opacity-55",
             className
           )}
         >
@@ -230,8 +230,8 @@ export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSel
                           option.disabled
                             ? "cursor-not-allowed text-slate-400"
                             : isActive
-                              ? "bg-blue-600 text-white shadow-[0_12px_28px_rgba(37,99,235,0.24)]"
-                              : "text-slate-700 hover:bg-white/60"
+                              ? "bg-slate-900 text-white shadow-[0_12px_28px_rgba(15,23,42,0.24)]"
+                              : "text-slate-700 hover:bg-slate-900/10 hover:text-slate-900"
                         )}
                       >
                         <span className="truncate">{option.label}</span>

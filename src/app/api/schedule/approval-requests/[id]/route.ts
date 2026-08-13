@@ -22,15 +22,15 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
-  const { session, error } = await requireAuth(["ADMIN"]);
-  if (error) return error;
+  const { session, permissions, error, companyId } = await requireAuth(["OWNER"], { module: "schedule", action: "EDIT" });
+  if (error || !companyId) return error;
 
   const { id } = await context.params;
   const body = asRecord(await request.json().catch(() => ({})));
-  const action = body.action === "REJECT" ? "REJECT" : "APPROVE";
+  const action = body.action === "REJECT" ? "REJECT" : body.action === "CANCEL" ? "CANCEL" : "APPROVE";
 
   const approvalRequest = await prisma.scheduleApprovalRequest.findUnique({
-    where: { id },
+    where: { id, companyId },
   });
 
   if (!approvalRequest) {
@@ -39,6 +39,13 @@ export async function PATCH(
 
   if (approvalRequest.status !== "PENDING") {
     return NextResponse.json({ error: "Yêu cầu này đã được xử lý" }, { status: 409 });
+  }
+
+  const hasApprovePerm = typeof permissions === "object" && !!permissions?.schedule?.approve;
+  const isApprover = session!.user.role === "ADMIN" || session!.user.role === "OWNER" || hasApprovePerm;
+  
+  if (!isApprover) {
+    return NextResponse.json({ error: "Không có quyền duyệt hoặc từ chối yêu cầu" }, { status: 403 });
   }
 
   if (action === "REJECT") {
@@ -53,11 +60,13 @@ export async function PATCH(
   if (approvalRequest.actionType === "ASSIGN_EMPLOYEE") {
     result = await updateAssignment({
       ...((approvalRequest.payload as ApprovalPayload).input ?? {}),
+      companyId,
       confirmOverCapacity: true,
     } as UpdateAssignmentInput);
   } else if (approvalRequest.actionType === "MOVE_ASSIGNMENT") {
     result = await moveAssignment({
       ...(approvalRequest.payload as unknown as MoveAssignmentInput),
+      companyId,
       confirmOverCapacity: true,
     });
   } else if (approvalRequest.actionType === "DELETE_FAULT") {
@@ -77,6 +86,7 @@ export async function PATCH(
     try {
       await prisma.shiftOvertime.create({
         data: {
+          companyId,
           storeId: payload.storeId,
           shiftTemplateId: payload.shiftTemplateId,
           date: new Date(payload.date),
@@ -145,13 +155,13 @@ export async function DELETE(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
-  const { session, error } = await requireAuth(["ADMIN", "SCHEDULER"]);
-  if (error) return error;
+  const { session, error, companyId } = await requireAuth(["OWNER"], { module: "schedule", action: "EDIT" });
+  if (error || !companyId) return error;
 
   const { id } = await context.params;
 
   const approvalRequest = await prisma.scheduleApprovalRequest.findUnique({
-    where: { id },
+    where: { id, companyId },
   });
 
   if (!approvalRequest) {
@@ -159,7 +169,7 @@ export async function DELETE(
   }
 
   if (
-    session!.user.role !== "ADMIN" &&
+    session!.user.role !== "ADMIN" && session!.user.role !== "OWNER" &&
     approvalRequest.requestedById !== session!.user.id
   ) {
     return NextResponse.json({ error: "Không có quyền huỷ yêu cầu này" }, { status: 403 });

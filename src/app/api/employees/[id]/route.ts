@@ -6,12 +6,12 @@ import { employeeSchema } from "@/lib/validations";
 type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_request: Request, { params }: Params) {
-  const { error } = await requireAuth(["ADMIN", "SCHEDULER"]);
+  const { error, companyId } = await requireAuth(["OWNER"], { module: "employees", action: "VIEW" });
   if (error) return error;
 
   const { id } = await params;
   const employee = await prisma.employee.findUnique({
-    where: { id },
+    where: { id, companyId },
     include: {
       stores: {
         where: { store: { isActive: true } },
@@ -28,7 +28,7 @@ export async function GET(_request: Request, { params }: Params) {
 }
 
 export async function PUT(request: Request, { params }: Params) {
-  const { error } = await requireAuth(["ADMIN"]);
+  const { error, companyId } = await requireAuth(["OWNER"], { module: "employees", action: "EDIT" });
   if (error) return error;
 
   const { id } = await params;
@@ -36,8 +36,8 @@ export async function PUT(request: Request, { params }: Params) {
 
   if (body.restore) {
     const employee = await prisma.employee.update({
-      where: { id },
-      data: { deletedAt: null, isActive: true },
+      where: { id, companyId },
+      data: { deletedAt: null, isActive: true, isArchived: false },
       include: {
       stores: {
         where: { store: { isActive: true } },
@@ -55,10 +55,10 @@ export async function PUT(request: Request, { params }: Params) {
 
   const { storeIds, ...data } = parsed.data;
 
-  await prisma.employeeStore.deleteMany({ where: { employeeId: id } });
+  await prisma.employeeStore.deleteMany({ where: { employeeId: id, store: { companyId } } });
 
   const employee = await prisma.employee.update({
-    where: { id },
+    where: { id, companyId },
     data: {
       ...data,
       email: data.email || null,
@@ -79,12 +79,12 @@ export async function PUT(request: Request, { params }: Params) {
 }
 
 export async function DELETE(_request: Request, { params }: Params) {
-  const { error } = await requireAuth(["ADMIN"]);
+  const { error, companyId } = await requireAuth(["OWNER"], { module: "employees", action: "DELETE" });
   if (error) return error;
 
   const { id } = await params;
 
-  const employee = await prisma.employee.findUnique({ where: { id } });
+  const employee = await prisma.employee.findUnique({ where: { id, companyId } });
   if (!employee) {
     return NextResponse.json({ error: "Không tìm thấy nhân viên" }, { status: 404 });
   }
@@ -98,6 +98,7 @@ export async function DELETE(_request: Request, { params }: Params) {
     // Vacate future shifts
     await prisma.shiftAssignment.updateMany({
       where: {
+        companyId,
         employeeId: id,
         date: { gte: tomorrow },
       },
@@ -105,9 +106,15 @@ export async function DELETE(_request: Request, { params }: Params) {
     });
 
     await prisma.employee.update({
-      where: { id },
+      where: { id, companyId },
       data: { deletedAt: new Date(), isActive: false },
     });
+
+    if (employee.email) {
+      await prisma.companyInvitation.deleteMany({
+        where: { email: employee.email, companyId: employee.companyId }
+      });
+    }
 
     return NextResponse.json({
       success: true,
@@ -115,9 +122,15 @@ export async function DELETE(_request: Request, { params }: Params) {
       softDeleted: true,
     });
   } else {
-    // Permanent Delete
+    // Archive (Permanently Hide from UI, but preserve history & past shift assignments)
     await prisma.user.updateMany({ where: { employeeId: id }, data: { employeeId: null } });
-    await prisma.employee.delete({ where: { id } });
-    return NextResponse.json({ success: true, message: "Đã xóa vĩnh viễn nhân viên" });
+    await prisma.employee.update({ where: { id, companyId }, data: { isArchived: true, isActive: false } });
+    
+    if (employee.email) {
+      await prisma.companyInvitation.deleteMany({
+        where: { email: employee.email, companyId: employee.companyId }
+      });
+    }
+    return NextResponse.json({ success: true, message: "Đã ẩn vĩnh viễn nhân viên khỏi danh sách nhưng vẫn lưu trữ lịch sử ca làm" });
   }
 }

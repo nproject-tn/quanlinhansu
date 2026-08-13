@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: ../../
+      dockerfile: Dockerfile
+    container_name: nextjs_app
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:YOUR_STRONG_PASSWORD@db:5432/quanlinhansu?schema=public
+      # Cấu hình NextAuth
+      - NEXTAUTH_URL=https://apexflow.id.vn
+      - NEXTAUTH_SECRET=1N8nP6zjPnXAQ9o8gOFpkKy2hojjf/9BlQf0jEIv/FQ=
+      - AUTH_SECRET=1N8nP6zjPnXAQ9o8gOFpkKy2hojjf/9BlQf0jEIv/FQ=
+      - AUTH_GOOGLE_ID=
+      - AUTH_GOOGLE_SECRET=
+      # Bật logging Prisma
+      - PRISMA_CLIENT_ENGINE_TYPE=binary
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:15-alpine
+    container_name: postgres_db_prod
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: YOUR_STRONG_PASSWORD
+      POSTGRES_DB: quanlinhansu
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Reverse proxy để tự động cài ổ khoá HTTPS (SSL)
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy_proxy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    command: caddy reverse-proxy --from apexflow.id.vn --to app:3000
+    depends_on:
+      - app
+
+  # Cơ sở dữ liệu dành riêng cho lúc Code (Môi trường Dev)
+  db_dev:
+    image: postgres:15-alpine
+    container_name: postgres_db_dev
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: YOUR_STRONG_PASSWORD_DEV
+      POSTGRES_DB: quanlinhansu_dev
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata_dev:/var/lib/postgresql/data
+
+volumes:
+  pgdata_prod:
+  pgdata_dev:
+  caddy_data:
+  caddy_config:

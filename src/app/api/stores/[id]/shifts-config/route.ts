@@ -6,8 +6,8 @@ import { calcDurationHours, getDefaultShiftTime } from "@/lib/shift-utils";
 type Params = { params: Promise<{ id: string }> };
 
 export async function POST(request: Request, { params }: Params) {
-  const { error } = await requireAuth(["ADMIN"]);
-  if (error) return error;
+  const { error, companyId } = await requireAuth(["OWNER"], { module: "store", action: "EDIT" });
+  if (error || !companyId) return error;
 
   const { id: storeId } = await params;
   const body = await request.json();
@@ -18,12 +18,12 @@ export async function POST(request: Request, { params }: Params) {
   }
 
   await prisma.store.update({
-    where: { id: storeId },
+    where: { id: storeId, companyId },
     data: { shiftsPerDay },
   });
 
   const existing = await prisma.shiftTemplate.findMany({
-    where: { storeId },
+    where: { storeId, companyId },
     orderBy: { sortOrder: "asc" },
   });
 
@@ -44,6 +44,7 @@ export async function POST(request: Request, { params }: Params) {
           shiftTemplateId: found.id,
           dayOfWeek,
           requiredStaff: 1,
+          companyId,
         })),
         skipDuplicates: true,
       });
@@ -57,6 +58,7 @@ export async function POST(request: Request, { params }: Params) {
           durationHours,
           sortOrder: i,
           isActive: true,
+          companyId,
         },
       });
       await prisma.staffingRule.createMany({
@@ -65,6 +67,7 @@ export async function POST(request: Request, { params }: Params) {
             shiftTemplateId: created.id,
             dayOfWeek,
             requiredStaff: 1,
+            companyId,
         })),
         skipDuplicates: true,
       });
@@ -78,13 +81,13 @@ export async function POST(request: Request, { params }: Params) {
 
   if (toDeactivate.length > 0) {
     await prisma.shiftTemplate.updateMany({
-      where: { id: { in: toDeactivate.map((shift) => shift.id) } },
+      where: { id: { in: toDeactivate.map((shift) => shift.id) }, companyId },
       data: { isActive: false },
     });
   }
 
   const shifts = await prisma.shiftTemplate.findMany({
-    where: { storeId, isActive: true },
+    where: { storeId, companyId, isActive: true },
     select: {
       id: true,
       storeId: true,

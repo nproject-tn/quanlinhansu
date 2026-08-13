@@ -5,7 +5,10 @@ import { shiftTemplateSchema } from "@/lib/validations";
 import { calcDurationHours } from "@/lib/shift-utils";
 
 export async function GET(request: Request) {
-  const { error } = await requireAuth(["ADMIN", "SCHEDULER"]);
+  const { error, companyId } = await requireAuth(["OWNER"], [
+    { module: "schedule", action: "VIEW" },
+    { module: "shift_config", action: "VIEW" }
+  ]);
   if (error) return error;
 
   const { searchParams } = new URL(request.url);
@@ -14,6 +17,7 @@ export async function GET(request: Request) {
 
   const shiftTemplates = await prisma.shiftTemplate.findMany({
     where: {
+      companyId,
       isActive: true,
       ...(storeId ? { storeId } : {}),
     },
@@ -37,7 +41,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const { error } = await requireAuth(["ADMIN"]);
+  const { error, companyId } = await requireAuth(["OWNER"], { module: "shift_config", action: "EDIT" });
   if (error) return error;
 
   const body = await request.json();
@@ -49,6 +53,7 @@ export async function POST(request: Request) {
   // Kiểm tra tên ca có bị trùng với các ca ĐANG HOẠT ĐỘNG không
   const existingActiveShift = await prisma.shiftTemplate.findFirst({
     where: {
+      companyId,
       storeId: parsed.data.storeId,
       name: parsed.data.name,
       isActive: true,
@@ -64,7 +69,7 @@ export async function POST(request: Request) {
 
   const durationHours = calcDurationHours(parsed.data.startTime, parsed.data.endTime);
   const template = await prisma.shiftTemplate.create({
-    data: { ...parsed.data, durationHours },
+    data: { ...parsed.data, durationHours, companyId },
   });
 
   // Đồng bộ số lượng ca và thứ tự ca
@@ -75,7 +80,7 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  const { error } = await requireAuth(["ADMIN"]);
+  const { error, companyId } = await requireAuth(["OWNER"], { module: "shift_config", action: "EDIT" });
   if (error) return error;
 
   const body = await request.json();
@@ -88,6 +93,7 @@ export async function PUT(request: Request) {
   // Kiểm tra tên ca có bị trùng với các ca ĐANG HOẠT ĐỘNG khác không
   const existingActiveShift = await prisma.shiftTemplate.findFirst({
     where: {
+      companyId,
       storeId: parsed.data.storeId,
       name: parsed.data.name,
       isActive: true,
@@ -104,7 +110,7 @@ export async function PUT(request: Request) {
 
   const durationHours = calcDurationHours(parsed.data.startTime, parsed.data.endTime);
   const template = await prisma.shiftTemplate.update({
-    where: { id },
+    where: { id, companyId },
     data: { ...parsed.data, durationHours },
   });
 

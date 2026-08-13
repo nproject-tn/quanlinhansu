@@ -32,7 +32,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useConfirmDialog } from "@/components/confirm/confirm-dialog-provider";
 import { useNotifications } from "@/components/notifications/notification-center";
 import { getDayNoteColor } from "@/lib/day-note-colors";
-import { cn, parseDateOnly } from "@/lib/utils";
+import { cn, parseDateOnly, formatDateOnly } from "@/lib/utils";
 import { validateAssignment, type ScheduleConflict } from "@/lib/schedule-engine";
 
 type Employee = {
@@ -44,6 +44,8 @@ type Employee = {
   maxHoursPerMonth?: number;
   isActive?: boolean;
   deletedAt?: string | null;
+  currentMonthHours?: number;
+  currentMonthShifts?: number;
 };
 
 type Shift = {
@@ -56,7 +58,7 @@ type Shift = {
   durationHours: number;
 };
 
-type Store = { id: string; name: string; logoUrl?: string };
+type Store = { id: string; name: string; logoUrl?: string; maxHoursPerDay?: number | null; maxShiftsPerDay?: number | null; };
 
 type Slot = {
   storeId: string;
@@ -442,7 +444,7 @@ function CompactSlotGroup({
             size="sm"
             onClick={onAddOvertime}
             disabled={!hasAssigned || loading}
-            className="h-6 w-6 p-0 rounded-md text-slate-400 hover:text-blue-600 hover:bg-white hover:shadow-sm focus-visible:ring-1 focus-visible:ring-blue-400 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:shadow-none transition-all"
+            className="h-6 w-6 p-0 rounded-md text-slate-400 hover:text-slate-900 hover:bg-white hover:shadow-sm focus-visible:ring-1 focus-visible:ring-slate-400 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:shadow-none transition-all"
             title={!hasAssigned ? "Ca trống không thể thêm giờ làm thêm" : "Thêm giờ làm thêm"}
           >
             <Plus className="h-4 w-4" />
@@ -486,7 +488,7 @@ function CompactSlotGroup({
                           type="button"
                           onClick={() => onEditOvertime(ot.id, ot.employeeId, ot.hours)}
                           disabled={loading}
-                          className="text-slate-400 hover:text-blue-600"
+                          className="text-slate-400 hover:text-slate-900"
                           title="Sửa giờ làm thêm"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
@@ -1076,7 +1078,10 @@ export function ScheduleCalendar({
 
     const targetDate = parseDateOnly(targetSlot.date);
 
-    return validateAssignment(
+    const store = stores.find(s => s.id === targetSlot.storeId);
+    const storeConfig = store ? { maxShiftsPerDay: store.maxShiftsPerDay ?? null, maxHoursPerDay: store.maxHoursPerDay ?? null } : undefined;
+
+    let conflicts = validateAssignment(
       newEmployeeId,
       targetSlot.storeId,
       targetSlot.shiftTemplateId,
@@ -1085,8 +1090,52 @@ export function ScheduleCalendar({
       targetSlot.requiredStaff,
       allAssignments as any,
       shifts as any,
-      employee as any
-    );
+      employee as any,
+      storeConfig
+    ).filter(c => c.type !== "MONTHLY_MAX_HOURS" && c.type !== "MONTHLY_MAX_SHIFTS");
+
+    if (employee.maxHoursPerMonth !== undefined && employee.currentMonthHours !== undefined) {
+      const targetShift = shifts.find((sh) => sh.id === targetSlot.shiftTemplateId);
+      const sourceShift = ignoreSlot ? shifts.find((sh) => sh.id === ignoreSlot.shiftTemplateId) : null;
+      
+      let sourceDuration = 0;
+      if (ignoreSlot && ignoreSlot.employeeId === newEmployeeId && sourceShift) {
+        sourceDuration = sourceShift.durationHours;
+      }
+
+      if (targetShift) {
+        const newTotalHours = employee.currentMonthHours + targetShift.durationHours - sourceDuration;
+        if (newTotalHours > employee.maxHoursPerMonth && newTotalHours > employee.currentMonthHours) {
+          const exceededHours = newTotalHours - employee.maxHoursPerMonth;
+          conflicts.push({
+            type: "MONTHLY_MAX_HOURS",
+            message: `Vượt số giờ tối đa/tháng (${employee.maxHoursPerMonth}h). Số giờ đã vượt trong tháng: ${exceededHours} giờ`,
+            employeeId: newEmployeeId,
+            date: formatDateOnly(targetDate),
+          } as ScheduleConflict);
+        }
+      }
+    }
+
+    if (employee.maxShiftsPerMonth !== undefined && employee.currentMonthShifts !== undefined) {
+      let sourceShifts = 0;
+      if (ignoreSlot && ignoreSlot.employeeId === newEmployeeId) {
+        sourceShifts = 1;
+      }
+      
+      const newTotalShifts = employee.currentMonthShifts + 1 - sourceShifts;
+      if (newTotalShifts > employee.maxShiftsPerMonth && newTotalShifts > employee.currentMonthShifts) {
+        const exceededShifts = newTotalShifts - employee.maxShiftsPerMonth;
+        conflicts.push({
+          type: "MONTHLY_MAX_SHIFTS",
+          message: `Vượt số ca tối đa/tháng (${employee.maxShiftsPerMonth} ca). Số ca đã vượt trong tháng: ${exceededShifts} ca`,
+          employeeId: newEmployeeId,
+          date: formatDateOnly(targetDate),
+        } as ScheduleConflict);
+      }
+    }
+
+    return conflicts;
   }
 
   async function assignEmployee(
@@ -1097,7 +1146,8 @@ export function ScheduleCalendar({
     if (employeeId && !confirmOverCapacity) {
       const conflicts = checkClientConflicts(slot, employeeId);
       if (conflicts.length > 0) {
-        const hardConflicts = conflicts.filter((c) => c.type !== "MAX_HOURS" && c.type !== "MAX_SHIFTS");
+        const allowedTypes = ["MONTHLY_MAX_HOURS", "MONTHLY_MAX_SHIFTS", "DAILY_MAX_HOURS", "DAILY_MAX_SHIFTS"];
+        const hardConflicts = conflicts.filter((c) => !allowedTypes.includes(c.type));
         if (hardConflicts.length > 0) {
           notify({
             title: "Không thể xếp ca",
@@ -1109,7 +1159,7 @@ export function ScheduleCalendar({
         }
 
         setPendingRequest({
-          title: "Xác nhận yêu cầu xếp ca",
+          title: "Gửi yêu cầu xác nhận xếp ca",
           description: "Vượt giới hạn xếp ca",
           conflicts,
           onConfirm: () => {
@@ -1124,23 +1174,11 @@ export function ScheduleCalendar({
       }
     }
 
-    if (onOptimisticUpdate) {
+    const shouldOptimisticUpdate = employeeId ? (!confirmOverCapacity) : true;
+    if (shouldOptimisticUpdate && onOptimisticUpdate) {
       onOptimisticUpdate(slot.storeId, slot.shiftTemplateId, slot.date, slot.slotIndex, employeeId);
     }
-    
-    const employee = employees.find((e) => e.id === employeeId);
-    const shift = shifts.find((sh) => sh.id === slot.shiftTemplateId);
-    const formattedDate = format(parseDateOnly(slot.date), "dd/MM/yyyy");
-    const msg = employee 
-      ? `Đã thêm ${employee.name} vào ${shift?.name || "ca"} ngày ${formattedDate}`
-      : `Đã xoá phân công ${shift?.name || "ca"} ngày ${formattedDate}`;
 
-    notify({
-      title: "Cập nhật thành công",
-      body: msg,
-      tone: "success",
-      dedupeKey: `success-${Date.now()}-${Math.random()}`,
-    });
     setConflicts([]);
     setMessage(null);
     try {
@@ -1161,11 +1199,11 @@ export function ScheduleCalendar({
       const data = await res.json().catch(() => ({}));
 
       if (res.status === 409 && data.requiresConfirmation) {
-        if (onOptimisticUpdate) {
+        if (shouldOptimisticUpdate && onOptimisticUpdate) {
           onOptimisticUpdate(slot.storeId, slot.shiftTemplateId, slot.date, slot.slotIndex, slot.employeeId);
         }
         setPendingRequest({
-          title: "Xác nhận yêu cầu xếp ca",
+          title: "Gửi yêu cầu xác nhận xếp ca",
           description: typeof data.error === "string" ? data.error : "Vượt giới hạn xếp ca",
           conflicts: data.conflicts ?? [],
           onConfirm: () => {
@@ -1181,7 +1219,7 @@ export function ScheduleCalendar({
       }
 
       if (!res.ok) {
-        if (onOptimisticUpdate) {
+        if (shouldOptimisticUpdate && onOptimisticUpdate) {
           onOptimisticUpdate(slot.storeId, slot.shiftTemplateId, slot.date, slot.slotIndex, slot.employeeId);
         }
         setConflicts(data.conflicts ?? []);
@@ -1190,12 +1228,39 @@ export function ScheduleCalendar({
         return;
       }
 
-      // Removing success toast to avoid notification delay noise during optimistic updates
+      if (data.pendingApproval) {
+        if (shouldOptimisticUpdate && onOptimisticUpdate) {
+          onOptimisticUpdate(slot.storeId, slot.shiftTemplateId, slot.date, slot.slotIndex, slot.employeeId);
+        }
+        notify({
+          title: "Chờ xác nhận",
+          body: data.message || "Đã gửi yêu cầu xác nhận",
+          tone: "warning",
+        });
+      } else {
+        if (!shouldOptimisticUpdate && onOptimisticUpdate) {
+          onOptimisticUpdate(slot.storeId, slot.shiftTemplateId, slot.date, slot.slotIndex, employeeId);
+        }
+        const employee = employees.find((e) => e.id === employeeId);
+        const shift = shifts.find((sh) => sh.id === slot.shiftTemplateId);
+        const formattedDate = format(parseDateOnly(slot.date), "dd/MM/yyyy");
+        const msg = employee 
+          ? `Đã thêm ${employee.name} vào ${shift?.name || "ca"} ngày ${formattedDate}`
+          : `Đã xoá phân công ${shift?.name || "ca"} ngày ${formattedDate}`;
+        notify({
+          title: "Cập nhật thành công",
+          body: msg,
+          tone: "success",
+          dedupeKey: `success-${Date.now()}-${Math.random()}`,
+        });
+      }
+
       await onRefresh();
     } catch (err) {
-      if (onOptimisticUpdate) {
+      if (shouldOptimisticUpdate && onOptimisticUpdate) {
         onOptimisticUpdate(slot.storeId, slot.shiftTemplateId, slot.date, slot.slotIndex, slot.employeeId);
       }
+      console.error(err);
     }
   }
 
@@ -1329,8 +1394,9 @@ export function ScheduleCalendar({
     const conflictsA = checkClientConflicts(targetSlot, sourceSlot.employeeId, sourceSlot);
     const conflictsB = targetSlot.employeeId ? checkClientConflicts(sourceSlot, targetSlot.employeeId, targetSlot) : [];
 
-    const hardConflictsA = conflictsA.filter((c) => c.type !== "MAX_HOURS" && c.type !== "MAX_SHIFTS");
-    const hardConflictsB = conflictsB.filter((c) => c.type !== "MAX_HOURS" && c.type !== "MAX_SHIFTS");
+    const allowedTypes = ["MONTHLY_MAX_HOURS", "MONTHLY_MAX_SHIFTS", "DAILY_MAX_HOURS", "DAILY_MAX_SHIFTS"];
+    const hardConflictsA = conflictsA.filter((c) => !allowedTypes.includes(c.type));
+    const hardConflictsB = conflictsB.filter((c) => !allowedTypes.includes(c.type));
 
     if (hardConflictsA.length > 0 || hardConflictsB.length > 0) {
       const msg = hardConflictsA.length > 0 ? hardConflictsA[0].message : hardConflictsB[0].message;
@@ -1344,33 +1410,90 @@ export function ScheduleCalendar({
       return;
     }
 
-    if (onOptimisticUpdate) {
+    const requiresApproval = [...conflictsA, ...conflictsB].some(
+      (c) => c.type === "DAILY_MAX_HOURS" || c.type === "DAILY_MAX_SHIFTS"
+    );
+
+    const shouldOptimisticUpdate = !requiresApproval;
+
+    if (shouldOptimisticUpdate && onOptimisticUpdate) {
       onOptimisticUpdate(sourceSlot.storeId, sourceSlot.shiftTemplateId, sourceSlot.date, sourceSlot.slotIndex, targetSlot.employeeId ?? null);
       onOptimisticUpdate(targetSlot.storeId, targetSlot.shiftTemplateId, targetSlot.date, targetSlot.slotIndex, sourceSlot.employeeId);
     }
 
     setConflicts([]);
     setMessage(null);
-    
-    const sourceEmployee = employees.find((e) => e.id === sourceSlot.employeeId);
-    const targetShift = shifts.find((sh) => sh.id === targetSlot.shiftTemplateId);
-    const formattedTargetDate = format(parseDateOnly(targetSlot.date), "dd/MM/yyyy");
-    
-    notify({
-      title: "Cập nhật thành công",
-      body: `Đã đổi ${sourceEmployee?.name} sang ${targetShift?.name || "ca"} ngày ${formattedTargetDate}`,
-      tone: "success",
-      dedupeKey: `success-${Date.now()}-${Math.random()}`,
-    });
-
     setIsMoving(true);
     try {
       triggerFlash([slotKey(sourceSlot), slotKey(targetSlot)], "success");
 
-      const result = await moveAssignment(sourceSlot, targetSlot, true);
+      const result = await moveAssignment(sourceSlot, targetSlot, false);
+
+      if (result.ok === false && result.data?.status === 409 && result.data.requiresConfirmation) {
+        setPendingRequest({
+          title: "Gửi yêu cầu xác nhận xếp ca",
+          description: typeof result.data.error === "string" ? result.data.error : "Vượt giới hạn xếp ca",
+          conflicts: result.data.conflicts ?? [],
+          onConfirm: async () => {
+            setPendingRequest(null);
+            
+            setIsMoving(true);
+            try {
+              const confirmResult = await moveAssignment(sourceSlot, targetSlot, true);
+              if (!confirmResult.ok) {
+                setConflicts(confirmResult.data?.conflicts ?? []);
+                notify({
+                  title: "Không thể đổi ca",
+                  body: confirmResult.data?.error || "Đã có lỗi xảy ra",
+                  tone: "error",
+                  dedupeKey: `error-${Date.now()}`,
+                });
+                triggerFlash([slotKey(sourceSlot), slotKey(targetSlot)], "error");
+                return;
+              }
+
+              if (confirmResult.data?.pendingApproval) {
+                if (shouldOptimisticUpdate && onOptimisticUpdate) {
+                  onOptimisticUpdate(sourceSlot.storeId, sourceSlot.shiftTemplateId, sourceSlot.date, sourceSlot.slotIndex, sourceSlot.employeeId);
+                  onOptimisticUpdate(targetSlot.storeId, targetSlot.shiftTemplateId, targetSlot.date, targetSlot.slotIndex, targetSlot.employeeId);
+                }
+                notify({
+                  title: "Chờ xác nhận",
+                  body: confirmResult.data.message || "Đã gửi yêu cầu xác nhận",
+                  tone: "warning",
+                });
+              } else {
+                if (!shouldOptimisticUpdate && onOptimisticUpdate) {
+                  onOptimisticUpdate(sourceSlot.storeId, sourceSlot.shiftTemplateId, sourceSlot.date, sourceSlot.slotIndex, targetSlot.employeeId ?? null);
+                  onOptimisticUpdate(targetSlot.storeId, targetSlot.shiftTemplateId, targetSlot.date, targetSlot.slotIndex, sourceSlot.employeeId);
+                }
+                const sourceEmployee = employees.find((e) => e.id === sourceSlot.employeeId);
+                const targetShift = shifts.find((sh) => sh.id === targetSlot.shiftTemplateId);
+                const formattedTargetDate = format(parseDateOnly(targetSlot.date), "dd/MM/yyyy");
+                notify({
+                  title: "Cập nhật thành công",
+                  body: `Đã đổi ${sourceEmployee?.name} sang ${targetShift?.name || "ca"} ngày ${formattedTargetDate}`,
+                  tone: "success",
+                  dedupeKey: `success-${Date.now()}-${Math.random()}`,
+                });
+              }
+              await onRefresh();
+            } catch (err) {
+              triggerFlash([slotKey(sourceSlot), slotKey(targetSlot)], "error");
+            } finally {
+              setIsMoving(false);
+            }
+          },
+          onCancel: () => {
+            setPendingRequest(null);
+            setConflicts(result.data?.conflicts ?? []);
+          },
+        });
+        return;
+      }
 
       if (!result.ok) {
-        if (onOptimisticUpdate) {
+        if (shouldOptimisticUpdate && onOptimisticUpdate) {
           onOptimisticUpdate(sourceSlot.storeId, sourceSlot.shiftTemplateId, sourceSlot.date, sourceSlot.slotIndex, sourceSlot.employeeId);
           onOptimisticUpdate(targetSlot.storeId, targetSlot.shiftTemplateId, targetSlot.date, targetSlot.slotIndex, targetSlot.employeeId);
         }
@@ -1386,21 +1509,34 @@ export function ScheduleCalendar({
       }
 
       if (result.data?.pendingApproval) {
-        if (onOptimisticUpdate) {
+        if (shouldOptimisticUpdate && onOptimisticUpdate) {
           onOptimisticUpdate(sourceSlot.storeId, sourceSlot.shiftTemplateId, sourceSlot.date, sourceSlot.slotIndex, sourceSlot.employeeId);
           onOptimisticUpdate(targetSlot.storeId, targetSlot.shiftTemplateId, targetSlot.date, targetSlot.slotIndex, targetSlot.employeeId);
         }
         notify({
           title: "Chờ xác nhận",
           body: result.data.message || "Đã gửi yêu cầu xác nhận",
+          tone: "warning",
+        });
+      } else {
+        if (!shouldOptimisticUpdate && onOptimisticUpdate) {
+          onOptimisticUpdate(sourceSlot.storeId, sourceSlot.shiftTemplateId, sourceSlot.date, sourceSlot.slotIndex, targetSlot.employeeId ?? null);
+          onOptimisticUpdate(targetSlot.storeId, targetSlot.shiftTemplateId, targetSlot.date, targetSlot.slotIndex, sourceSlot.employeeId);
+        }
+        const sourceEmployee = employees.find((e) => e.id === sourceSlot.employeeId);
+        const targetShift = shifts.find((sh) => sh.id === targetSlot.shiftTemplateId);
+        const formattedTargetDate = format(parseDateOnly(targetSlot.date), "dd/MM/yyyy");
+        notify({
+          title: "Cập nhật thành công",
+          body: `Đã đổi ${sourceEmployee?.name} sang ${targetShift?.name || "ca"} ngày ${formattedTargetDate}`,
           tone: "success",
+          dedupeKey: `success-${Date.now()}-${Math.random()}`,
         });
       }
 
-      // Removing success toast to avoid notification delay noise during optimistic updates
       await onRefresh();
     } catch (err) {
-      if (onOptimisticUpdate) {
+      if (shouldOptimisticUpdate && onOptimisticUpdate) {
         onOptimisticUpdate(sourceSlot.storeId, sourceSlot.shiftTemplateId, sourceSlot.date, sourceSlot.slotIndex, sourceSlot.employeeId);
         onOptimisticUpdate(targetSlot.storeId, targetSlot.shiftTemplateId, targetSlot.date, targetSlot.slotIndex, targetSlot.employeeId);
       }
@@ -1928,7 +2064,7 @@ export function ScheduleCalendar({
                 <Button
                   onClick={pendingRequest.onConfirm}
                   disabled={loading}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-slate-900 hover:bg-slate-800"
                 >
                   {loading ? "Đang xử lý..." : isAdmin ? "Xác nhận" : "Gửi yêu cầu duyệt"}
                 </Button>

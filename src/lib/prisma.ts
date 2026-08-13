@@ -53,7 +53,7 @@ const canReuseCachedClient =
 
 const cachedPrisma = canReuseCachedClient ? globalForPrisma.prisma : undefined;
 
-export const prisma = cachedPrisma ?? createPrismaClient();
+export const prisma = createPrismaClient();
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;

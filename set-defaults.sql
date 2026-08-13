@@ -1,0 +1,15 @@
+INSERT INTO "Company" ("id", "name", "updatedAt") VALUES ('tokyolife-hcm', 'Tokyolife HCM', CURRENT_TIMESTAMP) ON CONFLICT DO NOTHING;
+ALTER TABLE "User" ALTER COLUMN "companyId" SET DEFAULT 'tokyolife-hcm';
+ALTER TABLE "Store" ALTER COLUMN "companyId" SET DEFAULT 'tokyolife-hcm';
+ALTER TABLE "Employee" ALTER COLUMN "companyId" SET DEFAULT 'tokyolife-hcm';
+ALTER TABLE "ShiftTemplate" ALTER COLUMN "companyId" SET DEFAULT 'tokyolife-hcm';
+ALTER TABLE "StaffingRule" ALTER COLUMN "companyId" SET DEFAULT 'tokyolife-hcm';
+ALTER TABLE "StaffingOverride" ALTER COLUMN "companyId" SET DEFAULT 'tokyolife-hcm';
+ALTER TABLE "ShiftAssignment" ALTER COLUMN "companyId" SET DEFAULT 'tokyolife-hcm';
+ALTER TABLE "ShiftOvertime" ALTER COLUMN "companyId" SET DEFAULT 'tokyolife-hcm';
+ALTER TABLE "ScheduleApprovalRequest" ALTER COLUMN "companyId" SET DEFAULT 'tokyolife-hcm';
+ALTER TABLE "ScheduleDayNote" ALTER COLUMN "companyId" SET DEFAULT 'tokyolife-hcm';
+ALTER TABLE "ShiftFault" ALTER COLUMN "companyId" SET DEFAULT 'tokyolife-hcm';
+ALTER TABLE "CompanyRole" ALTER COLUMN "companyId" SET DEFAULT 'tokyolife-hcm';
+ALTER TABLE "CompanyMember" ALTER COLUMN "companyId" SET DEFAULT 'tokyolife-hcm';
+ALTER TABLE "CompanyInvitation" ALTER COLUMN "companyId" SET DEFAULT 'tokyolife-hcm';

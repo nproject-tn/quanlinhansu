@@ -8,9 +8,17 @@ datasource db {
 }
 
 enum UserRole {
+  OWNER
   ADMIN
   SCHEDULER
   EMPLOYEE
+}
+
+enum SubscriptionPlan {
+  FREE
+  START
+  COM
+  MULTI
 }
 
 enum EmploymentType {
@@ -38,26 +46,178 @@ enum ScheduleApprovalAction {
   DELETE_OVERTIME
 }
 
+enum RevenueSource {
+  TIKTOK
+  SHOPEE
+  APEXFLOW_WEB
+  MANUAL
+}
+
+enum AttendanceType {
+  CLOCK_IN
+  CLOCK_OUT
+}
+
+enum AttendanceMethod {
+  FACE_ID
+  MANUAL
+}
+
+model Company {
+  roles     CompanyRole[]
+  id        String        @id @default(cuid())
+  name      String        @unique
+  logo      String?
+  isActive  Boolean       @default(true)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  members                  CompanyMember[]
+  users                    User[] // Legacy 1:N relation
+  stores                   Store[]
+  employees                Employee[]
+  shiftTemplates           ShiftTemplate[]
+  staffingRules            StaffingRule[]
+  staffingOverrides        StaffingOverride[]
+  shiftAssignments         ShiftAssignment[]
+  shiftOvertimes           ShiftOvertime[]
+  scheduleApprovalRequests ScheduleApprovalRequest[]
+  scheduleDayNotes         ScheduleDayNote[]
+  shiftFaults              ShiftFault[]
+  scheduleConfigs          ScheduleConfig[]
+  revenueRecords           RevenueRecord[]
+  attendanceLogs           AttendanceLog[]
+  companyInvitations       CompanyInvitation[]
+  manufacturers            Manufacturer[]
+  categories               Category[]
+  subcategories            Subcategory[]
+  products                 Product[]
+}
+
 model User {
-  id                         String                    @id @default(cuid())
-  email                      String                    @unique
-  passwordHash               String
-  name                       String
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?
+  isSuperAdmin  Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts           Account[]
+  sessions           Session[]
+  companyMemberships CompanyMember[]
+  subscription       Subscription?
+
+  // Legacy fields for backward compatibility during migration
+  companyId                  String?
+  company                    Company?                  @relation(fields: [companyId], references: [id], onDelete: SetNull)
   role                       UserRole                  @default(EMPLOYEE)
   employeeId                 String?                   @unique
   employee                   Employee?                 @relation(fields: [employeeId], references: [id])
   requestedScheduleApprovals ScheduleApprovalRequest[] @relation("RequestedScheduleApprovals")
   reviewedScheduleApprovals  ScheduleApprovalRequest[] @relation("ReviewedScheduleApprovals")
-  createdAt                  DateTime                  @default(now())
-  updatedAt                  DateTime                  @updatedAt
+
+  @@index([companyId])
+}
+
+model CompanyMember {
+  companyRoleId String?
+  companyRole   CompanyRole? @relation(fields: [companyRoleId], references: [id], onDelete: SetNull)
+  id            String       @id @default(cuid())
+  userId        String
+  companyId     String
+  role          UserRole     @default(EMPLOYEE)
+  permissions   Json?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+  @@index([userId])
+  @@index([companyId])
+}
+
+model Subscription {
+  id                String           @id @default(cuid())
+  userId            String           @unique
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan              SubscriptionPlan @default(FREE)
+  status            String           @default("active")
+  trialEndsAt       DateTime?
+  currentPeriodEnd  DateTime?
+  cancelAtPeriodEnd Boolean          @default(false)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+}
+
+model CompanyInvitation {
+  id        String   @id @default(cuid())
+  email     String
+  companyId String
+  role      UserRole @default(EMPLOYEE)
+  token     String   @unique @default(cuid())
+  status    String   @default("PENDING") // PENDING, ACCEPTED, REJECTED
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([email, companyId])
+  @@index([email])
+  @@index([token])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
 }
 
 model Store {
   id                String             @id @default(cuid())
+  companyId         String
+  company           Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name              String
   address           String?
   logoUrl           String?
+  sortOrder         Int                @default(0)
   shiftsPerDay      Int                @default(3)
+  maxHoursPerDay    Int?
+  maxShiftsPerDay   Int?
   isActive          Boolean            @default(true)
   employees         EmployeeStore[]
   shiftTemplates    ShiftTemplate[]
@@ -65,14 +225,18 @@ model Store {
   staffingOverrides StaffingOverride[]
   shiftAssignments  ShiftAssignment[]
   shiftOvertimes    ShiftOvertime[]
+  revenueRecords    RevenueRecord[]
+  attendanceLogs    AttendanceLog[]
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
 
-  @@index([isActive, name])
+  @@index([companyId, isActive, name])
 }
 
 model Employee {
   id                String            @id @default(cuid())
+  companyId         String
+  company           Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name              String
   phone             String?
   email             String?
@@ -85,16 +249,21 @@ model Employee {
   maxShiftsPerMonth Int               @default(22)
   maxHoursPerMonth  Float             @default(160)
   isActive          Boolean           @default(true)
+  faceDescriptor    Json?
+  referenceImage    String?
   stores            EmployeeStore[]
   user              User?
   shiftAssignments  ShiftAssignment[]
   shiftOvertimes    ShiftOvertime[]
   faults            ShiftFault[]
+  revenueRecords    RevenueRecord[]
+  attendanceLogs    AttendanceLog[]
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
   deletedAt         DateTime?
+  isArchived        Boolean           @default(false)
 
-  @@index([isActive, name])
+  @@index([companyId, isActive, name])
 }
 
 model EmployeeStore {
@@ -110,6 +279,8 @@ model EmployeeStore {
 
 model ShiftTemplate {
   id                String             @id @default(cuid())
+  companyId         String
+  company           Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
   storeId           String
   store             Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
   name              String
@@ -123,11 +294,13 @@ model ShiftTemplate {
   shiftAssignments  ShiftAssignment[]
   shiftOvertimes    ShiftOvertime[]
 
-  @@index([storeId, isActive, sortOrder])
+  @@index([companyId, storeId, isActive, sortOrder])
 }
 
 model StaffingRule {
   id              String        @id @default(cuid())
+  companyId       String
+  company         Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   storeId         String
   store           Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
   shiftTemplateId String
@@ -136,10 +309,13 @@ model StaffingRule {
   requiredStaff   Int           @default(1)
 
   @@unique([storeId, shiftTemplateId, dayOfWeek])
+  @@index([companyId])
 }
 
 model StaffingOverride {
   id              String        @id @default(cuid())
+  companyId       String
+  company         Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   storeId         String
   store           Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
   shiftTemplateId String
@@ -148,25 +324,29 @@ model StaffingOverride {
   requiredStaff   Int           @default(1)
 
   @@unique([storeId, shiftTemplateId, date])
-  @@index([storeId, date])
+  @@index([companyId, storeId, date])
 }
 
 model ShiftAssignment {
-  id              String        @id @default(cuid())
+  id              String          @id @default(cuid())
+  companyId       String
+  company         Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   storeId         String
-  store           Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  store           Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
   shiftTemplateId String
-  shiftTemplate   ShiftTemplate @relation(fields: [shiftTemplateId], references: [id], onDelete: Cascade)
+  shiftTemplate   ShiftTemplate   @relation(fields: [shiftTemplateId], references: [id], onDelete: Cascade)
   employeeId      String?
-  employee        Employee?     @relation(fields: [employeeId], references: [id], onDelete: SetNull)
-  date            DateTime      @db.Date
-  slotIndex       Int           @default(0)
-  isManual        Boolean       @default(false)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  employee        Employee?       @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  date            DateTime        @db.Date
+  slotIndex       Int             @default(0)
+  isManual        Boolean         @default(false)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
   faults          ShiftFault[]
+  revenueRecords  RevenueRecord[]
 
   @@unique([storeId, shiftTemplateId, date, slotIndex])
+  @@index([companyId, date])
   @@index([employeeId, date])
   @@index([date])
   @@index([storeId, date])
@@ -175,6 +355,8 @@ model ShiftAssignment {
 
 model ShiftOvertime {
   id              String        @id @default(cuid())
+  companyId       String
+  company         Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   storeId         String
   store           Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
   shiftTemplateId String
@@ -184,16 +366,19 @@ model ShiftOvertime {
   date            DateTime      @db.Date
   hours           Float
 
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([storeId, shiftTemplateId, date, employeeId])
+  @@index([companyId, date])
   @@index([employeeId, date])
   @@index([storeId, date])
 }
 
 model ScheduleApprovalRequest {
   id            String                 @id @default(cuid())
+  companyId     String
+  company       Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
   actionType    ScheduleApprovalAction
   status        ScheduleApprovalStatus @default(PENDING)
   requestedById String?
@@ -207,39 +392,206 @@ model ScheduleApprovalRequest {
   updatedAt     DateTime               @updatedAt
   decidedAt     DateTime?
 
-  @@index([status, createdAt])
+  @@index([companyId, status, createdAt])
   @@index([requestedById, status])
 }
 
 model ScheduleDayNote {
   id        String   @id @default(cuid())
-  date      DateTime @unique @db.Date
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  date      DateTime @db.Date
   note      String
   colorKey  String   @default("amber")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([date])
+  @@unique([companyId, date])
+  @@index([companyId, date])
 }
 
 model ScheduleConfig {
-  id           String   @id @default("default")
+  companyId    String   @id
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   shiftsPerDay Int      @default(3)
   updatedAt    DateTime @updatedAt
 }
 
 model ShiftFault {
-  id              String          @id @default(cuid())
-  assignmentId    String
-  assignment      ShiftAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  employeeId      String
-  employee        Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  note            String?
-  evidenceUrl     String?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  id           String          @id @default(cuid())
+  companyId    String
+  company      Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assignmentId String
+  assignment   ShiftAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  employeeId   String
+  employee     Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  note         String?
+  evidenceUrl  String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
 
+  @@index([companyId])
   @@index([assignmentId])
   @@index([employeeId])
   @@map("ShiftFaults")
 }
+
+model RevenueRecord {
+  id                String           @id @default(cuid())
+  companyId         String
+  company           Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  storeId           String
+  store             Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  employeeId        String
+  employee          Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  shiftAssignmentId String?
+  shiftAssignment   ShiftAssignment? @relation(fields: [shiftAssignmentId], references: [id], onDelete: SetNull)
+  date              DateTime         @db.Date
+  amount            Float
+  source            RevenueSource    @default(MANUAL)
+  orderCount        Int              @default(0)
+  note              String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@index([companyId, date])
+  @@index([storeId, date])
+  @@index([employeeId, date])
+}
+
+model AttendanceLog {
+  id              String           @id @default(cuid())
+  companyId       String
+  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  storeId         String
+  store           Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  employeeId      String
+  employee        Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type            AttendanceType
+  method          AttendanceMethod @default(FACE_ID)
+  timestamp       DateTime         @default(now())
+  confidenceScore Float?
+  note            String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId, timestamp])
+  @@index([storeId, timestamp])
+  @@index([employeeId, timestamp])
+}
+
+model CompanyRole {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  permissions Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members CompanyMember[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+model Manufacturer {
+  id        String    @id @default(cuid())
+  companyId String
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code      String    // 3 digits e.g. "893"
+  name      String    // e.g. "Công ty may May 10"
+  address   String?
+  phone     String?
+  taxId     String?
+  country   String?   @default("Việt Nam")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  products Product[]
+
+  @@unique([companyId, code])
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String   // e.g. "Áo"
+  codeLetter  String   // 1 letter e.g. "A"
+  codeNumeric String   // 1 digit e.g. "1"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  subcategories Subcategory[]
+  products      Product[]
+
+  @@unique([companyId, name])
+  @@unique([companyId, codeLetter])
+  @@index([companyId])
+}
+
+model Subcategory {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  name        String   // e.g. "Áo thun"
+  codeLetter  String   // 1 letter e.g. "A"
+  codeNumeric String   // 1 digit e.g. "1"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products Product[]
+
+  @@unique([categoryId, name])
+  @@unique([categoryId, codeLetter])
+  @@index([companyId])
+}
+
+model Product {
+  id             String       @id @default(cuid())
+  companyId      String
+  company        Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  manufacturerId String?
+  manufacturer   Manufacturer? @relation(fields: [manufacturerId], references: [id], onDelete: SetNull)
+  categoryId     String
+  category       Category     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  subcategoryId  String
+  subcategory    Subcategory  @relation(fields: [subcategoryId], references: [id], onDelete: Restrict)
+  
+  name           String       // Tên sản phẩm
+  itemCode       String       // 2 digits e.g. "01"
+  colorName      String?      // e.g. "Đỏ"
+  colorCode      String?      // 2 digits e.g. "05"
+  sizeName       String?      // e.g. "L"
+  sizeCode       String?      // 2 digits e.g. "03"
+  
+  brandName      String?      // e.g. "Dakblancy"
+  brandCode      String?      // 1 letter + 2 digits e.g. "D01"
+  
+  sku            String       // e.g. "AB010503"
+  barcode        String       // EAN-8 8 digits e.g. "89300121"
+  
+  unit           String       @default("Cái") // Đơn vị tính
+  costPrice      Float        @default(0)     // Giá nhập
+  sellingPrice   Float        @default(0)     // Giá bán
+  imageUrl       String?
+  description    String?
+  isArchived     Boolean      @default(false)
+  barcodeNeedsReprint Boolean @default(false)
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([companyId, sku])
+  @@unique([companyId, barcode])
+  @@index([companyId, isArchived, name])
+  @@index([companyId, sku])
+  @@index([companyId, barcode])
+}
+

@@ -5,8 +5,8 @@ import { createScheduleApprovalRequest } from "@/lib/schedule-approval";
 import type { Prisma } from "@/generated/prisma/client";
 
 export async function POST(request: Request) {
-  const { session, error } = await requireAuth(["ADMIN", "SCHEDULER"]);
-  if (error) return error;
+  const { session, error, companyId } = await requireAuth(["OWNER"], { module: "schedule", action: "EDIT" });
+  if (error || !companyId) return error;
 
   const body = await request.json();
   const { storeId, shiftTemplateId, date, employeeId, hours } = body;
@@ -17,13 +17,18 @@ export async function POST(request: Request) {
 
   // If SCHEDULER, require approval
   if (session!.user.role === "SCHEDULER") {
-    await createScheduleApprovalRequest({
+    const approvalReq = await createScheduleApprovalRequest({
+      companyId,
       actionType: "ADD_OVERTIME",
       requestedById: session!.user.id,
       payload: body as Prisma.InputJsonValue,
       conflicts: [],
       message: "Yêu cầu xác nhận thêm giờ làm thêm",
     });
+
+    if ("isDuplicate" in approvalReq && approvalReq.isDuplicate) {
+      return NextResponse.json({ error: "Yêu cầu này đã được gửi và đang chờ quản lý duyệt." }, { status: 409 });
+    }
 
     return NextResponse.json(
       { success: true, pendingApproval: true, message: "Đã gửi yêu cầu xác nhận thêm giờ làm thêm" },
@@ -35,6 +40,7 @@ export async function POST(request: Request) {
   try {
     const overtime = await prisma.shiftOvertime.create({
       data: {
+        companyId,
         storeId,
         shiftTemplateId,
         date: new Date(date),

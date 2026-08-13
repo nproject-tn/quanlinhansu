@@ -1,0 +1,8 @@
+- `[x]` Integrate `OvertimeModal` into `ScheduleCalendar`.
+- `[x]` Connect (+) button in `CompactSlotGroup` to trigger modal.
+- `[x]` Display overtime hours underneath main employee list in `CompactSlotGroup`.
+- `[x]` Apply styling for overtime display (italic, small, gray) and include edit/delete icons.
+- `[x]` Cập nhật trang Nhân viên: Đổi tên cột "Giờ thực tế" thành "Giờ làm chính".
+- `[x]` Cập nhật trang Nhân viên: Thêm cột "Giờ làm thêm" và "Giờ thực tế mới".
+- `[x]` Cập nhật trang Nhân viên: Hiển thị đúng tổng số giờ từ backend.
+- `[x]` Build checks passing.

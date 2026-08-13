@@ -8,8 +8,8 @@ import { parseDateOnly } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const { error } = await requireAuth(["ADMIN", "SCHEDULER"]);
-  if (error) return error;
+  const { error, companyId } = await requireAuth(["OWNER"], { module: "employees", action: "VIEW" });
+  if (error || !companyId) return error;
 
   const { searchParams } = new URL(request.url);
   const month = searchParams.get("month") ?? format(new Date(), "yyyy-MM");
@@ -17,17 +17,29 @@ export async function GET(request: Request) {
 
   const [employees, assignments, faultsRaw, overtimesRaw] = await Promise.all([
     prisma.employee.findMany({
+      where: {
+        companyId,
+        OR: [
+          { isArchived: false, deletedAt: null },
+          { shiftAssignments: { some: { date: { gte: start, lte: end } } } },
+          { shiftOvertimes: { some: { date: { gte: start, lte: end } } } },
+        ],
+      },
       select: {
         id: true,
         name: true,
         position: true,
         maxShiftsPerMonth: true,
         maxHoursPerMonth: true,
+        deletedAt: true,
+        isArchived: true,
+        isActive: true,
       },
       orderBy: { name: "asc" },
     }),
     prisma.shiftAssignment.findMany({
       where: {
+        companyId,
         employeeId: { not: null },
         date: { gte: start, lte: end },
       },
@@ -45,6 +57,7 @@ export async function GET(request: Request) {
     }),
     prisma.shiftFault.findMany({
       where: {
+        companyId,
         assignment: { date: { gte: start, lte: end } }
       },
       select: {
@@ -64,6 +77,7 @@ export async function GET(request: Request) {
     }),
     prisma.shiftOvertime.findMany({
       where: {
+        companyId,
         date: { gte: start, lte: end }
       },
       select: {

@@ -7,8 +7,8 @@ import { calcDurationHours } from "@/lib/shift-utils";
 type Params = { params: Promise<{ id: string }> };
 
 export async function PUT(request: Request, { params }: Params) {
-  const { error } = await requireAuth(["ADMIN"]);
-  if (error) return error;
+  const { error, companyId } = await requireAuth(["OWNER"], { module: "shift_config", action: "EDIT" });
+  if (error || !companyId) return error;
 
   const { id } = await params;
   const body = await request.json();
@@ -17,10 +17,16 @@ export async function PUT(request: Request, { params }: Params) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
+  const existingTemplate = await prisma.shiftTemplate.findUnique({ where: { id, companyId } });
+  if (!existingTemplate) {
+    return NextResponse.json({ error: "Ca không tồn tại hoặc không có quyền truy cập" }, { status: 404 });
+  }
+
   // Kiểm tra tên ca có bị trùng với các ca ĐANG HOẠT ĐỘNG khác không
   const existingActiveShift = await prisma.shiftTemplate.findFirst({
     where: {
       storeId: parsed.data.storeId,
+      companyId,
       name: parsed.data.name,
       isActive: true,
       id: { not: id }, // Bỏ qua chính ca đang cập nhật
@@ -48,14 +54,14 @@ export async function PUT(request: Request, { params }: Params) {
 }
 
 export async function DELETE(_request: Request, { params }: Params) {
-  const { error } = await requireAuth(["ADMIN"]);
-  if (error) return error;
+  const { error, companyId } = await requireAuth(["OWNER"], { module: "shift_config", action: "EDIT" });
+  if (error || !companyId) return error;
 
   const { id } = await params;
 
-  const shiftTemplate = await prisma.shiftTemplate.findUnique({ where: { id } });
+  const shiftTemplate = await prisma.shiftTemplate.findUnique({ where: { id, companyId } });
   if (!shiftTemplate) {
-    return NextResponse.json({ error: "Ca không tồn tại" }, { status: 404 });
+    return NextResponse.json({ error: "Ca không tồn tại hoặc không có quyền truy cập" }, { status: 404 });
   }
 
   const assignmentCount = await prisma.shiftAssignment.count({

@@ -8,18 +8,21 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScheduleCalendar } from "@/components/schedule/schedule-calendar";
-import { ChevronLeft, ChevronRight, Wand2, AlertTriangle, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Wand2, AlertTriangle, Trash2, Settings2 } from "lucide-react";
 import { formatDateOnly, parseDateOnly } from "@/lib/utils";
 import { useNotifications } from "@/components/notifications/notification-center";
 import { useConfirmDialog } from "@/components/confirm/confirm-dialog-provider";
 import type { UserRole } from "@/generated/prisma/client";
 import { DatePicker } from "@/components/ui/date-picker";
 import { MonthPicker } from "@/components/ui/month-picker";
+import { hasPermission } from "@/lib/permissions";
+import { StoreScheduleRuleModal } from "@/components/schedule/store-schedule-rule-modal";
 
 type SchedulePageClientProps = {
   user: {
     name: string;
     role: UserRole;
+    permissions?: any;
   };
 };
 
@@ -111,7 +114,7 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
     return JSON.parse(text);
   }, { revalidateOnFocus: false, refreshInterval: 10000 });
 
-  const shouldLoadApprovals = user.role === "ADMIN" || user.role === "SCHEDULER";
+  const shouldLoadApprovals = hasPermission(user.role, user.permissions, "schedule", "APPROVE") || hasPermission(user.role, user.permissions, "schedule", "EDIT");
   const { data: approvalRequests = [], mutate: mutateApprovalRequests, isValidating: refreshingApprovals } = useSWR<ApprovalRequest[]>(
     shouldLoadApprovals ? "/api/schedule/approval-requests" : null,
     async (url: string) => {
@@ -132,13 +135,20 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
   const [error, setError] = useState<string | null>(null);
   const [confirmingApproval, setConfirmingApproval] = useState<ApprovalRequest | null>(null);
   const [isClearing, setIsClearing] = useState(false);
+  const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
+
+  useEffect(() => {
+    const handleRefresh = () => mutateSchedule();
+    window.addEventListener("refresh-schedule-stores", handleRefresh);
+    return () => window.removeEventListener("refresh-schedule-stores", handleRefresh);
+  }, [mutateSchedule]);
 
   const { notify } = useNotifications();
   const { confirm } = useConfirmDialog();
   
   const statusHashRef = useRef<{ assignments: string | null; requests: string | null }>({ assignments: null, requests: null });
 
-  const canEdit = user.role === "ADMIN" || user.role === "SCHEDULER";
+  const canEdit = hasPermission(user.role, user.permissions, "schedule", "EDIT");
 
   useEffect(() => {
     if (scheduleErrorObj) setError(scheduleErrorObj.message);
@@ -489,18 +499,12 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
             Xếp ca tự động · Chọn nhân viên thủ công · Kéo thả đổi ca
           </p>
           <p className="mt-1 text-xs text-slate-500">
-            Đang đăng nhập: {user.name} (
-            {user.role === "ADMIN"
-              ? "Quản trị"
-              : user.role === "SCHEDULER"
-                ? "Người xếp ca"
-                : "Nhân viên"}
-            )
+            Đang đăng nhập: {user.name} ({canEdit ? "Có quyền chỉnh sửa" : "Chỉ xem"})
           </p>
         </div>
         {!canEdit ? (
           <p className="mt-3 inline-flex rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            Tài khoản Nhân viên chỉ xem lịch — dùng Admin hoặc Người xếp ca để chỉnh
+            Tài khoản của bạn chỉ có quyền xem lịch.
           </p>
         ) : null}
       </div>
@@ -574,11 +578,14 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
 
           {canEdit ? (
             <div className="flex gap-2">
-              <Button onClick={autoGenerate} disabled={generating || refreshing}>
+              <Button variant="outline" size="icon" onClick={() => setIsRuleModalOpen(true)}>
+                <Settings2 className="h-4 w-4" />
+              </Button>
+              <Button onClick={autoGenerate} disabled={generating || isProcessing}>
                 <Wand2 className="mr-2 h-4 w-4" />
                 {generating ? "Đang xếp..." : "Xếp ca tự động"}
               </Button>
-              <Button variant="destructive" onClick={clearSchedule} disabled={isClearing || refreshing}>
+              <Button variant="destructive" onClick={clearSchedule} disabled={isClearing || isProcessing}>
                 <Trash2 className="mr-2 h-4 w-4" />
                 {isClearing ? "Đang xoá..." : "Xoá ca"}
               </Button>
@@ -598,7 +605,7 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
         <Card>
           <CardHeader>
             <CardTitle>
-              {user.role === "ADMIN" ? "Yêu cầu chờ duyệt (" : "Yêu cầu của bạn đang chờ duyệt ("}
+              {(user.role === "OWNER" || hasPermission(user.role, user.permissions, "schedule", "APPROVE")) ? "Yêu cầu chờ duyệt (" : "Yêu cầu của bạn đang chờ duyệt ("}
               {approvalRequests.length})
             </CardTitle>
           </CardHeader>
@@ -628,13 +635,13 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
                     ) : null}
                   </div>
                   <div className="flex shrink-0 gap-2">
-                    {user.role === "ADMIN" ? (
+                    {(user.role === "OWNER" || hasPermission(user.role, user.permissions, "schedule", "APPROVE")) ? (
                       <>
                         <Button
                           type="button"
                           size="sm"
                           onClick={() => setConfirmingApproval(request)}
-                          disabled={refreshing}
+                          disabled={isProcessing}
                         >
                           Duyệt
                         </Button>
@@ -643,7 +650,7 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
                           size="sm"
                           variant="outline"
                           onClick={() => decideApproval(request.id, "REJECT")}
-                          disabled={refreshing}
+                          disabled={isProcessing}
                         >
                           Từ chối
                         </Button>
@@ -654,7 +661,7 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
                         size="sm"
                         variant="destructive"
                         onClick={() => cancelRequest(request.id)}
-                        disabled={refreshing}
+                        disabled={isProcessing}
                       >
                         Huỷ yêu cầu
                       </Button>
@@ -788,7 +795,7 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
                 <Button
                   onClick={() => decideApproval(confirmingApproval.id, "APPROVE")}
                   disabled={refreshing}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-slate-900 hover:bg-slate-800"
                 >
                   {refreshing ? "Đang xử lý..." : "Xác nhận duyệt"}
                 </Button>
@@ -812,11 +819,18 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
         layoutMode={layoutMode}
         onLayoutModeChange={setLayoutMode}
         canEdit={canEdit && !generating}
-        isAdmin={user.role === "ADMIN"}
+        isAdmin={user.role === "OWNER" || hasPermission(user.role, user.permissions, "schedule", "EDIT_FREE")}
         onRefresh={refreshScheduleAndApprovals}
         onOptimisticUpdate={handleOptimisticUpdate}
         onOptimisticOvertimeUpdate={handleOptimisticOvertimeUpdate}
       />
+      {isRuleModalOpen && data?.stores && (
+        <StoreScheduleRuleModal
+          isOpen={isRuleModalOpen}
+          onClose={() => setIsRuleModalOpen(false)}
+          stores={data.stores}
+        />
+      )}
     </div>
   );
 }

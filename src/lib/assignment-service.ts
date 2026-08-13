@@ -1,7 +1,7 @@
 import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { formatDateOnly, parseDateOnly } from "@/lib/utils";
-import { getDateRange, validateAssignment } from "@/lib/schedule-engine";
+import { validateAssignment, getDaysInRange, type UnfilledShift, calculateTotalMonthlyHours, getUtcMonthKey, getDateRange } from "@/lib/schedule-engine";
 
 export type UpdateAssignmentInput = {
   assignmentId?: string;
@@ -11,6 +11,7 @@ export type UpdateAssignmentInput = {
   slotIndex: number;
   employeeId: string | null;
   requiredStaff: number;
+  companyId: string;
   confirmOverCapacity?: boolean;
 };
 
@@ -24,10 +25,14 @@ export type MoveAssignmentInput = {
   targetDate: string;
   targetSlotIndex: number;
   targetRequiredStaff: number;
+  companyId: string;
   confirmOverCapacity?: boolean;
 };
 
-export async function updateAssignment(input: UpdateAssignmentInput) {
+export async function updateAssignment(
+  input: UpdateAssignmentInput,
+  isScheduler: boolean = false
+) {
   const date = parseDateOnly(input.date);
   const { start: monthStart, end: monthEnd } = getDateRange("month", date);
 
@@ -53,7 +58,7 @@ export async function updateAssignment(input: UpdateAssignmentInput) {
     };
   }
 
-  const [targetShift, employee, allAssignments] = await prisma.$transaction([
+  const [targetShift, employee, allAssignments, store] = await prisma.$transaction([
     prisma.shiftTemplate.findUnique({
       where: { id: input.shiftTemplateId },
       select: {
@@ -110,6 +115,10 @@ export async function updateAssignment(input: UpdateAssignmentInput) {
         },
       },
     }),
+    prisma.store.findUnique({
+      where: { id: input.storeId },
+      select: { maxShiftsPerDay: true, maxHoursPerDay: true }
+    }),
   ]);
 
   if (!targetShift) {
@@ -138,6 +147,10 @@ export async function updateAssignment(input: UpdateAssignmentInput) {
     },
   }));
 
+  const sourceOriginalMonthAssignments = mappedAssignments.filter(
+    (a) => a.employeeId === input.employeeId && getUtcMonthKey(a.date) === getUtcMonthKey(date)
+  );
+
   const conflicts = validateAssignment(
     input.employeeId,
     input.storeId,
@@ -153,14 +166,22 @@ export async function updateAssignment(input: UpdateAssignmentInput) {
       maxShiftsPerMonth: employee.maxShiftsPerMonth,
       maxHoursPerMonth: employee.maxHoursPerMonth,
       storeIds: employee.stores.map((s) => s.storeId),
+    },
+    {
+      maxShiftsPerDay: store?.maxShiftsPerDay ?? null,
+      maxHoursPerDay: store?.maxHoursPerDay ?? null,
+    },
+    {
+      monthHours: calculateTotalMonthlyHours(sourceOriginalMonthAssignments.map(a => ({ date: a.date, shift: { startTime: a.shiftTemplate.startTime, endTime: a.shiftTemplate.endTime } }))),
+      monthShifts: sourceOriginalMonthAssignments.length
     }
   );
 
   const hasHardConflict = conflicts.some(
-    (conflict) => conflict.type !== "MAX_HOURS" && conflict.type !== "MAX_SHIFTS"
+    (conflict) => !["MONTHLY_MAX_HOURS", "MONTHLY_MAX_SHIFTS", "DAILY_MAX_HOURS", "DAILY_MAX_SHIFTS"].includes(conflict.type)
   );
   const requiresConfirmation = conflicts.some(
-    (conflict) => conflict.type === "MAX_HOURS" || conflict.type === "MAX_SHIFTS"
+    (conflict) => ["MONTHLY_MAX_HOURS", "MONTHLY_MAX_SHIFTS", "DAILY_MAX_HOURS", "DAILY_MAX_SHIFTS"].includes(conflict.type)
   );
 
   if (conflicts.length > 0 && (hasHardConflict || !input.confirmOverCapacity)) {
@@ -169,6 +190,15 @@ export async function updateAssignment(input: UpdateAssignmentInput) {
       conflicts,
       requiresConfirmation: requiresConfirmation && !hasHardConflict,
       status: 409 as const,
+    };
+  }
+
+  if (isScheduler && conflicts.length > 0) {
+    return {
+      success: true,
+      pendingApproval: true,
+      conflicts,
+      status: 202 as const,
     };
   }
 
@@ -182,6 +212,7 @@ export async function updateAssignment(input: UpdateAssignmentInput) {
       },
     },
     create: {
+      companyId: input.companyId,
       storeId: input.storeId,
       shiftTemplateId: input.shiftTemplateId,
       date,
@@ -210,10 +241,13 @@ export async function updateAssignment(input: UpdateAssignmentInput) {
   };
 }
 
-export async function moveAssignment(input: MoveAssignmentInput) {
+export async function moveAssignment(
+  input: MoveAssignmentInput,
+  isScheduler: boolean = false
+) {
   const targetDateValue = parseDateOnly(input.targetDate);
 
-  const [source, targetAssignment, targetShift] = await prisma.$transaction([
+  const [source, targetAssignment, targetShift, sourceStore, targetStore] = await prisma.$transaction([
     prisma.shiftAssignment.findUnique({
       where: {
         storeId_shiftTemplateId_date_slotIndex: {
@@ -286,6 +320,14 @@ export async function moveAssignment(input: MoveAssignmentInput) {
         durationHours: true,
         sortOrder: true,
       },
+    }),
+    prisma.store.findUnique({
+      where: { id: input.sourceStoreId },
+      select: { maxShiftsPerDay: true, maxHoursPerDay: true },
+    }),
+    prisma.store.findUnique({
+      where: { id: input.targetStoreId },
+      select: { maxShiftsPerDay: true, maxHoursPerDay: true },
     }),
   ]);
 
@@ -368,6 +410,13 @@ export async function moveAssignment(input: MoveAssignmentInput) {
   );
   const baseAssignments = relevantAssignments.filter((assignment) => !excludedIds.has(assignment.id));
 
+  const sourceOriginalAssignments = relevantAssignments.filter(
+    (a) => a.employeeId === source.employeeId && getUtcMonthKey(a.date) === getUtcMonthKey(targetDateValue)
+  );
+  const targetOriginalAssignments = targetAssignment?.employeeId ? relevantAssignments.filter(
+    (a) => a.employeeId === targetAssignment.employeeId && getUtcMonthKey(a.date) === getUtcMonthKey(source.date)
+  ) : [];
+
   const sourceConflicts = validateAssignment(
     source.employeeId,
     input.targetStoreId,
@@ -383,6 +432,14 @@ export async function moveAssignment(input: MoveAssignmentInput) {
       maxShiftsPerMonth: source.employee.maxShiftsPerMonth,
       maxHoursPerMonth: source.employee.maxHoursPerMonth,
       storeIds: source.employee.stores.map((store) => store.storeId),
+    },
+    {
+      maxShiftsPerDay: targetStore?.maxShiftsPerDay ?? null,
+      maxHoursPerDay: targetStore?.maxHoursPerDay ?? null,
+    },
+    {
+      monthHours: calculateTotalMonthlyHours(sourceOriginalAssignments.map(a => ({ date: a.date, shift: { startTime: a.shiftTemplate.startTime, endTime: a.shiftTemplate.endTime } }))),
+      monthShifts: sourceOriginalAssignments.length
     }
   );
 
@@ -406,16 +463,26 @@ export async function moveAssignment(input: MoveAssignmentInput) {
             maxShiftsPerMonth: targetAssignment.employee.maxShiftsPerMonth,
             maxHoursPerMonth: targetAssignment.employee.maxHoursPerMonth,
             storeIds: targetAssignment.employee.stores.map((store) => store.storeId),
+          },
+          {
+            maxShiftsPerDay: sourceStore?.maxShiftsPerDay ?? null,
+            maxHoursPerDay: sourceStore?.maxHoursPerDay ?? null,
+          },
+          {
+            monthHours: calculateTotalMonthlyHours(targetOriginalAssignments.map(a => ({ date: a.date, shift: { startTime: a.shiftTemplate.startTime, endTime: a.shiftTemplate.endTime } }))),
+            monthShifts: targetOriginalAssignments.length
           }
         )
       : [];
 
-  const conflicts = [...sourceConflicts, ...targetConflicts];
+  const conflicts = [...sourceConflicts, ...targetConflicts].filter(
+    (c) => c.type !== "MONTHLY_MAX_HOURS" && c.type !== "MONTHLY_MAX_SHIFTS"
+  );
   const hasHardConflict = conflicts.some(
-    (conflict) => conflict.type !== "MAX_HOURS" && conflict.type !== "MAX_SHIFTS"
+    (conflict) => conflict.type !== "DAILY_MAX_HOURS" && conflict.type !== "DAILY_MAX_SHIFTS"
   );
   const requiresConfirmation = conflicts.some(
-    (conflict) => conflict.type === "MAX_HOURS" || conflict.type === "MAX_SHIFTS"
+    (conflict) => conflict.type === "DAILY_MAX_HOURS" || conflict.type === "DAILY_MAX_SHIFTS"
   );
 
   if (conflicts.length > 0 && (hasHardConflict || !input.confirmOverCapacity)) {
@@ -424,6 +491,15 @@ export async function moveAssignment(input: MoveAssignmentInput) {
       conflicts,
       requiresConfirmation: requiresConfirmation && !hasHardConflict,
       status: 409 as const,
+    };
+  }
+
+  if (isScheduler && conflicts.length > 0) {
+    return {
+      success: true,
+      pendingApproval: true,
+      conflicts,
+      status: 202 as const,
     };
   }
 
@@ -456,6 +532,7 @@ export async function moveAssignment(input: MoveAssignmentInput) {
         },
       },
       create: {
+        companyId: input.companyId,
         storeId: input.targetStoreId,
         shiftTemplateId: input.targetShiftTemplateId,
         date: targetDateValue,

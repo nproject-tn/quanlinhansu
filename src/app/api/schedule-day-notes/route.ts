@@ -6,23 +6,28 @@ import { scheduleDayNoteSchema } from "@/lib/validations";
 
 export async function GET(request: Request) {
   try {
-    const { error } = await requireAuth(["ADMIN", "SCHEDULER"]);
-    if (error) return error;
+    const { error, companyId } = await requireAuth(["OWNER"], [
+      { module: "schedule", action: "VIEW" },
+      { module: "shift_config", action: "VIEW" }
+    ]);
+    if (error || !companyId) return error;
 
     const { searchParams } = new URL(request.url);
     const from = searchParams.get("from");
     const to = searchParams.get("to");
 
     const notes = await prisma.scheduleDayNote.findMany({
-      where:
-        from && to
+      where: {
+        companyId,
+        ...(from && to
           ? {
               date: {
                 gte: parseDateOnly(from),
                 lte: parseDateOnly(to),
               },
             }
-          : undefined,
+          : {}),
+      },
       orderBy: { date: "asc" },
     });
 
@@ -40,8 +45,11 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { error } = await requireAuth(["ADMIN"]);
-    if (error) return error;
+    const { error, companyId } = await requireAuth(["OWNER"], [
+      { module: "schedule", action: "EDIT" },
+      { module: "shift_config", action: "EDIT" }
+    ]);
+    if (error || !companyId) return error;
 
     const body = await request.json();
 
@@ -53,9 +61,13 @@ export async function POST(request: Request) {
         operations.push(
           prisma.scheduleDayNote.upsert({
             where: {
-              date: parseDateOnly(parsed.data.date),
+              companyId_date: {
+                companyId,
+                date: parseDateOnly(parsed.data.date),
+              },
             },
             create: {
+              companyId,
               date: parseDateOnly(parsed.data.date),
               note: parsed.data.note,
               colorKey: parsed.data.colorKey,
@@ -84,9 +96,13 @@ export async function POST(request: Request) {
 
     const note = await prisma.scheduleDayNote.upsert({
       where: {
-        date: parseDateOnly(parsed.data.date),
+        companyId_date: {
+          companyId,
+          date: parseDateOnly(parsed.data.date),
+        },
       },
       create: {
+        companyId,
         date: parseDateOnly(parsed.data.date),
         note: parsed.data.note,
         colorKey: parsed.data.colorKey,
@@ -109,8 +125,11 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const { error } = await requireAuth(["ADMIN"]);
-    if (error) return error;
+    const { error, companyId } = await requireAuth(["OWNER"], [
+      { module: "schedule", action: "EDIT" },
+      { module: "shift_config", action: "EDIT" }
+    ]);
+    if (error || !companyId) return error;
 
     const { searchParams } = new URL(request.url);
     const date = searchParams.get("date");
@@ -120,7 +139,7 @@ export async function DELETE(request: Request) {
     }
 
     await prisma.scheduleDayNote.deleteMany({
-      where: { date: parseDateOnly(date) },
+      where: { companyId, date: parseDateOnly(date) },
     });
 
     return NextResponse.json({ success: true });

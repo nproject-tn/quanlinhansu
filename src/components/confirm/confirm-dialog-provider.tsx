@@ -23,7 +23,7 @@ type ConfirmOptions = {
 };
 
 type ConfirmDialogContextValue = {
-  confirm: (options: ConfirmOptions) => Promise<boolean>;
+  confirm: (options: ConfirmOptions | string) => Promise<boolean>;
 };
 
 const ConfirmDialogContext = createContext<ConfirmDialogContextValue | null>(null);
@@ -39,10 +39,20 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
     setPending(null);
   }, []);
 
-  const confirm = useCallback((options: ConfirmOptions) => {
+  const confirm = useCallback((options: ConfirmOptions | string) => {
     return new Promise<boolean>((resolve) => {
       resolverRef.current = resolve;
-      setPending(options);
+      if (typeof options === "string") {
+        setPending({
+          title: "Xác nhận thao tác",
+          description: options,
+          confirmLabel: "Xác nhận",
+          cancelLabel: "Huỷ",
+          tone: "destructive",
+        });
+      } else {
+        setPending(options);
+      }
     });
   }, []);
 

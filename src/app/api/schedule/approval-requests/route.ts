@@ -3,15 +3,18 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/api-auth";
 
 export async function GET() {
-  const { session, error } = await requireAuth(["ADMIN", "SCHEDULER"]);
+  const { session, permissions, error, companyId } = await requireAuth(["OWNER"], { module: "schedule", action: "EDIT" });
   if (error) return error;
 
-  const isAdmin = session!.user.role === "ADMIN";
+  const isAdmin = session!.user.role === "ADMIN" || session!.user.role === "OWNER";
+  const hasApprovePerm = typeof permissions === "object" && !!permissions?.schedule?.approve;
+  const isApprover = isAdmin || hasApprovePerm;
 
   const requests = await prisma.scheduleApprovalRequest.findMany({
     where: {
+      companyId,
       status: "PENDING",
-      ...(!isAdmin ? { requestedById: session!.user.id } : {}),
+      ...(!isApprover ? { requestedById: session!.user.id } : {}),
     },
     orderBy: { createdAt: "asc" },
     take: 30,

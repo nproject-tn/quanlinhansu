@@ -18,7 +18,7 @@ body {
 }
 
 .glass-control {
-  border: 1px solid rgba(191, 219, 254, 0.85);
+  border: 1px solid rgba(226, 232, 240, 0.85); /* slate-200 */
   background:
     linear-gradient(145deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.72)),
     radial-gradient(circle at top left, rgba(255, 255, 255, 0.7), transparent 36%);
@@ -117,8 +117,8 @@ body {
   border-radius: 22px;
   background: linear-gradient(
     145deg,
-    rgba(255, 255, 255, 0.96),
-    rgba(255, 255, 255, 0.82)
+    rgba(255, 255, 255, 0.5),
+    rgba(255, 255, 255, 0.2)
   );
   box-shadow:
     0 24px 48px rgba(15, 23, 42, 0.16),
@@ -132,8 +132,8 @@ body {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at top left, rgba(255, 255, 255, 0.78), transparent 32%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.44), transparent 72%);
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.6), transparent 32%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2), transparent 72%);
   pointer-events: none;
 }
 
@@ -142,7 +142,7 @@ body {
   position: absolute;
   inset: 1px;
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.5);
   pointer-events: none;
 }
 

@@ -8,7 +8,7 @@ import {
 import { storeSchema } from "@/lib/validations";
 
 export async function GET(request: Request) {
-  const { error } = await requireAuth();
+  const { error, companyId } = await requireAuth(["OWNER"], { module: "store", action: "VIEW" });
   if (error) return error;
 
   const { searchParams } = new URL(request.url);
@@ -18,7 +18,7 @@ export async function GET(request: Request) {
 
   try {
     stores = await prisma.store.findMany({
-      where: { isActive: true },
+      where: { companyId, isActive: true },
       select: lean
         ? {
             id: true,
@@ -40,7 +40,7 @@ export async function GET(request: Request) {
             },
             _count: { select: { employees: true } },
           },
-      orderBy: { name: "asc" },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     });
   } catch (queryError) {
     if (!isMissingStoreLogoColumn(queryError)) {
@@ -49,7 +49,7 @@ export async function GET(request: Request) {
     }
 
     stores = await prisma.store.findMany({
-      where: { isActive: true },
+      where: { companyId, isActive: true },
       select: lean
         ? {
             id: true,
@@ -69,7 +69,7 @@ export async function GET(request: Request) {
             },
             _count: { select: { employees: true } },
           },
-      orderBy: { name: "asc" },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     });
   }
 
@@ -77,7 +77,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const { error } = await requireAuth(["ADMIN"]);
+  const { error, companyId } = await requireAuth(["OWNER"], { module: "store", action: "EDIT" });
   if (error) return error;
 
   const body = await request.json();
@@ -90,8 +90,8 @@ export async function POST(request: Request) {
     const { logoUrl: _logoUrl, ...dataWithoutLogo } = parsed.data;
     const { result: store, logoPendingMigration } = await retryStoreMutationWithoutLogo(
       Boolean(parsed.data.logoUrl),
-      () => prisma.store.create({ data: parsed.data }),
-      () => prisma.store.create({ data: dataWithoutLogo })
+      () => prisma.store.create({ data: { ...parsed.data, companyId } }),
+      () => prisma.store.create({ data: { ...dataWithoutLogo, companyId } })
     );
 
     return NextResponse.json({ ...store, logoPendingMigration }, { status: 201 });

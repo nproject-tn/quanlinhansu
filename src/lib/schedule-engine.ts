@@ -29,7 +29,7 @@ export type AssignmentSlot = {
 };
 
 export type ScheduleConflict = {
-  type: "OVERLAP" | "MAX_SHIFTS" | "MAX_HOURS" | "OVER_CAPACITY" | "SINGLE_STAFF";
+  type: "OVERLAP" | "DAILY_MAX_SHIFTS" | "DAILY_MAX_HOURS" | "MONTHLY_MAX_SHIFTS" | "MONTHLY_MAX_HOURS" | "OVER_CAPACITY" | "SINGLE_STAFF";
   message: string;
   employeeId?: string;
   date?: string;
@@ -281,6 +281,7 @@ export function autoAssignShifts(
   slots: AssignmentSlot[],
   employees: EmployeeForSchedule[],
   shifts: ShiftTime[],
+  stores: { id: string; maxShiftsPerDay: number | null; maxHoursPerDay: number | null }[],
   options: boolean | AutoAssignOptions = true
 ): AssignmentSlot[] {
   const preserveManual =
@@ -291,9 +292,53 @@ export function autoAssignShifts(
   const result = slots.map((s) => ({ ...s }));
   const resultKeys = new Set(result.map(slotKey));
 
-  const manualKeys = new Set(
-    result.filter((s) => s.employeeId && preserveManual).map(slotKey)
-  );
+  const manualKeys = new Set<string>();
+
+  if (preserveManual) {
+    const dailyEmployeeStats = new Map<string, { shifts: number; hours: number }>();
+    
+    for (const ca of contextAssignments) {
+      if (!ca.employeeId) continue;
+      const dateStr = formatDateOnly(ca.date);
+      const statKey = `${ca.employeeId}|${dateStr}`;
+      const stats = dailyEmployeeStats.get(statKey) || { shifts: 0, hours: 0 };
+      stats.shifts += 1;
+      stats.hours += ca.shift.durationHours;
+      dailyEmployeeStats.set(statKey, stats);
+    }
+
+    for (const s of result) {
+      if (!s.employeeId) continue;
+
+      const store = stores.find((st) => st.id === s.storeId);
+      const shift = shiftMap.get(s.shiftTemplateId);
+      if (!store || !shift) continue;
+
+      const dateStr = formatDateOnly(s.date);
+      const statKey = `${s.employeeId}|${dateStr}`;
+      const stats = dailyEmployeeStats.get(statKey) || { shifts: 0, hours: 0 };
+
+      const newShifts = stats.shifts + 1;
+      const newHours = stats.hours + shift.durationHours;
+
+      let valid = true;
+      if (store.maxShiftsPerDay !== null && newShifts > store.maxShiftsPerDay) valid = false;
+      if (store.maxHoursPerDay !== null && newHours > store.maxHoursPerDay) valid = false;
+
+      const employee = employees.find(e => e.id === s.employeeId);
+      if (!employee || !employee.storeIds.includes(s.storeId)) valid = false;
+
+      if (valid) {
+        stats.shifts = newShifts;
+        stats.hours = newHours;
+        dailyEmployeeStats.set(statKey, stats);
+        manualKeys.add(slotKey(s));
+      } else {
+        s.employeeId = null;
+        s.assignmentId = undefined;
+      }
+    }
+  }
 
   const assigned: AssignmentRecord[] = result
     .filter((s) => s.employeeId)
@@ -321,11 +366,14 @@ export function autoAssignShifts(
     const shift = shiftMap.get(slot.shiftTemplateId);
     if (!shift) continue;
 
+    const store = stores.find(s => s.id === slot.storeId);
+    const storeConfig = store ? { maxShiftsPerDay: store.maxShiftsPerDay, maxHoursPerDay: store.maxHoursPerDay } : undefined;
+
     const candidates = employees
       .filter((e) => e.storeIds.includes(slot.storeId))
       .map((employee) => ({
         employee,
-        score: scoreCandidate(employee, slot, shift, assigned, shifts),
+        score: scoreCandidate(employee, slot, shift, assigned, shifts, storeConfig),
       }))
       .filter((c) => c.score > INVALID_CANDIDATE_SCORE)
       .sort((a, b) => b.score - a.score);
@@ -437,16 +485,13 @@ function scoreCandidate(
   slot: AssignmentSlot,
   shift: ShiftTime,
   assigned: AssignmentRecord[],
-  allShifts: ShiftTime[]
+  allShifts: ShiftTime[],
+  storeConfig?: { maxShiftsPerDay: number | null, maxHoursPerDay: number | null }
 ): number {
   const dateStr = formatDateOnly(slot.date);
   const sameDayShifts = assigned.filter(
     (a) => a.employeeId === employee.id && formatDateOnly(a.date) === dateStr
   );
-
-  if (sameDayShifts.length >= 3) {
-    return INVALID_CANDIDATE_SCORE;
-  }
 
   const conflicts = validateAssignment(
     employee.id,
@@ -465,10 +510,12 @@ function scoreCandidate(
       shiftTemplate: a.shift,
     })),
     allShifts,
-    employee
+    employee,
+    storeConfig
   );
 
-  if (conflicts.length > 0) return INVALID_CANDIDATE_SCORE;
+  const autoSchedulingConflicts = conflicts.filter(c => c.type !== "MONTHLY_MAX_SHIFTS");
+  if (autoSchedulingConflicts.length > 0) return INVALID_CANDIDATE_SCORE;
 
   let score = 0;
   const yesterday = formatDateOnly(addDays(slot.date, -1));
@@ -548,7 +595,7 @@ function scoreCandidate(
   return score;
 }
 
-function getUtcMonthKey(date: Date): string {
+export function getUtcMonthKey(date: Date): string {
   return formatDateOnly(date).slice(0, 7);
 }
 
@@ -591,7 +638,9 @@ export function validateAssignment(
     shiftTemplate: ShiftTime;
   }[],
   shifts: ShiftTime[],
-  employee?: EmployeeForSchedule
+  employee?: EmployeeForSchedule,
+  storeConfig?: { maxShiftsPerDay: number | null, maxHoursPerDay: number | null },
+  originalStats?: { monthHours: number, monthShifts: number }
 ): ScheduleConflict[] {
   const conflicts: ScheduleConflict[] = [];
   const dateStr = formatDateOnly(date);
@@ -619,14 +668,30 @@ export function validateAssignment(
     (a) => a.employeeId === employeeId && formatDateOnly(a.date) === dateStr
   );
 
-  if (employeeAssignments.length >= 3) {
-    const exceededShifts = (employeeAssignments.length + 1) - 3;
-    conflicts.push({
-      type: "MAX_SHIFTS",
-      message: `Mỗi nhân viên chỉ được làm tối đa 3 ca trong một ngày. Số ca đã vượt trong ngày: ${exceededShifts} ca`,
-      employeeId,
-      date: dateStr,
-    });
+  if (storeConfig?.maxShiftsPerDay !== undefined && storeConfig.maxShiftsPerDay !== null) {
+    const maxShifts = storeConfig.maxShiftsPerDay;
+    if (employeeAssignments.length >= maxShifts) {
+      const exceededShifts = (employeeAssignments.length + 1) - maxShifts;
+      conflicts.push({
+        type: "DAILY_MAX_SHIFTS",
+        message: `Mỗi nhân viên chỉ được làm tối đa ${maxShifts} ca trong một ngày. Số ca đã vượt trong ngày: ${exceededShifts} ca`,
+        employeeId,
+        date: dateStr,
+      });
+    }
+  }
+
+  if (storeConfig?.maxHoursPerDay) {
+    const currentHours = employeeAssignments.reduce((acc, a) => acc + a.shiftTemplate.durationHours, 0);
+    const totalHours = currentHours + targetShift.durationHours;
+    if (totalHours > storeConfig.maxHoursPerDay) {
+      conflicts.push({
+        type: "DAILY_MAX_HOURS",
+        message: `Mỗi nhân viên chỉ được làm tối đa ${storeConfig.maxHoursPerDay} giờ trong một ngày. Tổng giờ nếu xếp: ${totalHours} giờ`,
+        employeeId,
+        date: dateStr,
+      });
+    }
   }
 
   for (const existing of employeeAssignments) {
@@ -698,11 +763,29 @@ export function validateAssignment(
 
     const newTotalHours = monthHours + targetShift.durationHours;
 
-    if (newTotalHours > employee.maxHoursPerMonth) {
+    if (newTotalHours > employee.maxHoursPerMonth && (originalStats === undefined || newTotalHours > originalStats.monthHours)) {
       const exceededHours = newTotalHours - employee.maxHoursPerMonth;
       conflicts.push({
-        type: "MAX_HOURS",
+        type: "MONTHLY_MAX_HOURS",
         message: `Vượt số giờ tối đa/tháng (${employee.maxHoursPerMonth}h). Số giờ đã vượt trong tháng: ${exceededHours} giờ`,
+        employeeId,
+        date: dateStr,
+      });
+    }
+
+    const monthShifts = allAssignments.filter(
+      (a) =>
+        a.employeeId === employeeId &&
+        getUtcMonthKey(a.date) === getUtcMonthKey(date)
+    ).length;
+
+    const newTotalShifts = monthShifts + 1;
+
+    if (employee.maxShiftsPerMonth !== undefined && employee.maxShiftsPerMonth !== null && newTotalShifts > employee.maxShiftsPerMonth && (originalStats === undefined || newTotalShifts > originalStats.monthShifts)) {
+      const exceededShifts = newTotalShifts - employee.maxShiftsPerMonth;
+      conflicts.push({
+        type: "MONTHLY_MAX_SHIFTS",
+        message: `Vượt số ca tối đa/tháng (${employee.maxShiftsPerMonth} ca). Số ca đã vượt trong tháng: ${exceededShifts} ca`,
         employeeId,
         date: dateStr,
       });

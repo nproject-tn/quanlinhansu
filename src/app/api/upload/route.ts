@@ -3,7 +3,7 @@ import { requireAuth } from "@/lib/api-auth";
 import { put } from "@vercel/blob";
 
 export async function POST(request: Request) {
-  const { error } = await requireAuth(["ADMIN", "SCHEDULER"]);
+  const { error } = await requireAuth(["OWNER", "ADMIN", "SCHEDULER"]);
   if (error) return error;
 
   try {

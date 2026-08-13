@@ -4,10 +4,11 @@ import { requireAuth } from "@/lib/api-auth";
 import { employeeSchema } from "@/lib/validations";
 
 export async function GET() {
-  const { error } = await requireAuth(["ADMIN", "SCHEDULER"]);
+  const { error, companyId } = await requireAuth(["OWNER"], { module: "employees", action: "VIEW" });
   if (error) return error;
 
   const employees = await prisma.employee.findMany({
+    where: { companyId, isArchived: false },
     select: {
       id: true,
       name: true,
@@ -39,7 +40,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { error } = await requireAuth(["ADMIN"]);
+  const { error, companyId } = await requireAuth(["OWNER"], { module: "employees", action: "EDIT" });
   if (error) return error;
 
   const body = await request.json();
@@ -53,6 +54,7 @@ export async function POST(request: Request) {
   const employee = await prisma.employee.create({
     data: {
       ...data,
+      companyId,
       email: data.email || null,
       phone: data.phone || null,
       stores: {

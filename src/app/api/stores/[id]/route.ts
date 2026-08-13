@@ -7,7 +7,7 @@ import { storeSchema } from "@/lib/validations";
 type Params = { params: Promise<{ id: string }> };
 
 export async function PUT(request: Request, { params }: Params) {
-  const { error } = await requireAuth(["ADMIN"]);
+  const { error, companyId } = await requireAuth(["OWNER"], { module: "store", action: "EDIT" });
   if (error) return error;
 
   const { id } = await params;
@@ -23,12 +23,12 @@ export async function PUT(request: Request, { params }: Params) {
       Boolean(parsed.data.logoUrl),
       () =>
         prisma.store.update({
-          where: { id },
+          where: { id, companyId },
           data: parsed.data,
         }),
       () =>
         prisma.store.update({
-          where: { id },
+          where: { id, companyId },
           data: dataWithoutLogo,
         })
     );
@@ -41,18 +41,18 @@ export async function PUT(request: Request, { params }: Params) {
 }
 
 export async function DELETE(_request: Request, { params }: Params) {
-  const { error } = await requireAuth(["ADMIN"]);
+  const { error, companyId } = await requireAuth(["OWNER"], { module: "store", action: "EDIT" });
   if (error) return error;
 
   const { id } = await params;
 
   const assignmentCount = await prisma.shiftAssignment.count({
-    where: { storeId: id },
+    where: { storeId: id, companyId },
   });
 
   if (assignmentCount > 0) {
     await prisma.store.update({
-      where: { id },
+      where: { id, companyId },
       data: { isActive: false },
     });
     return NextResponse.json({
@@ -62,7 +62,7 @@ export async function DELETE(_request: Request, { params }: Params) {
     });
   }
 
-  await prisma.store.delete({ where: { id } });
+  await prisma.store.delete({ where: { id, companyId } });
 
   return NextResponse.json({ success: true, message: "Đã xóa cửa hàng" });
 }

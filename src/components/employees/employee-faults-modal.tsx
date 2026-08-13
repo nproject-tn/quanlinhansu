@@ -99,7 +99,7 @@ export function EmployeeFaultsModal({
                               href={fault.evidenceUrl}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-blue-600 hover:underline ml-4 whitespace-nowrap flex items-center"
+                              className="text-slate-900 hover:underline ml-4 whitespace-nowrap flex items-center"
                             >
                               <ImageIcon className="h-3 w-3 mr-1" />
                               Xem ảnh
