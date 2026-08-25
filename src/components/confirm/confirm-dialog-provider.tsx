@@ -85,26 +85,26 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
     <ConfirmDialogContext.Provider value={value}>
       {children}
       {pending && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/18 px-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
           <div
             ref={dialogRef}
-            className="month-picker-liquid month-picker-liquid-solid relative w-full max-w-md overflow-hidden rounded-[24px] border border-white/55 p-5 text-slate-900 shadow-2xl"
+            className="month-picker-liquid month-picker-liquid-solid relative w-full max-w-md overflow-hidden rounded-[24px] border border-white/55 dark:border-neutral-700/80 p-5 text-slate-900 dark:text-neutral-100 shadow-2xl"
           >
             <div className="relative z-10 flex items-start gap-4">
               <div
                 className={cn(
-                  "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border bg-white/70",
+                  "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border bg-white/70 dark:bg-neutral-800 dark:border-neutral-700",
                   pending.tone === "destructive"
-                    ? "border-rose-200 text-rose-500"
-                    : "border-amber-200 text-amber-500"
+                    ? "border-rose-200 text-rose-500 dark:text-rose-400"
+                    : "border-amber-200 text-amber-500 dark:text-amber-400"
                 )}
               >
                 <AlertTriangle className="h-5 w-5" />
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="text-base font-semibold text-slate-900">{pending.title}</h3>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">{pending.title}</h3>
                 {pending.description ? (
-                  <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-700">
+                  <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-700 dark:text-neutral-300">
                     {pending.description}
                   </p>
                 ) : null}
@@ -115,7 +115,7 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
               <Button
                 type="button"
                 variant="outline"
-                className="glass-control border-slate-200/80 bg-white/70 hover:bg-white/85"
+                className="glass-control border-slate-200/80 bg-white/70 hover:bg-white/85 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
                 onClick={() => closeDialog(false)}
               >
                 {pending.cancelLabel ?? "Huỷ"}
@@ -124,9 +124,10 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
                 type="button"
                 variant={pending.tone === "destructive" ? "destructive" : "default"}
                 className={cn(
+                  "font-semibold",
                   pending.tone === "destructive"
-                    ? "shadow-[0_12px_28px_rgba(225,29,72,0.22)]"
-                    : "shadow-[0_12px_28px_rgba(37,99,235,0.22)]"
+                    ? "shadow-[0_12px_28px_rgba(225,29,72,0.22)] bg-rose-600 hover:bg-rose-700 text-white"
+                    : "shadow-[0_12px_28px_rgba(37,99,235,0.22)] bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
                 )}
                 onClick={() => closeDialog(true)}
               >

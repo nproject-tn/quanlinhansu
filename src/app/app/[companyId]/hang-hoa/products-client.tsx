@@ -17,6 +17,7 @@ import {
   Download,
   Barcode,
   Factory,
+  Building2,
   Tag,
   Trash2,
   Edit,
@@ -70,6 +71,7 @@ type Category = {
   id: string;
   name: string;
   codeLetter: string;
+  subcategories?: Subcategory[];
 };
 
 type Subcategory = {
@@ -87,6 +89,7 @@ type Manufacturer = {
   address?: string | null;
   contactPerson?: string | null;
   country?: string | null;
+  taxId?: string | null;
 };
 
 type FactoryOrderItem = {
@@ -285,34 +288,14 @@ export function ProductsClient({
 
   const todayStr = new Date().toISOString().slice(0, 10);
 
-  // Tab 1: Nhập hàng (Đặt hàng xưởng & QC) State
-  const [factoryOrders, setFactoryOrders] = useState<FactoryOrder[]>(DEFAULT_FACTORY_ORDERS);
-  const [isHydrated, setIsHydrated] = useState(false);
+  // Tab 1: Nhập hàng (Đặt hàng xưởng & QC) Data loaded from Database API
+  const { data: poData, mutate: mutatePos, isLoading: isPoLoading } = useSWR<{ orders: FactoryOrder[] }>(
+    `/api/factory-orders`,
+    fetcher
+  );
 
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("apexflow_factory_orders_v2");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setFactoryOrders(parsed);
-        }
-      }
-    } catch (e) {
-      console.error("Failed to load factory orders from localStorage", e);
-    }
-    setIsHydrated(true);
-  }, []);
+  const factoryOrders = useMemo(() => poData?.orders ?? [], [poData]);
 
-  useEffect(() => {
-    if (isHydrated) {
-      try {
-        localStorage.setItem("apexflow_factory_orders_v2", JSON.stringify(factoryOrders));
-      } catch (e) {
-        console.error("Failed to save factory orders to localStorage", e);
-      }
-    }
-  }, [factoryOrders, isHydrated]);
 
   const products = useMemo(() => {
     return initialProducts.map((p) => {
@@ -393,16 +376,25 @@ export function ProductsClient({
     });
 
     if (isOk) {
-      setFactoryOrders((prev) => prev.filter((o) => o.id !== po.id));
-      setShowBatchDetailModal(false);
-      setSelectedPoForDetail(null);
-      notify({
-        tone: "success",
-        title: "Đã xóa lô hàng thành công",
-        body: isCompleted
-          ? `Đã xóa phiếu đặt ${po.batchCode} và trừ tồn kho tương ứng.`
-          : `Đã xóa phiếu đặt NSX ${po.batchCode}`,
-      });
+      try {
+        const res = await fetch(`/api/factory-orders/${po.id}`, { method: "DELETE" });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || "Lỗi xoá phiếu đặt");
+        }
+        await mutatePos();
+        setShowBatchDetailModal(false);
+        setSelectedPoForDetail(null);
+        notify({
+          tone: "success",
+          title: "Đã xóa lô hàng thành công",
+          body: isCompleted
+            ? `Đã xóa phiếu đặt ${po.batchCode} và trừ tồn kho tương ứng.`
+            : `Đã xóa phiếu đặt NSX ${po.batchCode}`,
+        });
+      } catch (e: any) {
+        notify({ tone: "error", title: "Lỗi", body: e.message });
+      }
     }
   };
 
@@ -510,7 +502,7 @@ export function ProductsClient({
   }, [factoryOrders, todayStr]);
 
   // Handle Create New Factory Purchase Order (Multi-Item Order Support)
-  const handleCreatePo = (e: React.FormEvent) => {
+  const handleCreatePo = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!poMfrName.trim()) {
       return notify({ tone: "error", title: "Thiếu thông tin", body: "Vui lòng chọn Nhà sản xuất (NSX)." });
@@ -532,57 +524,67 @@ export function ProductsClient({
     const letter = letters[orderNum % letters.length];
     const num = String((orderNum % 99) || 1).padStart(2, "0");
     const batchCode = `${letter}${num}`;
-    const code = `PO-${new Date().getFullYear()}-${String(orderNum).padStart(3, "0")}`;
+    const code = `PO-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${String(orderNum).padStart(3, "0")}`;
+    try {
+      const res = await fetch("/api/factory-orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code,
+          batchCode,
+          manufacturerName: poMfrName,
+          productName: summaryTitle,
+          sku: mainItem.sku || undefined,
+          productId: mainItem.productId || undefined,
+          orderQuantity: totalQty,
+          orderDate: poOrderDate || todayStr,
+          expectedDate: poExpectedDate || new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
+          qcNotes: poNotes,
+          status: "IN_PRODUCTION",
+          items: validItems.map((item) => ({
+            productId: item.productId || undefined,
+            productName: item.productName,
+            sku: item.sku || "",
+            colorName: item.colorName || undefined,
+            sizeName: item.sizeName || undefined,
+            orderQuantity: item.orderQuantity,
+            qcPassedQuantity: 0,
+            qcFailedQuantity: 0,
+          })),
+        }),
+      });
 
-    const newPo: FactoryOrder = {
-      id: `po-${Date.now()}`,
-      code,
-      batchCode,
-      manufacturerName: poMfrName,
-      productName: summaryTitle,
-      sku: mainItem.sku || undefined,
-      productId: mainItem.productId || undefined,
-      orderQuantity: totalQty,
-      qcPassedQuantity: 0,
-      qcFailedQuantity: 0,
-      orderDate: poOrderDate || todayStr,
-      expectedDate: poExpectedDate || new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
-      qcNotes: poNotes,
-      status: "IN_PRODUCTION",
-      batchLabelsPrinted: false,
-      items: validItems.map((item) => ({
-        id: item.id,
-        productId: item.productId,
-        productName: item.productName,
-        sku: item.sku,
-        colorName: item.colorName,
-        sizeName: item.sizeName,
-        orderQuantity: item.orderQuantity,
-        qcPassedQuantity: 0,
-        qcFailedQuantity: 0,
-      })),
-    };
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Lỗi tạo đơn đặt NSX");
+      }
 
-    setFactoryOrders((prev) => [newPo, ...prev]);
-    notify({
-      tone: "success",
-      title: "Tạo phiếu đặt NSX thành công",
-      body: `Phiếu ${newPo.code} (${validItems.length} mặt hàng - Tổng ${totalQty} cái) đã tạo cho ${newPo.manufacturerName}`,
-    });
-    setShowAddPoModal(false);
+      const resData = await res.json();
+      const createdPo = resData.order;
+      await mutatePos();
 
-    // Reset Form
-    setPoItems([{ id: "item-init-1", productId: "", productName: "", sku: "", colorName: "", sizeName: "", orderQuantity: 100 }]);
+      notify({
+        tone: "success",
+        title: "Tạo phiếu đặt NSX thành công",
+        body: `Phiếu ${code} (${validItems.length} mặt hàng - Tổng ${totalQty} cái) đã tạo cho ${poMfrName}`,
+      });
+      setShowAddPoModal(false);
 
-    // Prompt to print Batch Labels immediately
-    setSelectedPoForBatchLabel(newPo);
-    setBatchLabelConfig((prev) => ({ ...prev, printQuantity: newPo.orderQuantity }));
-    setShowBatchLabelModal(true);
+      // Reset Form
+      setPoItems([{ id: "item-init-1", productId: "", productName: "", sku: "", colorName: "", sizeName: "", orderQuantity: 100 }]);
 
-    // Reset Form
-    setPoMfrName("");
-    setPoExpectedDate("");
-    setPoNotes("");
+      // Prompt to print Batch Labels immediately
+      setSelectedPoForBatchLabel(createdPo);
+      setBatchLabelConfig((prev) => ({ ...prev, printQuantity: totalQty }));
+      setShowBatchLabelModal(true);
+
+      // Reset Form
+      setPoMfrName("");
+      setPoExpectedDate("");
+      setPoNotes("");
+    } catch (e: any) {
+      notify({ tone: "error", title: "Lỗi", body: e.message });
+    }
     setPoItems([{ id: "item-init-1", productId: "", productName: "", sku: "", colorName: "", sizeName: "", orderQuantity: 100 }]);
   };
 
@@ -675,7 +677,7 @@ export function ProductsClient({
   };
 
   // Save QC Inspection Result & Auto Update Inventory
-  const handleSaveQc = (e: React.FormEvent) => {
+  const handleSaveQc = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPo) return;
 
@@ -708,73 +710,97 @@ export function ProductsClient({
       items: updatedItems.length > 0 ? updatedItems : selectedPo.items,
     };
 
-    // TH1: ALL PRODUCTS PASS 100% QC
-    if (isAllPass) {
-      setFactoryOrders((prev) => prev.map((o) => (o.id === selectedPo.id ? updatedPo : o)));
-
-      notify({
-        tone: "success",
-        title: "🎉 QC thành công 100% & Đã Nhập Kho!",
-        body: `Toàn bộ ${totalPassed.toLocaleString()} sản phẩm lô ${selectedPo.batchCode} đã đạt QC và cộng trực tiếp vào kho!`,
-      });
-
-      setShowQcModal(false);
-      setSelectedPo(null);
-
-      // Auto open print label modal for completed sale labels
-      openBatchLabelModal(updatedPo);
-    } 
-    // TH2: PARTIAL QC PASS / DEFECTIVE ITEMS EXIST (totalFailed > 0)
-    else {
-      const failedBatchCode = `${selectedPo.batchCode}-F`;
-      const failedItems = qcItemStates
-        .filter((st) => st.failedQty > 0)
-        .map((st) => ({
-          id: `item-f-${Date.now()}-${st.itemId}`,
-          productName: st.productName,
-          sku: st.sku,
-          colorName: st.colorName,
-          sizeName: st.sizeName,
-          orderQuantity: st.failedQty,
-          qcPassedQuantity: 0,
-          qcFailedQuantity: st.failedQty,
-        }));
-
-      const failedPo: FactoryOrder = {
-        id: `po-f-${Date.now()}`,
-        code: `PO-F-${selectedPo.code}`,
-        batchCode: failedBatchCode,
-        manufacturerId: selectedPo.manufacturerId,
-        manufacturerName: selectedPo.manufacturerName,
-        productName: selectedPo.productName,
-        sku: selectedPo.sku,
-        colorName: selectedPo.colorName,
-        sizeName: selectedPo.sizeName,
-        orderQuantity: totalFailed,
+    const failedBatchCode = `${selectedPo.batchCode}-F`;
+    const failedItems = qcItemStates
+      .filter((st) => st.failedQty > 0)
+      .map((st) => ({
+        productId: (selectedPo.items || []).find((it) => it.id === st.itemId)?.productId,
+        productName: st.productName,
+        sku: st.sku,
+        colorName: st.colorName,
+        sizeName: st.sizeName,
+        orderQuantity: st.failedQty,
         qcPassedQuantity: 0,
-        qcFailedQuantity: totalFailed,
-        orderDate: selectedPo.orderDate,
-        expectedDate: selectedPo.expectedDate,
-        receivedDate: todayStr,
-        qcNotes: qcNotes,
-        failReasonNotes: qcFailReasonNotes || "Hàng lỗi trả NSX sửa hoặc thay mới",
-        status: "QC_INSPECTION",
-        items: failedItems,
-      };
+        qcFailedQuantity: st.failedQty,
+      }));
 
-      setFactoryOrders((prev) => [failedPo, ...prev.map((o) => (o.id === selectedPo.id ? updatedPo : o))]);
+    const failedPoPayload = !isAllPass
+      ? {
+          code: `PO-F-${selectedPo.code}`,
+          batchCode: failedBatchCode,
+          manufacturerId: selectedPo.manufacturerId,
+          manufacturerName: selectedPo.manufacturerName,
+          productName: selectedPo.productName,
+          sku: selectedPo.sku,
+          colorName: selectedPo.colorName,
+          sizeName: selectedPo.sizeName,
+          orderQuantity: totalFailed,
+          qcPassedQuantity: 0,
+          qcFailedQuantity: totalFailed,
+          orderDate: selectedPo.orderDate,
+          expectedDate: selectedPo.expectedDate,
+          qcNotes: qcNotes,
+          failReasonNotes: qcFailReasonNotes || "Hàng lỗi trả NSX sửa hoặc thay mới",
+          items: failedItems,
+        }
+      : undefined;
 
-      notify({
-        tone: "warning",
-        title: `⚠️ Đã tách lô lỗi ${failedBatchCode} trả NSX!`,
-        body: `Đã nhập kho ${totalPassed.toLocaleString()} sản phẩm đạt QC và tự động tạo phiếu lô lỗi ${failedBatchCode} (${totalFailed.toLocaleString()} cái) để in tem trả NSX!`,
+    try {
+      const res = await fetch(`/api/factory-orders/${selectedPo.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          qcPassedQuantity: totalPassed,
+          qcFailedQuantity: totalFailed,
+          status: newStatus,
+          receivedDate: todayStr,
+          qcNotes: qcNotes,
+          failReasonNotes: qcFailReasonNotes,
+          items: updatedItems,
+          failedPo: failedPoPayload,
+        }),
       });
 
-      setShowQcModal(false);
-      setSelectedPo(null);
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Lỗi lưu kết quả QC");
+      }
 
-      // Auto open print label modal for defective batch (Y34-F) to print defect tags!
-      openBatchLabelModal(failedPo);
+      const resData = await res.json();
+      const serverUpdatedPo = resData.order;
+      const createdFailedPo = resData.failedPo;
+      await mutatePos();
+
+      // TH1: ALL PRODUCTS PASS 100% QC
+      if (isAllPass) {
+        notify({
+          tone: "success",
+          title: "🎉 QC thành công 100% & Đã Nhập Kho!",
+          body: `Toàn bộ ${totalPassed.toLocaleString()} sản phẩm lô ${selectedPo.batchCode} đã đạt QC và cộng trực tiếp vào kho!`,
+        });
+
+        setShowQcModal(false);
+        setSelectedPo(null);
+
+        // Auto open print label modal for completed sale labels
+        openBatchLabelModal(serverUpdatedPo || selectedPo);
+      } 
+      // TH2: PARTIAL QC PASS / DEFECTIVE ITEMS EXIST (totalFailed > 0)
+      else {
+        notify({
+          tone: "warning",
+          title: `⚠️ Đã tách lô lỗi ${failedBatchCode} trả NSX!`,
+          body: `Đã nhập kho ${totalPassed.toLocaleString()} sản phẩm đạt QC và tự động tạo phiếu lô lỗi ${failedBatchCode} (${totalFailed.toLocaleString()} cái) để in tem trả NSX!`,
+        });
+
+        setShowQcModal(false);
+        setSelectedPo(null);
+
+        // Auto open print label modal for defective batch to print defect tags!
+        openBatchLabelModal(createdFailedPo || serverUpdatedPo || selectedPo);
+      }
+    } catch (e: any) {
+      notify({ tone: "error", title: "Lỗi", body: e.message });
     }
   };
 
@@ -840,13 +866,18 @@ export function ProductsClient({
     category: Product["category"];
     subcategory: Product["subcategory"];
     itemCode: string;
+    colorName?: string | null;
+    colorCode?: string | null;
     baseSku: string;
+    imageUrl?: string | null;
     totalQuantity: number;
     totalIncomingQuantity: number;
     minPrice: number;
     maxPrice: number;
     hasLowStock: boolean;
     hasOutOfStock: boolean;
+    colors: string[];
+    sizes: string[];
     variants: (Product & { incomingQuantity: number })[];
   };
 
@@ -895,25 +926,34 @@ export function ProductsClient({
     const groupsMap = new Map<string, InventoryGroupType>();
 
     for (const p of filteredInventoryProducts) {
-      const key = `${p.category.id}_${p.subcategory.id}_${p.name.trim().toLowerCase()}`;
+      // Group by 6-character prefix: [Cat(1)][Subcat(1)][ItemCode(2)][ColorCode(2)]
+      const skuClean = (p.sku || "").trim().toUpperCase();
+      const sku6Prefix = skuClean.length >= 6
+        ? skuClean.slice(0, 6)
+        : `${p.category.codeLetter}${p.subcategory.codeLetter}${(p.itemCode || "01").padStart(2, "0")}${(p.colorCode || "00").padStart(2, "0")}`;
+
+      const key = `${p.category.id}_${p.subcategory.id}_${p.itemCode || "01"}_${p.colorCode || p.colorName || "default"}`;
       let group = groupsMap.get(key);
 
       if (!group) {
-        const groupItemCode = p.itemCode || "01";
-        const baseSku = `${p.category.codeLetter}${p.subcategory.codeLetter}${groupItemCode}`;
         group = {
           key,
           name: p.name,
           category: p.category,
           subcategory: p.subcategory,
-          itemCode: groupItemCode,
-          baseSku,
+          itemCode: p.itemCode || "01",
+          colorName: p.colorName || null,
+          colorCode: p.colorCode || null,
+          baseSku: sku6Prefix,
+          imageUrl: p.imageUrl,
           totalQuantity: 0,
           totalIncomingQuantity: 0,
           minPrice: p.sellingPrice,
           maxPrice: p.sellingPrice,
           hasLowStock: false,
           hasOutOfStock: false,
+          colors: [],
+          sizes: [],
           variants: [],
         };
         groupsMap.set(key, group);
@@ -929,6 +969,9 @@ export function ProductsClient({
       if (qty <= 5) group.hasLowStock = true;
       if (p.sellingPrice < group.minPrice) group.minPrice = p.sellingPrice;
       if (p.sellingPrice > group.maxPrice) group.maxPrice = p.sellingPrice;
+      if (p.imageUrl && !group.imageUrl) group.imageUrl = p.imageUrl;
+      if (p.colorName && !group.colors.includes(p.colorName)) group.colors.push(p.colorName);
+      if (p.sizeName && !group.sizes.includes(p.sizeName)) group.sizes.push(p.sizeName);
 
       group.variants.push({ ...p, incomingQuantity: incomingQty });
     }
@@ -1008,6 +1051,9 @@ export function ProductsClient({
 
     setIsSubmitting(true);
     try {
+      const finalColorName = selectedColors.length > 0 ? selectedColors.join(", ") : colorName;
+      const finalSizeName = selectedSizes.length > 0 ? selectedSizes.join(", ") : sizeName;
+
       const res = await fetch("/api/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1015,10 +1061,12 @@ export function ProductsClient({
           name,
           brandName,
           categoryName,
+          categoryCodeLetter: previewData.catLet,
           subcategoryName,
+          subcategoryCodeLetter: previewData.subcatLet,
           manufacturerId: manufacturerId || null,
-          colorName,
-          sizeName,
+          colorName: finalColorName,
+          sizeName: finalSizeName,
           unit,
           costPrice: parseFloat(costPrice) || 0,
           sellingPrice: parseFloat(sellingPrice) || 0,
@@ -1086,32 +1134,10 @@ export function ProductsClient({
     }
   };
 
-  // State for dynamic Categories, Materials & Brands lists with editable support and random letter codes
-  const [categoriesList, setCategoriesList] = useState<{ name: string; letter: string }[]>([
-    { name: "Áo", letter: "K" },
-    { name: "Quần", letter: "W" },
-    { name: "Váy / Đầm", letter: "V" },
-    { name: "Jacket / Áo khoác", letter: "J" },
-    { name: "Phụ kiện / Đồ dùng", letter: "P" },
-    { name: "Giày / Dép", letter: "G" },
-  ]);
-
-  const [materialsList, setMaterialsList] = useState<{ name: string; letter: string }[]>([
-    { name: "Bông / Cotton", letter: "R" },
-    { name: "Denim / Jeans", letter: "D" },
-    { name: "Nỉ / Fleece", letter: "N" },
-    { name: "Kaki", letter: "K" },
-    { name: "Lụa / Silk", letter: "S" },
-    { name: "Linen / Đũi", letter: "L" },
-    { name: "Poly / Tổng hợp", letter: "X" },
-    { name: "Da / Leather", letter: "M" },
-    { name: "Gỗ / Kim loại / Đồ gia dụng", letter: "Z" },
-    { name: "Nhựa / Plastic", letter: "P" },
-  ]);
-
-  const [brandsList, setBrandsList] = useState<string[]>([
-    "Dakblancy", "Adidas", "Nike", "Uniqlo", "Zara", "Local Brand"
-  ]);
+  // Dynamic Categories, Materials & Brands lists loaded clean without hardcoded demo presets
+  const [categoriesList, setCategoriesList] = useState<{ name: string; letter: string }[]>([]);
+  const [materialsList, setMaterialsList] = useState<{ name: string; letter: string }[]>([]);
+  const [brandsList, setBrandsList] = useState<string[]>([]);
 
   const [colorChipsList, setColorChipsList] = useState<string[]>([
     "Đen", "Trắng", "Xanh Denim", "Đỏ", "Vàng", "Xanh Lá", "Nâu", "Tím", "Xám", "Kem/Beige"
@@ -1120,6 +1146,46 @@ export function ProductsClient({
   const [sizeChipsList, setSizeChipsList] = useState<string[]>([
     "S", "M", "L", "XL", "2XL", "3XL", "FreeSize"
   ]);
+
+  // Sync Categories and Materials from Database when loaded
+  useEffect(() => {
+    if (categories && categories.length > 0) {
+      const cats = categories.map((c) => ({ name: c.name, letter: c.codeLetter }));
+      setCategoriesList((prev) => {
+        const merged = [...prev];
+        for (const c of cats) {
+          if (!merged.some((m) => m.name === c.name)) merged.push(c);
+        }
+        return merged;
+      });
+
+      const mats: { name: string; letter: string }[] = [];
+      for (const c of categories) {
+        for (const s of c.subcategories || []) {
+          if (!mats.some((m) => m.name === s.name)) {
+            mats.push({ name: s.name, letter: s.codeLetter });
+          }
+        }
+      }
+      setMaterialsList((prev) => {
+        const merged = [...prev];
+        for (const m of mats) {
+          if (!merged.some((x) => x.name === m.name)) merged.push(m);
+        }
+        return merged;
+      });
+    }
+  }, [categories]);
+
+  // Sync Brands from existing products when loaded
+  useEffect(() => {
+    if (initialProducts && initialProducts.length > 0) {
+      const brands = Array.from(new Set(initialProducts.map((p) => p.brandName).filter(Boolean))) as string[];
+      if (brands.length > 0) {
+        setBrandsList((prev) => Array.from(new Set([...prev, ...brands])));
+      }
+    }
+  }, [initialProducts]);
 
   // States for Add/Edit Mode in Modal
   const [catMode, setCatMode] = useState<"SELECT" | "ADD" | "EDIT">("SELECT");
@@ -1136,9 +1202,9 @@ export function ProductsClient({
   const [editMatLetter, setEditMatLetter] = useState("");
   const [modalBrandEditName, setModalBrandEditName] = useState("");
 
-  // States for Color & Size Badge Chips
-  const [selectedColors, setSelectedColors] = useState<string[]>(["Đen", "Trắng"]);
-  const [selectedSizes, setSelectedSizes] = useState<string[]>(["M", "L"]);
+  // States for Color & Size Badge Chips (Starts Clean)
+  const [selectedColors, setSelectedColors] = useState<string[]>([]);
+  const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
   const [customColorInput, setCustomColorInput] = useState("");
   const [customSizeInput, setCustomSizeInput] = useState("");
 
@@ -1231,15 +1297,15 @@ export function ProductsClient({
   const resetProductForm = () => {
     setName("");
     setBrandName("");
-    setCategoryName("Áo");
-    setSubcategoryName("Bông / Cotton");
+    setCategoryName("");
+    setSubcategoryName("");
     setCustomCatLetter(getRandomCapitalLetter());
     setCustomMatLetter(getRandomCapitalLetter());
     setManufacturerId("");
-    setSelectedColors(["Đen", "Trắng"]);
-    setSelectedSizes(["M", "L"]);
-    setColorName("Đen, Trắng");
-    setSizeName("M, L");
+    setSelectedColors([]);
+    setSelectedSizes([]);
+    setColorName("");
+    setSizeName("");
     setUnit("Cái");
     setCostPrice("");
     setSellingPrice("");
@@ -1254,17 +1320,17 @@ export function ProductsClient({
   const previewData = useMemo(() => {
     const catObj = categoriesList.find((c) => c.name === categoryName);
     const catLet = catMode === "ADD" 
-      ? (customCatLetter || "K").slice(0, 1).toUpperCase() 
+      ? (customCatLetter || "A").slice(0, 1).toUpperCase() 
       : catMode === "EDIT" 
-      ? (editCatLetter || "K").slice(0, 1).toUpperCase() 
-      : (catObj ? catObj.letter : (stringToUniqueLetter(categoryName) || "K"));
+      ? (editCatLetter || "A").slice(0, 1).toUpperCase() 
+      : (catObj ? catObj.letter : (stringToUniqueLetter(categoryName) || (customCatLetter || "A")));
 
     const matObj = materialsList.find((m) => m.name === subcategoryName);
     const subcatLet = matMode === "ADD" 
-      ? (customMatLetter || "R").slice(0, 1).toUpperCase() 
+      ? (customMatLetter || "A").slice(0, 1).toUpperCase() 
       : matMode === "EDIT" 
-      ? (editMatLetter || "R").slice(0, 1).toUpperCase() 
-      : (matObj ? matObj.letter : (stringToUniqueLetter(subcategoryName) || "R"));
+      ? (editMatLetter || "A").slice(0, 1).toUpperCase() 
+      : (matObj ? matObj.letter : (stringToUniqueLetter(subcategoryName) || (customMatLetter || "A")));
 
     const existingSkus = products.map((p) => p.sku).filter(Boolean);
     const itemCode = getUniqueItemCode(existingSkus, catLet, subcatLet);
@@ -1278,7 +1344,9 @@ export function ProductsClient({
 
     const colCode = getColorCode(firstColor);
     const szCode = getSizeCode(firstSize);
-    const skuPreview = generateSku(catLet, subcatLet, itemCode, colCode, szCode);
+    const skuPreview = categoryName && subcategoryName
+      ? generateSku(catLet, subcatLet, itemCode, colCode, szCode)
+      : `${catLet}${subcatLet}${itemCode}xxxx`;
 
     const mfr = manufacturers.find((m) => m.id === manufacturerId);
     const mCode = mfr ? mfr.code : "000";
@@ -1287,7 +1355,7 @@ export function ProductsClient({
     return { skuPreview, barcodePreview, variantCount, colorCount: colors.length, sizeCount: sizes.length, catLet, subcatLet, itemCode };
   }, [categoryName, subcategoryName, customCatLetter, customMatLetter, editCatLetter, editMatLetter, catMode, matMode, selectedColors, selectedSizes, colorName, sizeName, manufacturerId, manufacturers, categoriesList, materialsList, products]);
 
-  // Grouped Products calculation for Tab Sản phẩm
+  // Grouped Products calculation for Tab Sản phẩm (Tách cụm theo Màu, trùng 6 ký tự đầu SKU)
   type GroupItemType = {
     key: string;
     name: string;
@@ -1295,6 +1363,8 @@ export function ProductsClient({
     subcategory: Product["subcategory"];
     manufacturer?: Product["manufacturer"];
     itemCode: string;
+    colorName?: string | null;
+    colorCode?: string | null;
     baseSku: string;
     imageUrl?: string | null;
     variants: Product[];
@@ -1324,7 +1394,7 @@ export function ProductsClient({
     setEditingGroup(g);
     setEditName(g.name);
     setEditBrandName(g.variants[0]?.brandName || "");
-    const colorsList = Array.from(new Set(g.variants.map((v) => v.colorName).filter(Boolean)));
+    const colorsList = g.colorName ? [g.colorName] : Array.from(new Set(g.variants.map((v) => v.colorName).filter(Boolean)));
     const sizesList = Array.from(new Set(g.variants.map((v) => v.sizeName).filter(Boolean)));
     setEditColorsInput(colorsList.join(", "));
     setEditSizesInput(sizesList.join(", "));
@@ -1362,6 +1432,7 @@ export function ProductsClient({
           categoryId: editingGroup.category.id,
           subcategoryId: editingGroup.subcategory.id,
           itemCode: editingGroup.itemCode,
+          colorCode: editingGroup.colorCode || undefined,
           name: editName,
           brandName: editBrandName,
           unit: editUnit,
@@ -1377,7 +1448,7 @@ export function ProductsClient({
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || "Cập nhật thất bại");
 
-      notify({ tone: "success", title: "Thành công", body: `Đã cập nhật dòng sản phẩm "${editName}" (Mã gốc: ${editingGroup.baseSku})` });
+      notify({ tone: "success", title: "Thành công", body: `Đã cập nhật cụm sản phẩm "${editName}" (Mã gốc: ${editingGroup.baseSku})` });
       setEditingGroup(null);
       mutate();
     } catch (err: any) {
@@ -1398,6 +1469,7 @@ export function ProductsClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: editName,
+          brandName: editBrandName,
           colorName: editColorName,
           sizeName: editSizeName,
           unit: editUnit,
@@ -1409,9 +1481,9 @@ export function ProductsClient({
       });
 
       const result = await res.json();
-      if (!res.ok) throw new Error(result.error || "Cập nhật biến thể thất bại");
+      if (!res.ok) throw new Error(result.error || "Cập nhật thất bại");
 
-      notify({ tone: "success", title: "Thành công", body: `Đã cập nhật biến thể (SKU: ${result.sku})` });
+      notify({ tone: "success", title: "Thành công", body: `Đã cập nhật biến thể SKU "${result.sku}"` });
       setEditingVariant(null);
       mutate();
     } catch (err: any) {
@@ -1445,13 +1517,13 @@ export function ProductsClient({
   const groupedProducts = useMemo(() => {
     const groupsMap = new Map<string, GroupItemType>();
     for (const p of filteredProducts) {
-      // Group by the first 6 characters of SKU (e.g., AB0169 from AB016904)
+      // Group by 6-character prefix: [Cat(1)][Subcat(1)][ItemCode(2)][ColorCode(2)]
       const skuClean = (p.sku || "").trim().toUpperCase();
       const sku6Prefix = skuClean.length >= 6
         ? skuClean.slice(0, 6)
-        : `${p.category.codeLetter}${p.subcategory.codeLetter}${p.itemCode || "01"}`;
+        : `${p.category.codeLetter}${p.subcategory.codeLetter}${(p.itemCode || "01").padStart(2, "0")}${(p.colorCode || "00").padStart(2, "0")}`;
 
-      const key = sku6Prefix;
+      const key = `${p.category.id}_${p.subcategory.id}_${p.itemCode || "01"}_${p.colorCode || p.colorName || "default"}`;
       let group = groupsMap.get(key);
 
       if (!group) {
@@ -1462,6 +1534,8 @@ export function ProductsClient({
           subcategory: p.subcategory,
           manufacturer: p.manufacturer,
           itemCode: p.itemCode || "01",
+          colorName: p.colorName || null,
+          colorCode: p.colorCode || null,
           baseSku: sku6Prefix,
           imageUrl: p.imageUrl,
           variants: [],
@@ -1492,14 +1566,14 @@ export function ProductsClient({
         <div className="space-y-6">
           {/* OVERDUE ALERT BANNER */}
           {overdueOrders.length > 0 && (
-            <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 flex items-center justify-between shadow-sm animate-pulse">
+            <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 text-rose-900 dark:text-rose-200 flex items-center justify-between shadow-sm animate-pulse">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center font-bold">
+                <div className="h-10 w-10 rounded-xl bg-rose-100 dark:bg-rose-900/60 text-rose-600 dark:text-rose-300 flex items-center justify-center font-bold">
                   <AlertTriangle className="h-5 w-5" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-sm text-rose-800">Cảnh báo: Có {overdueOrders.length} đơn hàng NSX đã quá hạn giao!</h4>
-                  <p className="text-xs text-rose-600 mt-0.5">
+                  <h4 className="font-bold text-sm text-rose-800 dark:text-rose-200">Cảnh báo: Có {overdueOrders.length} đơn hàng NSX đã quá hạn giao!</h4>
+                  <p className="text-xs text-rose-600 dark:text-rose-300 mt-0.5">
                     Các nhà sản xuất chưa hoàn thành hoặc chưa giao đủ hàng theo thời hạn cam kết. Vui lòng liên hệ hối NSX.
                   </p>
                 </div>
@@ -1507,7 +1581,7 @@ export function ProductsClient({
               <Button
                 size="sm"
                 onClick={() => setPoStatusFilter("OVERDUE")}
-                className="bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs shrink-0"
+                className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shrink-0"
               >
                 Xem danh sách quá hạn
               </Button>
@@ -1516,53 +1590,53 @@ export function ProductsClient({
 
           {/* Stat Cards for Factory Orders & QC */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="border-none shadow-sm bg-white/80 backdrop-blur-sm">
+            <Card className="border-none shadow-sm bg-white/80 dark:bg-[#18181B] dark:border-neutral-800 backdrop-blur-sm">
               <CardContent className="p-4 flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tổng đơn đặt NSX</p>
-                  <p className="text-2xl font-bold text-slate-900 mt-1">{factoryOrders.length}</p>
+                  <p className="text-xs font-bold text-slate-500 dark:text-neutral-400 uppercase tracking-wider">Tổng đơn đặt NSX</p>
+                  <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">{factoryOrders.length}</p>
                 </div>
-                <div className="h-10 w-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                <div className="h-10 w-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-300 flex items-center justify-center font-bold">
                   <Truck className="h-5 w-5" />
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-none shadow-sm bg-white/80 backdrop-blur-sm">
+            <Card className="border-none shadow-sm bg-white/80 dark:bg-[#18181B] dark:border-neutral-800 backdrop-blur-sm">
               <CardContent className="p-4 flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider">Đang sản xuất</p>
-                  <p className="text-2xl font-bold text-amber-600 mt-1">
+                  <p className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Đang sản xuất</p>
+                  <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
                     {factoryOrders.filter((o) => o.status === "IN_PRODUCTION").length}
                   </p>
                 </div>
-                <div className="h-10 w-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+                <div className="h-10 w-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">
                   <Clock className="h-5 w-5" />
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-none shadow-sm bg-white/80 backdrop-blur-sm">
+            <Card className="border-none shadow-sm bg-white/80 dark:bg-[#18181B] dark:border-neutral-800 backdrop-blur-sm">
               <CardContent className="p-4 flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-semibold text-rose-600 uppercase tracking-wider">⚠️ Quá hạn hối NSX</p>
-                  <p className="text-2xl font-bold text-rose-600 mt-1">{overdueOrders.length}</p>
+                  <p className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">⚠️ Quá hạn hối NSX</p>
+                  <p className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1">{overdueOrders.length}</p>
                 </div>
-                <div className="h-10 w-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
+                <div className="h-10 w-10 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold">
                   <AlertTriangle className="h-5 w-5" />
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-none shadow-sm bg-white/80 backdrop-blur-sm">
+            <Card className="border-none shadow-sm bg-white/80 dark:bg-[#18181B] dark:border-neutral-800 backdrop-blur-sm">
               <CardContent className="p-4 flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Đã QC & Nhập kho</p>
-                  <p className="text-2xl font-bold text-emerald-600 mt-1">
+                  <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Đã QC & Nhập kho</p>
+                  <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
                     {factoryOrders.filter((o) => o.status === "COMPLETED" || o.status === "PARTIAL_RETURN").length}
                   </p>
                 </div>
-                <div className="h-10 w-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                <div className="h-10 w-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
                   <CheckCircle2 className="h-5 w-5" />
                 </div>
               </CardContent>
@@ -1570,7 +1644,7 @@ export function ProductsClient({
           </div>
 
           {/* Filter & Action Toolbar */}
-          <Card className="border-none shadow-sm bg-white/80 backdrop-blur-sm">
+          <Card className="border-none shadow-sm bg-white/80 dark:bg-[#18181B] dark:border-neutral-800 backdrop-blur-sm">
             <CardContent className="p-4 flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="relative flex-1 w-full">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -1578,11 +1652,20 @@ export function ProductsClient({
                   value={poSearch}
                   onChange={(e) => setPoSearch(e.target.value)}
                   placeholder="Tìm theo mã PO, Mã Lô Hàng, tên NSX, tên sản phẩm..."
-                  className="pl-9 bg-slate-50/50 border-slate-200"
+                  className="pl-9 bg-slate-50/50 dark:bg-[#202024] border-slate-200 dark:border-neutral-700/80 dark:text-white dark:placeholder-neutral-400"
                 />
               </div>
 
-              <div className="flex items-center gap-3 w-full md:w-auto">
+              <div className="flex items-center gap-2.5 w-full md:w-auto">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowMfrListModal(true)}
+                  className="border-slate-200 text-slate-700 hover:bg-slate-50 dark:bg-[#222226] dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800 shrink-0 font-semibold shadow-sm"
+                >
+                  <Building2 className="h-4 w-4 mr-1.5 text-indigo-600 dark:text-indigo-400" /> Quản lý NSX ({manufacturers.length})
+                </Button>
+
                 <Select
                   value={poStatusFilter}
                   onChange={(e) => setPoStatusFilter(e.target.value)}
@@ -1599,7 +1682,7 @@ export function ProductsClient({
                 {canEdit && (
                   <Button
                     onClick={() => setShowAddPoModal(true)}
-                    className="bg-slate-900 hover:bg-slate-800 text-white shrink-0 shadow-sm font-semibold"
+                    className="bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-black dark:hover:bg-neutral-200 shrink-0 shadow-sm font-bold"
                   >
                     <Plus className="h-4 w-4 mr-2" /> Tạo đơn đặt NSX
                   </Button>
@@ -1609,9 +1692,9 @@ export function ProductsClient({
           </Card>
 
           {/* Table List of Factory Orders */}
-          <Card className="border-none shadow-sm overflow-hidden bg-white/80 backdrop-blur-sm">
-            <CardHeader className="bg-slate-50/50 border-b pb-4">
-              <CardTitle className="text-base font-semibold text-slate-900 flex items-center justify-between">
+          <Card className="border-none shadow-sm overflow-hidden bg-white/80 dark:bg-[#18181B] dark:border-neutral-800 backdrop-blur-sm">
+            <CardHeader className="bg-slate-50/50 dark:bg-[#202024] border-b dark:border-neutral-800 pb-4">
+              <CardTitle className="text-base font-bold text-slate-900 dark:text-white flex items-center justify-between">
                 <span>Danh sách Đơn đặt NSX & Lô hàng sản xuất ({filteredFactoryOrders.length})</span>
               </CardTitle>
             </CardHeader>
@@ -1619,7 +1702,7 @@ export function ProductsClient({
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
                   <thead>
-                    <tr className="border-b bg-slate-50/50 text-slate-500 font-medium text-xs uppercase tracking-wider">
+                    <tr className="border-b dark:border-neutral-800 bg-slate-50/50 dark:bg-[#222226] text-slate-500 dark:text-neutral-200 font-bold text-xs uppercase tracking-wider">
                       <th className="px-6 py-3.5">Mã Lô Hàng / PO</th>
                       <th className="px-6 py-3.5">Nhà sản xuất (NSX)</th>
                       <th className="px-6 py-3.5">Sản phẩm / SKU</th>
@@ -1628,10 +1711,10 @@ export function ProductsClient({
                       <th className="px-6 py-3.5 text-center">Trạng thái & Tem</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-slate-100 dark:divide-neutral-800">
                     {filteredFactoryOrders.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="py-12 text-center text-slate-400">
+                        <td colSpan={6} className="py-12 text-center text-slate-400 dark:text-neutral-400">
                           Không tìm thấy đơn đặt hàng NSX phù hợp.
                         </td>
                       </tr>
@@ -1646,28 +1729,28 @@ export function ProductsClient({
                           <tr
                             key={o.id}
                             onClick={() => openBatchDetailModal(o)}
-                            className={`hover:bg-indigo-50/50 transition-colors cursor-pointer select-none group ${isPoOverdue ? "bg-rose-50/30" : ""}`}
+                            className={`hover:bg-indigo-50/50 dark:hover:bg-white/5 transition-colors cursor-pointer select-none group ${isPoOverdue ? "bg-rose-50/30 dark:bg-rose-950/20" : ""}`}
                             title="Click để xem chi tiết lô hàng"
                           >
                             <td className="px-6 py-4">
-                              <div className="font-mono font-bold text-indigo-600 group-hover:text-indigo-800 text-sm flex items-center gap-1.5 font-semibold">
-                                <Tag className="h-3.5 w-3.5 text-indigo-500" />
+                              <div className="font-mono font-bold text-indigo-600 dark:text-indigo-300 group-hover:text-indigo-800 dark:group-hover:text-indigo-200 text-sm flex items-center gap-1.5 font-semibold">
+                                <Tag className="h-3.5 w-3.5 text-indigo-500 dark:text-indigo-400" />
                                 {o.batchCode || o.code}
                               </div>
-                              <div className="text-xs text-slate-400 mt-1 flex items-center gap-2">
+                              <div className="text-xs text-slate-400 dark:text-neutral-400 mt-1 flex items-center gap-2">
                                 <span>OD: {o.orderDate}</span>
-                                {o.receivedDate && <span className="text-emerald-600 font-medium">• RC: {o.receivedDate}</span>}
+                                {o.receivedDate && <span className="text-emerald-600 dark:text-emerald-400 font-semibold">• RC: {o.receivedDate}</span>}
                               </div>
                             </td>
 
                             <td className="px-6 py-4">
-                              <div className="font-semibold text-slate-900 flex items-center gap-1.5">
-                                <Factory className="h-4 w-4 text-indigo-500" /> {o.manufacturerName}
+                              <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                                <Factory className="h-4 w-4 text-indigo-500 dark:text-indigo-400" /> {o.manufacturerName}
                               </div>
-                              <div className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
-                                Hẹn giao: <span className={isPoOverdue ? "text-rose-600 font-bold" : "text-slate-600"}>{o.expectedDate}</span>
+                              <div className="text-xs text-slate-400 dark:text-neutral-400 mt-0.5 flex items-center gap-1">
+                                Hẹn giao: <span className={isPoOverdue ? "text-rose-600 dark:text-rose-400 font-bold" : "text-slate-600 dark:text-neutral-300"}>{o.expectedDate}</span>
                                 {isPoOverdue && (
-                                  <span className="inline-flex items-center px-1.5 py-0.2 rounded bg-rose-100 text-rose-700 text-[10px] font-bold animate-pulse">
+                                  <span className="inline-flex items-center px-1.5 py-0.2 rounded bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 text-[10px] font-bold animate-pulse">
                                     ⚠️ Trễ hẹn
                                   </span>
                                 )}
@@ -1676,14 +1759,14 @@ export function ProductsClient({
 
                             <td className="px-6 py-4">
                               {o.items && o.items.length > 1 ? (
-                                <span className="inline-flex items-center text-xs font-bold text-purple-700 bg-purple-50 px-3 py-1 rounded-full border border-purple-100 shadow-sm">
+                                <span className="inline-flex items-center text-xs font-bold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 px-3 py-1 rounded-full border border-purple-100 dark:border-purple-800/60 shadow-sm">
                                   📦 {o.items.length} mặt hàng / biến thể
                                 </span>
                               ) : (
                                 <div>
-                                  <div className="font-bold text-slate-900">{o.productName}</div>
+                                  <div className="font-bold text-slate-900 dark:text-white">{o.productName}</div>
                                   {(o.items?.[0]?.sku || o.sku) && (
-                                    <div className="text-xs font-mono text-slate-500 mt-0.5">
+                                    <div className="text-xs font-mono text-slate-500 dark:text-neutral-400 mt-0.5">
                                       SKU: {o.items?.[0]?.sku || o.sku}
                                     </div>
                                   )}
@@ -1692,21 +1775,21 @@ export function ProductsClient({
                             </td>
 
                             <td className="px-6 py-4 text-center">
-                              <span className="font-mono font-bold text-slate-900 text-base">{o.orderQuantity.toLocaleString()}</span>
-                              <span className="text-xs text-slate-500 ml-1">cái</span>
+                              <span className="font-mono font-bold text-slate-900 dark:text-white text-base">{o.orderQuantity.toLocaleString()}</span>
+                              <span className="text-xs text-slate-500 dark:text-neutral-400 ml-1">cái</span>
                             </td>
 
                             <td className="px-6 py-4 text-center">
                               {o.status === "IN_PRODUCTION" || o.qcPassedQuantity === undefined ? (
-                                <span className="text-xs text-slate-400 italic">
+                                <span className="text-xs text-slate-400 dark:text-neutral-400 italic">
                                   {o.status === "IN_PRODUCTION" ? "Đang cắt may..." : "Chờ QC kiểm hàng..."}
                                 </span>
                               ) : (
                                 <div>
-                                  <div className="font-bold text-emerald-600 text-sm">
+                                  <div className="font-bold text-emerald-600 dark:text-emerald-400 text-sm font-mono">
                                     {(o.qcPassedQuantity || 0).toLocaleString()} / {o.orderQuantity.toLocaleString()}
                                   </div>
-                                  <div className="text-xs font-medium text-slate-500">({passRate}% Đạt)</div>
+                                  <div className="text-xs font-semibold text-slate-500 dark:text-neutral-400">({passRate}% Đạt)</div>
                                   {(o.qcFailedQuantity || 0) > 0 && (
                                     <button
                                       type="button"
@@ -1714,7 +1797,7 @@ export function ProductsClient({
                                         e.stopPropagation();
                                         openReturnDefectModal(o);
                                       }}
-                                      className="text-[11px] text-rose-600 font-semibold underline hover:text-rose-800 mt-0.5 block mx-auto"
+                                      className="text-[11px] text-rose-600 dark:text-rose-400 font-bold underline hover:text-rose-800 dark:hover:text-rose-300 mt-0.5 block mx-auto"
                                     >
                                       {o.qcFailedQuantity} cái lỗi (Trả NSX)
                                     </button>
@@ -1725,16 +1808,16 @@ export function ProductsClient({
 
                             <td className="px-6 py-4 text-center space-y-1">
                               {o.status === "IN_PRODUCTION" && (
-                                <Badge className="bg-amber-100 text-amber-700 border-amber-200">Đang sản xuất</Badge>
+                                <Badge className="bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-800/60 font-semibold">Đang sản xuất</Badge>
                               )}
                               {o.status === "QC_INSPECTION" && (
-                                <Badge className="bg-indigo-100 text-indigo-700 border-indigo-200">Đang QC kiểm hàng</Badge>
+                                <Badge className="bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-950/70 dark:text-indigo-300 dark:border-indigo-800/60 font-semibold">Đang QC kiểm hàng</Badge>
                               )}
                               {o.status === "COMPLETED" && (
-                                <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">Đã nhập kho</Badge>
+                                <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-800/60 font-semibold">Đã nhập kho</Badge>
                               )}
                               {o.status === "PARTIAL_RETURN" && (
-                                <Badge className="bg-rose-100 text-rose-700 border-rose-200">Có hàng lỗi trả NSX</Badge>
+                                <Badge className="bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-800/60 font-semibold">Có hàng lỗi trả NSX</Badge>
                               )}
 
                               {o.status !== "COMPLETED" && o.status !== "PARTIAL_RETURN" && (
@@ -1745,7 +1828,7 @@ export function ProductsClient({
                                       e.stopPropagation();
                                       openBatchLabelModal(o);
                                     }}
-                                    className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded-lg border border-indigo-200 transition-all"
+                                    className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-300 hover:text-indigo-800 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 px-2 py-0.5 rounded-lg border border-indigo-200 dark:border-indigo-800/60 transition-all"
                                     title="In tem barcode lô hàng (Mặc định 3.5cm x 2.5cm)"
                                   >
                                     <Barcode className="h-3 w-3" />
@@ -1772,7 +1855,7 @@ export function ProductsClient({
       {activeSubTab === "products" && (
         <div className="space-y-6">
           {/* Search & Filter Toolbar */}
-          <Card className="border-none shadow-sm bg-white/80 backdrop-blur-sm">
+          <Card className="border-none shadow-sm bg-white/80 dark:bg-[#18181B] dark:border-neutral-800 backdrop-blur-sm">
             <CardContent className="p-4 flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="relative flex-1 w-full">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -1780,7 +1863,7 @@ export function ProductsClient({
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Tìm theo tên sản phẩm, mã SKU..."
-                  className="pl-9 bg-slate-50/50 border-slate-200"
+                  className="pl-9 bg-slate-50/50 dark:bg-[#202024] border-slate-200 dark:border-neutral-700/80 dark:text-white dark:placeholder-neutral-400"
                 />
               </div>
 
@@ -1800,8 +1883,11 @@ export function ProductsClient({
 
                 {canEdit && (
                   <Button
-                    onClick={() => setShowAddModal(true)}
-                    className="bg-slate-900 hover:bg-slate-800 text-white shadow-sm shrink-0 font-semibold"
+                    onClick={() => {
+                      resetProductForm();
+                      setShowAddModal(true);
+                    }}
+                    className="bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-black dark:hover:bg-neutral-200 shadow-sm shrink-0 font-bold"
                   >
                     <Plus className="h-4 w-4 mr-1.5" /> Thêm sản phẩm mới
                   </Button>
@@ -1811,9 +1897,9 @@ export function ProductsClient({
           </Card>
 
           {/* Table List of Products grouped */}
-          <Card className="border-none shadow-sm overflow-hidden bg-white/80 backdrop-blur-sm">
-            <CardHeader className="bg-slate-50/50 border-b pb-4">
-              <CardTitle className="text-base font-semibold text-slate-900 flex items-center justify-between">
+          <Card className="border-none shadow-sm overflow-hidden bg-white/80 dark:bg-[#18181B] dark:border-neutral-800 backdrop-blur-sm">
+            <CardHeader className="bg-slate-50/50 dark:bg-[#202024] border-b dark:border-neutral-800 pb-4">
+              <CardTitle className="text-base font-bold text-slate-900 dark:text-white flex items-center justify-between">
                 <span>Danh sách Dòng sản phẩm & Biến thể SKU ({groupedProducts.length} dòng sản phẩm)</span>
               </CardTitle>
             </CardHeader>
@@ -1821,7 +1907,7 @@ export function ProductsClient({
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
                   <thead>
-                    <tr className="border-b bg-slate-50/50 text-slate-500 font-medium text-xs uppercase tracking-wider">
+                    <tr className="border-b dark:border-neutral-800 bg-slate-50/50 dark:bg-[#222226] text-slate-500 dark:text-neutral-200 font-bold text-xs uppercase tracking-wider">
                       <th className="px-6 py-3.5">Dòng Sản Phẩm</th>
                       <th className="px-6 py-3.5">Mã Gốc</th>
                       <th className="px-6 py-3.5">Biến thể</th>
@@ -1831,10 +1917,10 @@ export function ProductsClient({
                       <th className="px-6 py-3.5 text-center">Thao tác</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-slate-100 dark:divide-neutral-800">
                     {groupedProducts.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="py-12 text-center text-slate-400">
+                        <td colSpan={7} className="py-12 text-center text-slate-400 dark:text-neutral-400">
                           Chưa có sản phẩm nào trong hệ thống. Nhấn "Thêm sản phẩm mới" để bắt đầu.
                         </td>
                       </tr>
@@ -1847,9 +1933,9 @@ export function ProductsClient({
                           <Fragment key={g.key}>
                             <tr
                               onClick={() => toggleGroup(g.key)}
-                              className="hover:bg-indigo-50/40 transition-colors cursor-pointer select-none group"
+                              className="hover:bg-indigo-50/40 dark:hover:bg-white/5 transition-colors cursor-pointer select-none group"
                             >
-                              <td className="px-6 py-4 font-medium text-slate-900">
+                              <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
                                 <div className="flex items-center gap-3">
                                   {/* Product Thumbnail & Hover Upload Button */}
                                   {(() => {
@@ -1860,12 +1946,12 @@ export function ProductsClient({
                                           <img
                                             src={displayImg}
                                             alt={g.name}
-                                            className="w-[58px] h-[58px] rounded-xl object-cover border border-slate-200 shadow-sm bg-white"
+                                            className="w-[58px] h-[58px] rounded-xl object-cover border border-slate-200 dark:border-neutral-700 shadow-sm bg-white dark:bg-[#202024]"
                                           />
                                         ) : (
-                                          <div className="w-[58px] h-[58px] rounded-xl border border-dashed border-slate-300 bg-slate-50 flex flex-col items-center justify-center text-slate-400 gap-0.5">
-                                            <ImageIcon className="h-5 w-5 text-slate-400" />
-                                            <span className="text-[9px] font-semibold uppercase">Ảnh</span>
+                                          <div className="w-[58px] h-[58px] rounded-xl border border-dashed border-slate-300 dark:border-neutral-700 bg-slate-50 dark:bg-[#202024] flex flex-col items-center justify-center text-slate-400 dark:text-neutral-500 gap-0.5">
+                                            <ImageIcon className="h-5 w-5 text-slate-400 dark:text-neutral-500" />
+                                            <span className="text-[9px] font-bold uppercase">Ảnh</span>
                                           </div>
                                         )}
                                         <label
@@ -1898,28 +1984,32 @@ export function ProductsClient({
                                   })()}
 
                                   <div className="flex-1 min-w-0">
-                                    <div className="font-bold text-slate-900 text-base flex items-center gap-2">
+                                    <div className="font-bold text-slate-900 dark:text-white text-base flex items-center gap-2 flex-wrap">
                                       {isExpanded ? (
-                                        <ChevronDown className="h-4 w-4 text-indigo-600 shrink-0" />
+                                        <ChevronDown className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
                                       ) : (
-                                        <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-indigo-600 shrink-0 transition-transform" />
+                                        <ChevronRight className="h-4 w-4 text-slate-400 dark:text-neutral-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 shrink-0 transition-transform" />
                                       )}
                                       <span className="truncate">{g.name}</span>
+                                      {g.colorName && (
+                                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-[#28282C] border border-slate-200 dark:border-neutral-700 text-slate-800 dark:text-neutral-100 text-xs font-semibold">
+                                          Màu: {g.colorName} {g.colorCode ? `(${g.colorCode})` : ""}
+                                        </span>
+                                      )}
                                     </div>
-                                    <div className="text-xs text-slate-500 font-normal flex items-center gap-1.5 mt-0.5 pl-6">
-                                      {g.colors.length > 0 && <span>{g.colors.length} màu ({g.colors.join(", ")})</span>}
-                                      {g.sizes.length > 0 && <span>• {g.sizes.length} size ({g.sizes.join(", ")})</span>}
+                                    <div className="text-xs text-slate-500 dark:text-neutral-400 font-normal flex items-center gap-1.5 mt-0.5 pl-6">
+                                      {g.sizes.length > 0 && <span>{g.sizes.length} size ({g.sizes.join(", ")})</span>}
                                     </div>
                                   </div>
                                 </div>
                               </td>
 
-                              <td className="px-6 py-4 font-mono font-bold text-indigo-600">
+                              <td className="px-6 py-4 font-mono font-bold text-indigo-600 dark:text-indigo-300">
                                 {g.baseSku}xx
                               </td>
 
                               <td className="px-6 py-4">
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-semibold border border-indigo-100">
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-xs font-semibold border border-indigo-100 dark:border-indigo-800/60">
                                   <Package className="h-3.5 w-3.5" />
                                   {vCount} biến thể
                                   {isExpanded ? <ChevronDown className="h-3.5 w-3.5 ml-0.5" /> : <ChevronRight className="h-3.5 w-3.5 ml-0.5" />}
@@ -1928,18 +2018,18 @@ export function ProductsClient({
 
                               <td className="px-6 py-4">
                                 <div className="flex flex-col gap-1">
-                                  <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700 w-fit">
+                                  <span className="inline-flex items-center rounded-full bg-slate-100 dark:bg-neutral-800 px-2 py-0.5 text-xs font-semibold text-slate-700 dark:text-neutral-200 w-fit">
                                     {g.category.name}
                                   </span>
-                                  <span className="text-xs text-slate-500 pl-1">{g.subcategory.name}</span>
+                                  <span className="text-xs text-slate-500 dark:text-neutral-400 pl-1">{g.subcategory.name}</span>
                                 </div>
                               </td>
 
-                              <td className="px-6 py-4 text-right font-mono text-slate-600">
+                              <td className="px-6 py-4 text-right font-mono text-slate-600 dark:text-neutral-300">
                                 {g.variants[0]?.costPrice.toLocaleString("vi-VN")} đ
                               </td>
 
-                              <td className="px-6 py-4 text-right font-mono font-bold text-emerald-600">
+                              <td className="px-6 py-4 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
                                 {g.minPrice === g.maxPrice
                                   ? `${g.minPrice.toLocaleString("vi-VN")} đ`
                                   : `${g.minPrice.toLocaleString("vi-VN")} - ${g.maxPrice.toLocaleString("vi-VN")} đ`}
@@ -1948,17 +2038,57 @@ export function ProductsClient({
                               <td className="px-6 py-4 text-center">
                                 <div className="flex items-center justify-center gap-2">
                                   {canEdit && (
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        openGroupEdit(g);
-                                      }}
-                                      className="h-7 px-3 text-indigo-600 border-indigo-200 hover:bg-indigo-50 text-xs font-semibold"
-                                    >
-                                      <Pencil className="h-3.5 w-3.5 mr-1" /> Sửa SKU
-                                    </Button>
+                                    <>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          openGroupEdit(g);
+                                        }}
+                                        className="h-7 px-3 text-indigo-600 dark:text-indigo-300 border-indigo-200 dark:border-neutral-700 bg-transparent dark:bg-[#242428] hover:bg-indigo-50 dark:hover:bg-[#2C2C32] text-xs font-semibold"
+                                      >
+                                        <Pencil className="h-3.5 w-3.5 mr-1" /> Sửa SKU
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={async (e) => {
+                                          e.stopPropagation();
+                                          const groupTitle = g.colorName ? `${g.name} - Màu ${g.colorName}` : g.name;
+                                          const ok = await confirm({
+                                            title: `Xác nhận xóa cụm sản phẩm?`,
+                                            description: `Bạn có chắc muốn xóa vĩnh viễn cụm sản phẩm "${groupTitle}" (Mã gốc: ${g.baseSku}xx) cùng toàn bộ ${g.variants.length} biến thể size của màu này?`,
+                                            confirmLabel: "Xóa toàn bộ",
+                                            cancelLabel: "Hủy",
+                                            tone: "destructive",
+                                          });
+                                          if (ok) {
+                                            try {
+                                              const res = await fetch("/api/products/batch-update", {
+                                                method: "DELETE",
+                                                headers: { "Content-Type": "application/json" },
+                                                body: JSON.stringify({
+                                                  categoryId: g.category.id,
+                                                  subcategoryId: g.subcategory.id,
+                                                  itemCode: g.itemCode,
+                                                  colorCode: g.colorCode || undefined,
+                                                }),
+                                              });
+                                              const resJson = await res.json();
+                                              if (!res.ok) throw new Error(resJson.error || "Lỗi xóa cụm sản phẩm");
+                                              notify({ tone: "success", title: "Đã xóa", body: `Đã xóa cụm sản phẩm "${groupTitle}" (${g.variants.length} biến thể)` });
+                                              mutate();
+                                            } catch (err: any) {
+                                              notify({ tone: "error", title: "Lỗi", body: err.message });
+                                            }
+                                          }
+                                        }}
+                                        className="h-7 px-2.5 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-neutral-700 bg-transparent dark:bg-[#242428] hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-semibold"
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5 mr-1" /> Xóa
+                                      </Button>
+                                    </>
                                   )}
                                 </div>
                               </td>
@@ -1966,16 +2096,16 @@ export function ProductsClient({
 
                             {/* Sub-table for SKU Variants */}
                             {isExpanded && (
-                              <tr className="bg-slate-50/60 border-b">
+                              <tr className="bg-slate-50/60 dark:bg-[#121214] border-b dark:border-neutral-800">
                                 <td colSpan={8} className="p-4 pl-12">
-                                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 space-y-3">
-                                    <div className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center justify-between">
+                                  <div className="bg-white dark:bg-[#1C1C20] rounded-xl border border-slate-200 dark:border-neutral-700 shadow-sm p-4 space-y-3">
+                                    <div className="text-xs font-bold text-slate-700 dark:text-neutral-200 uppercase tracking-wider flex items-center justify-between">
                                       <span>Chi tiết biến thể SKU ({vCount} biến thể của {g.name})</span>
                                     </div>
                                     <div className="overflow-x-auto">
                                       <table className="w-full text-xs text-left">
                                         <thead>
-                                          <tr className="border-b bg-slate-100/70 text-slate-600 font-medium uppercase">
+                                          <tr className="border-b dark:border-neutral-700 bg-slate-100/70 dark:bg-[#26262B] text-slate-600 dark:text-neutral-200 font-bold uppercase">
                                             <th className="px-3 py-2">STT</th>
                                             <th className="px-3 py-2">Màu sắc</th>
                                             <th className="px-3 py-2">Size</th>
@@ -1985,31 +2115,31 @@ export function ProductsClient({
                                             <th className="px-3 py-2 text-center">Thao tác</th>
                                           </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-slate-100">
+                                        <tbody className="divide-y divide-slate-100 dark:divide-neutral-800">
                                           {g.variants.map((v, idx) => (
-                                            <tr key={v.id} className="hover:bg-slate-50">
-                                              <td className="px-3 py-2.5 text-slate-400 font-mono">{idx + 1}</td>
-                                              <td className="px-3 py-2.5 font-medium text-slate-800">
+                                            <tr key={v.id} className="hover:bg-slate-50 dark:hover:bg-white/5">
+                                              <td className="px-3 py-2.5 text-slate-400 dark:text-neutral-500 font-mono">{idx + 1}</td>
+                                              <td className="px-3 py-2.5 font-medium text-slate-800 dark:text-neutral-200">
                                                 {v.colorName ? (
-                                                  <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium">
+                                                  <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 dark:bg-neutral-800 text-slate-700 dark:text-neutral-200 font-semibold">
                                                     {v.colorName} ({v.colorCode})
                                                   </span>
                                                 ) : ("—")}
                                               </td>
-                                              <td className="px-3 py-2.5 font-medium text-slate-800">
+                                              <td className="px-3 py-2.5 font-medium text-slate-800 dark:text-neutral-200">
                                                 {v.sizeName ? (
-                                                  <span className="inline-flex items-center px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-medium">
+                                                  <span className="inline-flex items-center px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-semibold">
                                                     {v.sizeName} ({v.sizeCode})
                                                   </span>
                                                 ) : ("—")}
                                               </td>
-                                              <td className="px-3 py-2.5 font-mono font-bold text-indigo-600">
+                                              <td className="px-3 py-2.5 font-mono font-bold text-indigo-600 dark:text-indigo-300">
                                                 {v.sku}
                                               </td>
-                                              <td className="px-3 py-2.5 text-right font-mono text-slate-600">
+                                              <td className="px-3 py-2.5 text-right font-mono text-slate-600 dark:text-neutral-300">
                                                 {v.costPrice.toLocaleString("vi-VN")} đ
                                               </td>
-                                              <td className="px-3 py-2.5 text-right font-mono font-bold text-emerald-600">
+                                              <td className="px-3 py-2.5 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
                                                 {v.sellingPrice.toLocaleString("vi-VN")} đ
                                               </td>
                                               <td className="px-3 py-2.5 text-center">
@@ -2019,9 +2149,34 @@ export function ProductsClient({
                                                       variant="ghost"
                                                       size="sm"
                                                       onClick={() => openVariantEdit(v)}
-                                                      className="h-7 w-7 p-0 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50"
+                                                      className="h-7 w-7 p-0 text-indigo-600 dark:text-indigo-300 hover:text-indigo-800 dark:hover:text-indigo-200 hover:bg-indigo-50 dark:hover:bg-neutral-800"
+                                                      title="Sửa biến thể"
                                                     >
                                                       <Pencil className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                    <Button
+                                                      variant="ghost"
+                                                      size="sm"
+                                                      onClick={async () => {
+                                                        const ok = window.confirm(
+                                                          "Xóa biến thể SKU \"" + v.sku + "\"?\n\n" +
+                                                          "Bạn có chắc muốn xóa biến thể SKU \"" + v.sku + "\" (" + (v.colorName || "Không màu") + " - Size " + (v.sizeName || "—") + ")?"
+                                                        );
+                                                        if (ok) {
+                                                          try {
+                                                           const res = await fetch("/api/products/" + v.id, { method: "DELETE" });
+                                                           if (!res.ok) throw new Error("Lỗi xóa biến thể");
+                                                           notify({ tone: "success", title: "Đã xóa", body: "Đã xóa biến thể SKU \"" + v.sku + "\"" });
+                                                           mutate();
+                                                          } catch (err: any) {
+                                                           notify({ tone: "error", title: "Lỗi", body: err.message });
+                                                          }
+                                                        }
+                                                      }}
+                                                      className="h-7 w-7 p-0 text-rose-500 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                                                      title="Xóa biến thể SKU này"
+                                                    >
+                                                      <Trash2 className="h-3.5 w-3.5" />
                                                     </Button>
                                                   </div>
                                                 )}
@@ -2079,9 +2234,9 @@ export function ProductsClient({
           </Card>
 
           {/* Table List of Inventory Stock */}
-          <Card className="border-none shadow-sm overflow-hidden bg-white/80 backdrop-blur-sm">
-            <CardHeader className="bg-slate-50/50 border-b pb-4 flex flex-row items-center justify-between">
-              <CardTitle className="text-base font-semibold text-slate-900">
+          <Card className="border-none shadow-sm overflow-hidden bg-white/80 dark:bg-[#18181B] dark:border-neutral-800 backdrop-blur-sm">
+            <CardHeader className="bg-slate-50/50 dark:bg-[#202024] border-b dark:border-neutral-800 pb-4 flex flex-row items-center justify-between">
+              <CardTitle className="text-base font-bold text-slate-900 dark:text-white">
                 Chi tiết Tồn kho theo Dòng sản phẩm ({groupedInventoryProducts.length} dòng sản phẩm • {filteredInventoryProducts.length} biến thể)
               </CardTitle>
 
@@ -2100,7 +2255,7 @@ export function ProductsClient({
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
                   <thead>
-                    <tr className="border-b bg-slate-50/50 text-slate-500 font-medium text-xs uppercase tracking-wider">
+                    <tr className="border-b dark:border-neutral-800 bg-slate-50/50 dark:bg-[#222226] text-slate-500 dark:text-neutral-200 font-bold text-xs uppercase tracking-wider">
                       <th className="px-4 py-3">Dòng Sản phẩm</th>
                       <th className="px-4 py-3">Mã gốc (SKU)</th>
                       <th className="px-4 py-3 text-center">Biến thể</th>
@@ -2110,10 +2265,10 @@ export function ProductsClient({
                       <th className="px-4 py-3 text-center">Trạng thái kho</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-slate-100 dark:divide-neutral-800">
                     {groupedInventoryProducts.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="py-12 text-center text-slate-400">
+                        <td colSpan={7} className="py-12 text-center text-slate-400 dark:text-neutral-400">
                           Không tìm thấy sản phẩm nào trong kho.
                         </td>
                       </tr>
@@ -2126,35 +2281,62 @@ export function ProductsClient({
                           <Fragment key={g.key}>
                             <tr
                               onClick={() => toggleInventoryGroup(g.key)}
-                              className="hover:bg-indigo-50/40 transition-colors cursor-pointer select-none group"
+                              className="hover:bg-indigo-50/40 dark:hover:bg-white/5 transition-colors cursor-pointer select-none group"
                             >
-                              <td className="px-4 py-3 font-medium text-slate-900">
-                                <div className="font-semibold text-slate-900 flex items-center gap-2">
-                                  {isExpanded ? (
-                                    <ChevronDown className="h-4 w-4 text-indigo-600 shrink-0" />
-                                  ) : (
-                                    <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-indigo-600 shrink-0 transition-transform" />
-                                  )}
-                                  <span>{g.name}</span>
-                                </div>
-                                <div className="text-xs text-slate-500 font-normal pl-6 mt-0.5">
-                                  {g.category.name} • {g.subcategory.name}
+                              <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
+                                <div className="flex items-center gap-3">
+                                  {/* Product Thumbnail */}
+                                  {(() => {
+                                    const displayImg = groupImages[g.key] || g.imageUrl || g.variants.find((v) => v.imageUrl)?.imageUrl;
+                                    return displayImg ? (
+                                      <img
+                                        src={displayImg}
+                                        alt={g.name}
+                                        className="w-[50px] h-[50px] rounded-xl object-cover border border-slate-200 dark:border-neutral-700 shadow-sm bg-white dark:bg-[#202024] shrink-0"
+                                      />
+                                    ) : (
+                                      <div className="w-[50px] h-[50px] rounded-xl border border-dashed border-slate-300 dark:border-neutral-700 bg-slate-50 dark:bg-[#202024] flex flex-col items-center justify-center text-slate-400 dark:text-neutral-500 gap-0.5 shrink-0">
+                                        <ImageIcon className="h-4 w-4 text-slate-400 dark:text-neutral-500" />
+                                        <span className="text-[8px] font-bold uppercase">Ảnh</span>
+                                      </div>
+                                    );
+                                  })()}
+
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-2 flex-wrap">
+                                      {isExpanded ? (
+                                        <ChevronDown className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                                      ) : (
+                                        <ChevronRight className="h-4 w-4 text-slate-400 dark:text-neutral-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 shrink-0 transition-transform" />
+                                      )}
+                                      <span className="truncate">{g.name}</span>
+                                      {g.colorName && (
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-[#28282C] border border-slate-200 dark:border-neutral-700 text-slate-800 dark:text-neutral-100 text-xs font-semibold">
+                                          Màu: {g.colorName} {g.colorCode ? `(${g.colorCode})` : ""}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="text-xs text-slate-500 dark:text-neutral-400 font-normal flex items-center gap-1.5 mt-0.5 pl-6">
+                                      <span>{g.category.name} • {g.subcategory.name}</span>
+                                      {g.sizes.length > 0 && <span>• {g.sizes.length} size ({g.sizes.join(", ")})</span>}
+                                    </div>
+                                  </div>
                                 </div>
                               </td>
 
-                              <td className="px-4 py-3 font-mono font-bold text-indigo-600 text-xs">
-                                {g.baseSku}xxxx
+                              <td className="px-4 py-3 font-mono font-bold text-indigo-600 dark:text-indigo-300 text-xs">
+                                {g.baseSku}xx
                               </td>
 
                               <td className="px-4 py-3 text-center">
-                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-xs font-semibold border border-indigo-100">
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-xs font-semibold border border-indigo-100 dark:border-indigo-800/60">
                                   <Package className="h-3.5 w-3.5" />
                                   {vCount} biến thể
                                 </span>
                               </td>
 
                               <td className="px-4 py-3 text-right">
-                                <span className="font-mono text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 whitespace-nowrap">
+                                <span className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-100 dark:border-emerald-800/60 whitespace-nowrap">
                                   {g.minPrice === g.maxPrice
                                     ? `${g.minPrice.toLocaleString("vi-VN")}đ`
                                     : `${g.minPrice.toLocaleString("vi-VN")}đ - ${g.maxPrice.toLocaleString("vi-VN")}đ`}
@@ -2162,44 +2344,44 @@ export function ProductsClient({
                               </td>
 
                               <td className="px-4 py-3 text-center">
-                                <span className="font-mono font-bold text-base text-slate-900">{g.totalQuantity.toLocaleString()}</span>
-                                <span className="text-xs text-slate-500 ml-1">cái</span>
+                                <span className="font-mono font-bold text-base text-slate-900 dark:text-white">{g.totalQuantity.toLocaleString()}</span>
+                                <span className="text-xs text-slate-500 dark:text-neutral-400 ml-1">cái</span>
                               </td>
 
                               <td className="px-4 py-3 text-center">
                                 {g.totalIncomingQuantity > 0 ? (
-                                  <span className="inline-flex items-center gap-1 font-mono font-bold text-xs text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-100">
+                                  <span className="inline-flex items-center gap-1 font-mono font-bold text-xs text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 px-2.5 py-0.5 rounded-full border border-indigo-100 dark:border-indigo-800/60">
                                     <Truck className="h-3 w-3" />
                                     +{g.totalIncomingQuantity.toLocaleString()} cái
                                   </span>
                                 ) : (
-                                  <span className="text-slate-400 text-xs">0</span>
+                                  <span className="text-slate-400 dark:text-neutral-500 text-xs">0</span>
                                 )}
                               </td>
 
                               <td className="px-4 py-3 text-center">
                                 {g.totalQuantity === 0 ? (
-                                  <Badge className="bg-rose-100 text-rose-700 border-rose-200 text-[11px] px-2.5 py-0.5">Hết hàng</Badge>
+                                  <Badge className="bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-800/60 text-[11px] px-2.5 py-0.5 font-semibold">Hết hàng</Badge>
                                 ) : g.hasLowStock ? (
-                                  <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-[11px] px-2.5 py-0.5">⚠️ Có mẫu tồn thấp (≤5)</Badge>
+                                  <Badge className="bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-800/60 text-[11px] px-2.5 py-0.5 font-semibold">⚠️ Có mẫu tồn thấp (≤5)</Badge>
                                 ) : (
-                                  <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-[11px] px-2.5 py-0.5">An toàn</Badge>
+                                  <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-800/60 text-[11px] px-2.5 py-0.5 font-semibold">An toàn</Badge>
                                 )}
                               </td>
                             </tr>
 
                             {/* Sub-table for SKU Variants in Inventory */}
                             {isExpanded && (
-                              <tr className="bg-slate-50/60 border-b">
+                              <tr className="bg-slate-50/60 dark:bg-[#121214] border-b dark:border-neutral-800">
                                 <td colSpan={7} className="p-3 pl-10">
-                                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3 space-y-2">
-                                    <div className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center justify-between">
-                                      <span>Biến thể chi tiết ({vCount} SKU của {g.name})</span>
+                                  <div className="bg-white dark:bg-[#1C1C20] rounded-xl border border-slate-200 dark:border-neutral-700 shadow-sm p-3 space-y-2">
+                                    <div className="text-xs font-bold text-slate-700 dark:text-neutral-200 uppercase tracking-wider flex items-center justify-between">
+                                      <span>Biến thể chi tiết ({vCount} size của {g.name}{g.colorName ? ` - Màu ${g.colorName}` : ""})</span>
                                     </div>
                                     <div className="overflow-x-auto">
                                       <table className="w-full text-xs text-left">
                                         <thead>
-                                          <tr className="border-b bg-slate-100/70 text-slate-600 font-medium uppercase">
+                                          <tr className="border-b dark:border-neutral-700 bg-slate-100/70 dark:bg-[#26262B] text-slate-600 dark:text-neutral-200 font-bold uppercase">
                                             <th className="px-3 py-2">STT</th>
                                             <th className="px-3 py-2">Mã SKU / Barcode</th>
                                             <th className="px-3 py-2">Màu sắc</th>
@@ -2212,7 +2394,7 @@ export function ProductsClient({
                                             <th className="px-3 py-2 text-center">Thao tác</th>
                                           </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-slate-100">
+                                        <tbody className="divide-y divide-slate-100 dark:divide-neutral-800">
                                           {g.variants.map((v, idx) => {
                                             const qty = v.quantity || 0;
                                             const vIncoming = v.incomingQuantity || 0;
@@ -2235,65 +2417,65 @@ export function ProductsClient({
                                             });
 
                                             return (
-                                              <tr key={v.id} className="hover:bg-slate-50">
-                                                <td className="px-3 py-2.5 text-slate-400 font-mono">{idx + 1}</td>
+                                              <tr key={v.id} className="hover:bg-slate-50 dark:hover:bg-white/5">
+                                                <td className="px-3 py-2.5 text-slate-400 dark:text-neutral-500 font-mono">{idx + 1}</td>
                                                 <td className="px-3 py-2.5">
-                                                  <div className="font-mono font-bold text-indigo-600">{v.sku}</div>
-                                                  <div className="text-[11px] font-mono text-slate-500 flex items-center gap-1 mt-0.5">
+                                                  <div className="font-mono font-bold text-indigo-600 dark:text-indigo-300">{v.sku}</div>
+                                                  <div className="text-[11px] font-mono text-slate-500 dark:text-neutral-400 flex items-center gap-1 mt-0.5">
                                                     <Barcode className="h-3 w-3 text-indigo-400" /> {v.barcode}
                                                   </div>
                                                 </td>
-                                                <td className="px-3 py-2.5 font-medium text-slate-800">
+                                                <td className="px-3 py-2.5 font-medium text-slate-800 dark:text-neutral-200">
                                                   {v.colorName ? (
-                                                    <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium">
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 dark:bg-neutral-800 text-slate-700 dark:text-neutral-200 font-semibold">
                                                       {v.colorName} ({v.colorCode})
                                                     </span>
                                                   ) : ("—")}
                                                 </td>
-                                                <td className="px-3 py-2.5 font-medium text-slate-800">
+                                                <td className="px-3 py-2.5 font-medium text-slate-800 dark:text-neutral-200">
                                                   {v.sizeName ? (
-                                                    <span className="inline-flex items-center px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-medium">
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-semibold">
                                                       {v.sizeName} ({v.sizeCode})
                                                     </span>
                                                   ) : ("—")}
                                                 </td>
-                                                <td className="px-3 py-2.5 text-slate-600 text-xs">
+                                                <td className="px-3 py-2.5 text-slate-600 dark:text-neutral-300 text-xs">
                                                   {v.manufacturer ? (
                                                     <div>
-                                                      <div className="font-semibold text-slate-900 text-xs flex items-center gap-1">
-                                                        <Factory className="h-3.5 w-3.5 text-indigo-500" />
+                                                      <div className="font-bold text-slate-900 dark:text-white text-xs flex items-center gap-1">
+                                                        <Factory className="h-3.5 w-3.5 text-indigo-500 dark:text-indigo-400" />
                                                         {v.manufacturer.name}
                                                       </div>
                                                     </div>
                                                   ) : (
-                                                    <span className="text-slate-300">—</span>
+                                                    <span className="text-slate-400 dark:text-neutral-500">—</span>
                                                   )}
                                                 </td>
-                                                <td className="px-3 py-2.5 text-right font-mono font-bold text-emerald-600 whitespace-nowrap">
+                                                <td className="px-3 py-2.5 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
                                                   {v.sellingPrice ? `${v.sellingPrice.toLocaleString("vi-VN")}đ` : "—"}
                                                 </td>
                                                 <td className="px-3 py-2.5 text-center">
-                                                  <span className="font-mono font-bold text-slate-900">{qty.toLocaleString()}</span>
-                                                  <span className="text-slate-500 ml-1">{v.unit}</span>
+                                                  <span className="font-mono font-bold text-slate-900 dark:text-white">{qty.toLocaleString()}</span>
+                                                  <span className="text-slate-500 dark:text-neutral-400 ml-1">{v.unit}</span>
                                                 </td>
                                                 <td className="px-3 py-2.5 text-center">
                                                   {vIncoming > 0 ? (
-                                                    <span className="font-mono font-bold text-indigo-600 text-xs">
+                                                    <span className="font-mono font-bold text-indigo-600 dark:text-indigo-300 text-xs">
                                                       +{vIncoming.toLocaleString()} cái
                                                     </span>
                                                   ) : (
-                                                    <span className="text-slate-300 text-xs">0</span>
+                                                    <span className="text-slate-400 dark:text-neutral-500 text-xs">0</span>
                                                   )}
                                                 </td>
                                                 <td className="px-3 py-2.5 text-center">
                                                   {qty > 5 && (
-                                                    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-[10px] px-2 py-0.5">An toàn</Badge>
+                                                    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-800/60 text-[10px] px-2 py-0.5 font-semibold">An toàn</Badge>
                                                   )}
                                                   {qty <= 5 && qty > 0 && (
-                                                    <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-[10px] px-2 py-0.5">Sắp hết</Badge>
+                                                    <Badge className="bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-800/60 text-[10px] px-2 py-0.5 font-semibold">Sắp hết</Badge>
                                                   )}
                                                   {qty === 0 && (
-                                                    <Badge className="bg-rose-100 text-rose-700 border-rose-200 text-[10px] px-2 py-0.5">Hết hàng</Badge>
+                                                    <Badge className="bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-800/60 text-[10px] px-2 py-0.5 font-semibold">Hết hàng</Badge>
                                                   )}
                                                 </td>
                                                 <td className="px-3 py-2.5 text-center">
@@ -2301,7 +2483,7 @@ export function ProductsClient({
                                                     variant="outline"
                                                     size="sm"
                                                     onClick={() => openInventoryLookup(v)}
-                                                    className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 text-[11px] font-semibold h-7 px-2"
+                                                    className="border-indigo-200 dark:border-neutral-700 text-indigo-600 dark:text-indigo-300 bg-transparent dark:bg-[#242428] hover:bg-indigo-50 dark:hover:bg-[#2C2C32] text-[11px] font-semibold h-7 px-2"
                                                   >
                                                     <Eye className="h-3 w-3 mr-1" /> Chi tiết Lô ({matchingBatches.length})
                                                   </Button>
@@ -2344,33 +2526,33 @@ export function ProductsClient({
       {/* MODAL 2: QC KIỂM ĐỊNH & TỰ ĐỘNG CẬP NHẬT TỒN KHO & IN TEM BÁN HÀNG        */}
       {/* ========================================================================= */}
       {showQcModal && selectedPo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full p-6 space-y-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b pb-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-[#18181B] dark:border dark:border-neutral-800 rounded-2xl shadow-2xl max-w-xl w-full p-6 space-y-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b dark:border-neutral-800 pb-4">
               <div>
-                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <ClipboardCheck className="h-5 w-5 text-indigo-600" />
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <ClipboardCheck className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
                   QC Kiểm Định & Nhập Kho Đợt Hàng
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs text-slate-500 dark:text-neutral-400 mt-0.5">
                   Đơn: {selectedPo.code} • Mã Lô: {selectedPo.batchCode}
                 </p>
               </div>
-              <button onClick={() => setShowQcModal(false)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setShowQcModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-neutral-200">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             <form onSubmit={handleSaveQc} className="space-y-4">
-              <div className="p-4 rounded-xl bg-indigo-50/80 border border-indigo-100 space-y-1 text-xs text-indigo-900">
-                <div className="font-bold flex items-center gap-1.5 text-indigo-800">
-                  <Info className="h-4 w-4 text-indigo-600" /> Thông tin đợt hàng:
+              <div className="p-4 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-800/60 space-y-1 text-xs text-indigo-900 dark:text-indigo-200">
+                <div className="font-bold flex items-center gap-1.5 text-indigo-800 dark:text-indigo-300">
+                  <Info className="h-4 w-4 text-indigo-600 dark:text-indigo-400" /> Thông tin đợt hàng:
                 </div>
                 <div className="grid grid-cols-2 gap-2 pt-1 font-medium">
-                  <div>Sản phẩm: <b>{selectedPo.productName}</b></div>
-                  <div>Số lượng đặt: <b className="text-indigo-700">{selectedPo.orderQuantity.toLocaleString()} cái</b></div>
-                  <div>NSX: <b>{selectedPo.manufacturerName}</b></div>
-                  <div>Ngày hẹn trả: <b>{selectedPo.expectedDate}</b></div>
+                  <div>Sản phẩm: <b className="text-slate-900 dark:text-white">{selectedPo.productName}</b></div>
+                  <div>Số lượng đặt: <b className="text-indigo-700 dark:text-indigo-300">{selectedPo.orderQuantity.toLocaleString()} cái</b></div>
+                  <div>NSX: <b className="text-slate-900 dark:text-white">{selectedPo.manufacturerName}</b></div>
+                  <div>Ngày hẹn trả: <b className="text-slate-900 dark:text-white">{selectedPo.expectedDate}</b></div>
                 </div>
               </div>
 
@@ -2383,49 +2565,49 @@ export function ProductsClient({
                 return (
                   <>
                     <div className="space-y-3">
-                      <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2">
-                        <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b dark:border-neutral-800 pb-2">
+                        <label className="block text-xs font-bold text-slate-800 dark:text-neutral-200 uppercase tracking-wider">
                           Nhập SL QC Đạt & Lỗi Cho Từng Mặt Hàng / Biến Thể ({qcItemStates.length})
                         </label>
                         <div className="text-xs font-medium flex items-center gap-3">
-                          <span className="text-slate-600">Tổng đặt: <b>{totalOrderedCount.toLocaleString()}</b></span>
-                          <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                          <span className="text-slate-600 dark:text-neutral-300">Tổng đặt: <b className="text-slate-900 dark:text-white">{totalOrderedCount.toLocaleString()}</b></span>
+                          <span className="text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800/60 font-semibold">
                             ✅ Đạt: <b>{totalPassedCount.toLocaleString()}</b>
                           </span>
-                          <span className="text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                          <span className="text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/60 px-2 py-0.5 rounded border border-rose-200 dark:border-rose-800/60 font-semibold">
                             ❌ Lỗi: <b>{totalFailedCount.toLocaleString()}</b>
                           </span>
                         </div>
                       </div>
 
-                      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+                      <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-neutral-700 bg-white dark:bg-[#202024]">
                         <table className="w-full text-xs text-left">
                           <thead>
-                            <tr className="bg-slate-50/80 border-b text-slate-500 font-semibold uppercase text-[11px]">
+                            <tr className="bg-slate-50/80 dark:bg-[#26262B] border-b dark:border-neutral-700 text-slate-500 dark:text-neutral-200 font-bold uppercase text-[11px]">
                               <th className="px-3 py-2.5">Sản phẩm / SKU</th>
                               <th className="px-3 py-2.5">Màu / Size</th>
                               <th className="px-3 py-2.5 text-center">SL Đặt</th>
-                              <th className="px-3 py-2.5 text-center w-32 text-emerald-700">✅ SL Đạt QC</th>
-                              <th className="px-3 py-2.5 text-center w-32 text-rose-700">❌ SL Lỗi (Trả NSX)</th>
+                              <th className="px-3 py-2.5 text-center w-32 text-emerald-700 dark:text-emerald-400">✅ SL Đạt QC</th>
+                              <th className="px-3 py-2.5 text-center w-32 text-rose-700 dark:text-rose-400">❌ SL Lỗi (Trả NSX)</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-100">
+                          <tbody className="divide-y divide-slate-100 dark:divide-neutral-800">
                             {qcItemStates.map((st, idx) => (
-                              <tr key={st.itemId || idx} className="hover:bg-slate-50/80">
+                              <tr key={st.itemId || idx} className="hover:bg-slate-50/80 dark:hover:bg-white/5">
                                 <td className="px-3 py-2.5">
-                                  <div className="font-bold text-slate-900">{st.productName}</div>
-                                  {st.sku && <div className="font-mono text-[11px] text-indigo-600">SKU: {st.sku}</div>}
+                                  <div className="font-bold text-slate-900 dark:text-white">{st.productName}</div>
+                                  {st.sku && <div className="font-mono text-[11px] text-indigo-600 dark:text-indigo-300">SKU: {st.sku}</div>}
                                 </td>
                                 <td className="px-3 py-2.5">
                                   {(st.colorName || st.sizeName) ? (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium text-[11px]">
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 dark:bg-[#2C2C32] text-slate-700 dark:text-neutral-200 font-semibold text-[11px]">
                                       {st.colorName || ""}{st.colorName && st.sizeName ? " • " : ""}{st.sizeName || ""}
                                     </span>
                                   ) : (
-                                    <span className="text-slate-400">—</span>
+                                    <span className="text-slate-400 dark:text-neutral-500">—</span>
                                   )}
                                 </td>
-                                <td className="px-3 py-2.5 text-center font-mono font-bold text-slate-800">
+                                <td className="px-3 py-2.5 text-center font-mono font-bold text-slate-800 dark:text-neutral-100">
                                   {st.orderQuantity.toLocaleString()} cái
                                 </td>
                                 <td className="px-3 py-2.5">
@@ -2435,7 +2617,7 @@ export function ProductsClient({
                                     max={st.orderQuantity}
                                     value={st.passedQty}
                                     onChange={(e) => updateQcItemQty(st.itemId, "passed", e.target.value)}
-                                    className="font-mono font-bold text-center border-emerald-300 focus:border-emerald-500 text-emerald-700 text-xs h-8 px-1.5"
+                                    className="font-mono font-bold text-center border-emerald-300 dark:border-emerald-700 dark:bg-[#18181B] focus:border-emerald-500 text-emerald-700 dark:text-emerald-400 text-xs h-8 px-1.5"
                                   />
                                 </td>
                                 <td className="px-3 py-2.5">
@@ -2444,7 +2626,7 @@ export function ProductsClient({
                                     min={0}
                                     value={st.failedQty}
                                     onChange={(e) => updateQcItemQty(st.itemId, "failed", e.target.value)}
-                                    className="font-mono font-bold text-center border-rose-300 focus:border-rose-500 text-rose-700 text-xs h-8 px-1.5"
+                                    className="font-mono font-bold text-center border-rose-300 dark:border-rose-700 dark:bg-[#18181B] focus:border-rose-500 text-rose-700 dark:text-rose-400 text-xs h-8 px-1.5"
                                   />
                                 </td>
                               </tr>
@@ -2452,15 +2634,15 @@ export function ProductsClient({
                           </tbody>
                         </table>
                       </div>
-                      <div className="flex items-center justify-between text-[11px] text-slate-500 px-1">
-                        <span className="text-emerald-600 font-medium">✓ Số lượng Đạt sẽ tự động cộng trực tiếp vào Tồn Kho từng SKU.</span>
-                        <span className="text-rose-600 font-medium">✕ Số lượng Lỗi sẽ tự động tách thành Phiếu trả hàng NSX.</span>
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-neutral-400 px-1">
+                        <span className="text-emerald-600 dark:text-emerald-400 font-semibold">✓ Số lượng Đạt sẽ tự động cộng trực tiếp vào Tồn Kho từng SKU.</span>
+                        <span className="text-rose-600 dark:text-rose-400 font-semibold">✕ Số lượng Lỗi sẽ tự động tách thành Phiếu trả hàng NSX.</span>
                       </div>
                     </div>
 
                     {totalFailedCount > 0 && (
                       <div>
-                        <label className="block text-sm font-semibold text-rose-800 mb-1">
+                        <label className="block text-sm font-bold text-rose-800 dark:text-rose-300 mb-1">
                           Ghi chú chi tiết lỗi sản phẩm (cho NSX kiểm tra & chỉnh sửa) *
                         </label>
                         <textarea
@@ -2468,7 +2650,7 @@ export function ProductsClient({
                           onChange={(e) => setQcFailReasonNotes(e.target.value)}
                           rows={3}
                           placeholder="VD: 5 áo Jacket M bị tuột đường may nách, 3 áo bị dính bẩn mỡ máy dệt, đề nghị may lại..."
-                          className="w-full rounded-xl border border-rose-200 p-2.5 text-xs text-rose-900 focus:outline-none focus:ring-2 focus:ring-rose-500 bg-rose-50/40"
+                          className="w-full rounded-xl border border-rose-200 dark:border-rose-800/80 p-2.5 text-xs text-rose-900 dark:text-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-500 bg-rose-50/40 dark:bg-rose-950/30"
                           required
                         />
                       </div>
@@ -2478,16 +2660,17 @@ export function ProductsClient({
               })()}
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Ghi chú QC chung</label>
+                <label className="block text-sm font-semibold text-slate-700 dark:text-neutral-300 mb-1">Ghi chú QC chung</label>
                 <Input
                   value={qcNotes}
                   onChange={(e) => setQcNotes(e.target.value)}
                   placeholder="Ghi chú thêm về lô hàng..."
+                  className="dark:bg-[#202024] dark:border-neutral-700/80 dark:text-white"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 border-t pt-4">
-                <Button type="button" variant="outline" onClick={() => setShowQcModal(false)}>
+              <div className="flex items-center justify-end gap-3 border-t dark:border-neutral-800 pt-4">
+                <Button type="button" variant="outline" onClick={() => setShowQcModal(false)} className="dark:bg-[#242428] dark:border-neutral-700 dark:text-neutral-200">
                   Hủy
                 </Button>
                 <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold">
@@ -2503,38 +2686,38 @@ export function ProductsClient({
       {/* MODAL 3: PHIẾU HÀNG LỖI TRẢ NSX / BẢO HÀNH CHI TIẾT                       */}
       {/* ========================================================================= */}
       {showReturnDefectModal && selectedReturnPo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b pb-4">
-              <div className="flex items-center gap-2 text-rose-600">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-[#18181B] dark:border dark:border-neutral-800 rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b dark:border-neutral-800 pb-4">
+              <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400">
                 <RotateCcw className="h-5 w-5" />
-                <h3 className="text-lg font-bold text-slate-900">Phiếu Trả Hàng NSX / Chỉnh Sửa</h3>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Phiếu Trả Hàng NSX / Chỉnh Sửa</h3>
               </div>
-              <button onClick={() => setShowReturnDefectModal(false)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setShowReturnDefectModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-neutral-200">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             <div className="space-y-4 text-xs">
-              <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 space-y-2">
-                <div className="font-bold text-sm text-rose-800 flex items-center justify-between">
+              <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 text-rose-900 dark:text-rose-200 space-y-2">
+                <div className="font-bold text-sm text-rose-800 dark:text-rose-200 flex items-center justify-between">
                   <span>Mã lô: {selectedReturnPo.batchCode}</span>
                   <Badge className="bg-rose-600 text-white font-bold">{selectedReturnPo.qcFailedQuantity} sản phẩm không đạt</Badge>
                 </div>
-                <div>Xưởng sản xuất: <b>{selectedReturnPo.manufacturerName}</b></div>
-                <div>Mẫu sản phẩm: <b>{selectedReturnPo.productName}</b> (SKU: {selectedReturnPo.sku})</div>
+                <div>Xưởng sản xuất: <b className="text-slate-900 dark:text-white">{selectedReturnPo.manufacturerName}</b></div>
+                <div>Mẫu sản phẩm: <b className="text-slate-900 dark:text-white">{selectedReturnPo.productName}</b> (SKU: {selectedReturnPo.sku})</div>
               </div>
 
               <div>
-                <h4 className="font-bold text-slate-900 mb-1 text-sm">Ghi chú lỗi kỹ thuật chi tiết để NSX khắc phục:</h4>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-mono text-xs leading-relaxed">
+                <h4 className="font-bold text-slate-900 dark:text-white mb-1 text-sm">Ghi chú lỗi kỹ thuật chi tiết để NSX khắc phục:</h4>
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#202024] border border-slate-200 dark:border-neutral-700 text-slate-800 dark:text-neutral-200 font-mono text-xs leading-relaxed">
                   {selectedReturnPo.failReasonNotes || selectedReturnPo.qcNotes || "Không có thông tin lỗi chi tiết."}
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 border-t pt-4">
-              <Button variant="outline" onClick={() => setShowReturnDefectModal(false)}>
+            <div className="flex items-center justify-end gap-3 border-t dark:border-neutral-800 pt-4">
+              <Button variant="outline" onClick={() => setShowReturnDefectModal(false)} className="dark:bg-[#242428] dark:border-neutral-700 dark:text-neutral-200">
                 Đóng
               </Button>
               <Button
@@ -2555,17 +2738,17 @@ export function ProductsClient({
       {/* MODAL 4: TRA CỨU BARCODE & LỊCH SỬ LÔ HÀNG KHO (TAB TỒN KHO)              */}
       {/* ========================================================================= */}
       {showInventoryLookupDrawer && selectedInventoryProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 space-y-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b pb-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-[#18181B] dark:border dark:border-neutral-800 rounded-2xl shadow-2xl max-w-2xl w-full p-6 space-y-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b dark:border-neutral-800 pb-4">
               <div className="flex items-center gap-2">
-                <Barcode className="h-6 w-6 text-indigo-600" />
+                <Barcode className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">Thông Tin Chi Tiết Lô Hàng & NSX</h3>
-                  <p className="text-xs text-slate-500 font-mono">Mã SKU: {selectedInventoryProduct.sku} • Barcode: {selectedInventoryProduct.barcode}</p>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Thông Tin Chi Tiết Lô Hàng & NSX</h3>
+                  <p className="text-xs text-slate-500 dark:text-neutral-400 font-mono">Mã SKU: {selectedInventoryProduct.sku} • Barcode: {selectedInventoryProduct.barcode}</p>
                 </div>
               </div>
-              <button onClick={() => setShowInventoryLookupDrawer(false)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setShowInventoryLookupDrawer(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-neutral-200">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -2574,15 +2757,15 @@ export function ProductsClient({
               {/* Product & Manufacturer Header Info */}
               <div className="p-4 rounded-xl bg-gradient-to-r from-slate-900 to-indigo-950 text-white flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div>
-                  <span className="text-xs text-indigo-300 font-semibold uppercase tracking-wider block">Tên sản phẩm</span>
-                  <h4 className="text-lg font-bold">{selectedInventoryProduct.name}</h4>
+                  <span className="text-xs text-indigo-300 font-bold uppercase tracking-wider block">Tên sản phẩm</span>
+                  <h4 className="text-lg font-bold text-white">{selectedInventoryProduct.name}</h4>
                   <div className="text-xs text-slate-300 mt-1">
                     Phân loại: {selectedInventoryProduct.category.name} • {selectedInventoryProduct.colorName} / {selectedInventoryProduct.sizeName}
                   </div>
                 </div>
 
                 <div className="bg-white/10 p-3 rounded-xl border border-white/20 text-center shrink-0">
-                  <span className="text-[10px] text-slate-300 uppercase tracking-wider block">Tổng Tồn Kho</span>
+                  <span className="text-[10px] text-slate-300 uppercase tracking-wider block font-semibold">Tổng Tồn Kho</span>
                   <span className="text-2xl font-mono font-bold text-emerald-400">
                     {(selectedInventoryProduct.quantity || 0).toLocaleString()}
                   </span>
@@ -2592,27 +2775,27 @@ export function ProductsClient({
 
               {/* Manufacturer Info Card */}
               {selectedInventoryProduct.manufacturer && (
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
-                  <div className="font-bold text-slate-800 text-sm flex items-center gap-1.5 mb-1">
-                    <Factory className="h-4 w-4 text-indigo-600" /> Nhà sản xuất: {selectedInventoryProduct.manufacturer.name}
+                <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#202024] border border-slate-200 dark:border-neutral-700 text-xs space-y-1">
+                  <div className="font-bold text-slate-800 dark:text-white text-sm flex items-center gap-1.5 mb-1">
+                    <Factory className="h-4 w-4 text-indigo-600 dark:text-indigo-400" /> Nhà sản xuất: {selectedInventoryProduct.manufacturer.name}
                   </div>
-                  <div>Mã NSX: <b>{selectedInventoryProduct.manufacturer.code}</b></div>
-                  {selectedInventoryProduct.manufacturer.phone && <div>Số điện thoại liên hệ: <b>{selectedInventoryProduct.manufacturer.phone}</b></div>}
-                  {selectedInventoryProduct.manufacturer.address && <div>Địa chỉ xưởng: {selectedInventoryProduct.manufacturer.address}</div>}
+                  <div>Mã NSX: <b className="text-slate-900 dark:text-white">{selectedInventoryProduct.manufacturer.code}</b></div>
+                  {selectedInventoryProduct.manufacturer.phone && <div>Số điện thoại liên hệ: <b className="text-slate-900 dark:text-white">{selectedInventoryProduct.manufacturer.phone}</b></div>}
+                  {selectedInventoryProduct.manufacturer.address && <div>Địa chỉ xưởng: <span className="text-slate-700 dark:text-neutral-300">{selectedInventoryProduct.manufacturer.address}</span></div>}
                 </div>
               )}
 
               {/* Batch History Table */}
               <div className="space-y-2">
-                <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
-                  <Layers className="h-4 w-4 text-indigo-600" />
+                <h4 className="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-1.5">
+                  <Layers className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
                   Lịch sử Các Lô Hàng Sản Xuất Nhập Vào Kho:
                 </h4>
 
-                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-neutral-700">
                   <table className="w-full text-xs text-left">
                     <thead>
-                      <tr className="bg-slate-100/80 border-b text-slate-600 uppercase font-semibold">
+                      <tr className="bg-slate-100/80 dark:bg-[#26262B] border-b dark:border-neutral-700 text-slate-600 dark:text-neutral-200 uppercase font-bold">
                         <th className="px-3 py-2.5">Mã Lô Hàng</th>
                         <th className="px-3 py-2.5">Ngày Đặt (OD)</th>
                         <th className="px-3 py-2.5">Ngày Nhập (RC)</th>
@@ -2620,7 +2803,7 @@ export function ProductsClient({
                         <th className="px-3 py-2.5 text-center">Trạng thái</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-slate-100 dark:divide-neutral-800">
                       {(() => {
                         const matchingBatchesList = factoryOrders.filter((o) => {
                           if (o.items && o.items.length > 0) {
@@ -2644,7 +2827,7 @@ export function ProductsClient({
                         if (matchingBatchesList.length === 0) {
                           return (
                             <tr>
-                              <td colSpan={5} className="py-6 text-center text-slate-400">
+                              <td colSpan={5} className="py-6 text-center text-slate-400 dark:text-neutral-400">
                                 Chưa có dữ liệu lô hàng sản xuất cho sản phẩm này.
                               </td>
                             </tr>
@@ -2652,13 +2835,13 @@ export function ProductsClient({
                         }
 
                         return matchingBatchesList.map((batch) => (
-                          <tr key={batch.id} className="hover:bg-slate-50">
-                            <td className="px-3 py-2.5 font-mono font-bold text-indigo-600">{batch.batchCode}</td>
-                            <td className="px-3 py-2.5 text-slate-600">{batch.orderDate}</td>
-                            <td className="px-3 py-2.5 text-emerald-700 font-semibold">{batch.receivedDate || "Chờ QC"}</td>
-                            <td className="px-3 py-2.5 text-center font-mono font-bold text-slate-900">{batch.qcPassedQuantity || batch.orderQuantity} cái</td>
+                          <tr key={batch.id} className="hover:bg-slate-50 dark:hover:bg-white/5">
+                            <td className="px-3 py-2.5 font-mono font-bold text-indigo-600 dark:text-indigo-300">{batch.batchCode}</td>
+                            <td className="px-3 py-2.5 text-slate-600 dark:text-neutral-300">{batch.orderDate}</td>
+                            <td className="px-3 py-2.5 text-emerald-700 dark:text-emerald-400 font-semibold">{batch.receivedDate || "Chờ QC"}</td>
+                            <td className="px-3 py-2.5 text-center font-mono font-bold text-slate-900 dark:text-white">{batch.qcPassedQuantity || batch.orderQuantity} cái</td>
                             <td className="px-3 py-2.5 text-center">
-                              <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">Đã nhập kho</Badge>
+                              <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-800/60 font-semibold">Đã nhập kho</Badge>
                             </td>
                           </tr>
                         ));
@@ -2669,8 +2852,8 @@ export function ProductsClient({
               </div>
             </div>
 
-            <div className="flex items-center justify-end border-t pt-4">
-              <Button variant="outline" onClick={() => setShowInventoryLookupDrawer(false)}>
+            <div className="flex items-center justify-end border-t dark:border-neutral-800 pt-4">
+              <Button variant="outline" onClick={() => setShowInventoryLookupDrawer(false)} className="dark:bg-[#242428] dark:border-neutral-700 dark:text-neutral-200">
                 Đóng
               </Button>
             </div>
@@ -2682,31 +2865,48 @@ export function ProductsClient({
       {/* MODAL 5: TẠO PHIẾU ĐẶT XƯỞNG MỚI (NHIỀU SẢN PHẨM & BIẾN THỂ)             */}
       {/* ========================================================================= */}
       {showAddPoModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full p-6 space-y-6 max-h-[95vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b pb-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-[#18181B] dark:border dark:border-neutral-800 rounded-2xl shadow-2xl max-w-3xl w-full p-6 space-y-6 max-h-[95vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b dark:border-neutral-800 pb-4">
               <div>
-                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <Truck className="h-5 w-5 text-indigo-600" /> Tạo phiếu đặt NSX (Đặt hàng xưởng)
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Truck className="h-5 w-5 text-indigo-600 dark:text-indigo-400" /> Tạo phiếu đặt NSX (Đặt hàng xưởng)
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs text-slate-500 dark:text-neutral-400 mt-0.5">
                   Đặt 1 lúc nhiều sản phẩm và các biến thể Màu / Size với số lượng riêng biệt.
                 </p>
               </div>
-              <button onClick={() => setShowAddPoModal(false)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setShowAddPoModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-neutral-200">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             <form onSubmit={handleCreatePo} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-50 dark:bg-[#202024] p-4 rounded-xl border border-slate-200 dark:border-neutral-700">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Nhà sản xuất (NSX) *</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-neutral-300">Nhà sản xuất (NSX) *</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingMfr(null);
+                        setMfrName("");
+                        setMfrCode("");
+                        setMfrAddress("");
+                        setMfrPhone("");
+                        setMfrTaxId("");
+                        setShowMfrModal(true);
+                      }}
+                      className="text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline"
+                    >
+                      + Thêm mới
+                    </button>
+                  </div>
                   <Select
                     value={poMfrName}
                     onChange={(e) => setPoMfrName(e.target.value)}
                     required
-                    className="bg-white text-xs"
+                    className="bg-white dark:bg-[#18181B] text-xs"
                   >
                     <option value="">-- Chọn Nhà sản xuất --</option>
                     {manufacturers.map((m) => (
@@ -2714,30 +2914,27 @@ export function ProductsClient({
                         {m.name} (Mã: {m.code})
                       </option>
                     ))}
-                    <option value="Xưởng may Thanh Nam">Xưởng may Thanh Nam</option>
-                    <option value="Xưởng dệt Kim Long">Xưởng dệt Kim Long</option>
-                    <option value="Xưởng may Phong Phú">Xưởng may Phong Phú</option>
                   </Select>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Ngày đặt hàng (OD)</label>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-neutral-300 mb-1">Ngày đặt hàng (OD)</label>
                   <Input
                     type="date"
                     value={poOrderDate}
                     onChange={(e) => setPoOrderDate(e.target.value)}
-                    className="bg-white text-xs font-mono"
+                    className="bg-white dark:bg-[#18181B] dark:border-neutral-700/80 dark:text-white text-xs font-mono"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Ngày hẹn giao NSX *</label>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-neutral-300 mb-1">Ngày hẹn giao NSX *</label>
                   <Input
                     type="date"
                     value={poExpectedDate}
                     onChange={(e) => setPoExpectedDate(e.target.value)}
                     required
-                    className="bg-white text-xs font-mono"
+                    className="bg-white dark:bg-[#18181B] dark:border-neutral-700/80 dark:text-white text-xs font-mono"
                   />
                 </div>
               </div>
@@ -2745,24 +2942,24 @@ export function ProductsClient({
               {/* Dynamic Table of Products / SKU Variants to Order */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <h4 className="font-bold text-xs text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                    <Package className="h-4 w-4 text-indigo-600" /> Danh sách sản phẩm & biến thể đặt hàng ({poItems.length})
+                  <h4 className="font-bold text-xs text-slate-700 dark:text-neutral-200 uppercase tracking-wider flex items-center gap-1.5">
+                    <Package className="h-4 w-4 text-indigo-600 dark:text-indigo-400" /> Danh sách sản phẩm & biến thể đặt hàng ({poItems.length})
                   </h4>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     onClick={addPoItemRow}
-                    className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 text-xs font-bold h-8"
+                    className="border-indigo-200 dark:border-neutral-700 text-indigo-600 dark:text-indigo-300 bg-transparent dark:bg-[#242428] hover:bg-indigo-50 dark:hover:bg-[#2C2C32] text-xs font-bold h-8"
                   >
                     <Plus className="h-3.5 w-3.5 mr-1" /> Thêm sản phẩm / biến thể
                   </Button>
                 </div>
 
-                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-neutral-700">
                   <table className="w-full text-xs text-left">
                     <thead>
-                      <tr className="bg-slate-100/80 border-b text-slate-600 uppercase font-semibold">
+                      <tr className="bg-slate-100/80 dark:bg-[#26262B] border-b dark:border-neutral-700 text-slate-600 dark:text-neutral-200 uppercase font-bold">
                         <th className="px-3 py-2.5">#</th>
                         <th className="px-3 py-2.5">Chọn Sản Phẩm / SKU</th>
                         <th className="px-3 py-2.5">Mã SKU</th>
@@ -2771,15 +2968,15 @@ export function ProductsClient({
                         <th className="px-3 py-2.5 w-12 text-center">Xóa</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-slate-100 dark:divide-neutral-800">
                       {poItems.map((item, idx) => (
-                        <tr key={item.id} className="hover:bg-slate-50">
-                          <td className="px-3 py-2 text-slate-400 font-mono">{idx + 1}</td>
+                        <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-white/5">
+                          <td className="px-3 py-2 text-slate-400 dark:text-neutral-500 font-mono">{idx + 1}</td>
                           <td className="px-3 py-2">
                             <Select
                               value={item.productId}
                               onChange={(e) => updatePoItemRow(item.id, "productId", e.target.value)}
-                              className="text-xs bg-white"
+                              className="text-xs bg-white dark:bg-[#18181B]"
                             >
                               <option value="">-- Chọn sản phẩm từ danh mục --</option>
                               {products.map((p) => (
@@ -2789,12 +2986,12 @@ export function ProductsClient({
                               ))}
                             </Select>
                           </td>
-                          <td className="px-3 py-2 font-mono font-bold text-indigo-600">
+                          <td className="px-3 py-2 font-mono font-bold text-indigo-600 dark:text-indigo-300">
                             <Input
                               value={item.sku}
                               onChange={(e) => updatePoItemRow(item.id, "sku", e.target.value)}
                               placeholder="SKU"
-                              className="text-xs font-mono h-8"
+                              className="text-xs font-mono h-8 dark:bg-[#18181B] dark:border-neutral-700/80 dark:text-white"
                             />
                           </td>
                           <td className="px-3 py-2">
@@ -2803,13 +3000,13 @@ export function ProductsClient({
                                 value={item.colorName}
                                 onChange={(e) => updatePoItemRow(item.id, "colorName", e.target.value)}
                                 placeholder="Màu sắc"
-                                className="text-xs h-8"
+                                className="text-xs h-8 dark:bg-[#18181B] dark:border-neutral-700/80 dark:text-white"
                               />
                               <Input
                                 value={item.sizeName}
                                 onChange={(e) => updatePoItemRow(item.id, "sizeName", e.target.value)}
                                 placeholder="Size"
-                                className="text-xs h-8"
+                                className="text-xs h-8 dark:bg-[#18181B] dark:border-neutral-700/80 dark:text-white"
                               />
                             </div>
                           </td>
@@ -2819,7 +3016,7 @@ export function ProductsClient({
                               min={1}
                               value={item.orderQuantity}
                               onChange={(e) => updatePoItemRow(item.id, "orderQuantity", Number(e.target.value) || 0)}
-                              className="text-xs font-mono font-bold text-center h-8"
+                              className="text-xs font-mono font-bold text-center h-8 dark:bg-[#18181B] dark:border-neutral-700/80 dark:text-white"
                               required
                             />
                           </td>
@@ -2828,7 +3025,7 @@ export function ProductsClient({
                               <button
                                 type="button"
                                 onClick={() => removePoItemRow(item.id)}
-                                className="text-slate-400 hover:text-rose-600 transition-colors p-1"
+                                className="text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors p-1"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </button>
@@ -2842,21 +3039,21 @@ export function ProductsClient({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Ghi chú & Quy cách may của lô hàng</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-neutral-300 mb-1">Ghi chú & Quy cách may của lô hàng</label>
                 <Input
                   value={poNotes}
                   onChange={(e) => setPoNotes(e.target.value)}
                   placeholder="Ví dụ: Đính nhãn mác đúng quy chuẩn, đóng nút inox chắc chắn..."
-                  className="text-xs"
+                  className="text-xs dark:bg-[#202024] dark:border-neutral-700/80 dark:text-white"
                 />
               </div>
 
-              <div className="flex items-center justify-between border-t pt-4">
-                <div className="text-xs text-slate-600 font-medium">
-                  Tổng đặt: <strong className="text-indigo-700 font-mono text-sm">{poItems.reduce((acc, i) => acc + (i.orderQuantity || 0), 0).toLocaleString()} cái</strong> ({poItems.length} mặt hàng)
+              <div className="flex items-center justify-between border-t dark:border-neutral-800 pt-4">
+                <div className="text-xs text-slate-600 dark:text-neutral-300 font-medium">
+                  Tổng đặt: <strong className="text-indigo-700 dark:text-indigo-300 font-mono text-sm">{poItems.reduce((acc, i) => acc + (i.orderQuantity || 0), 0).toLocaleString()} cái</strong> ({poItems.length} mặt hàng)
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button type="button" variant="outline" onClick={() => setShowAddPoModal(false)}>
+                  <Button type="button" variant="outline" onClick={() => setShowAddPoModal(false)} className="dark:bg-[#242428] dark:border-neutral-700 dark:text-neutral-200">
                     Hủy
                   </Button>
                   <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold">
@@ -2873,53 +3070,53 @@ export function ProductsClient({
       {/* MODAL 6: CHI TIẾT LÔ HÀNG VÀ TẤT CẢ BIẾN THỂ TRONG PHIẾU ĐẶT NSX           */}
       {/* ========================================================================= */}
       {showBatchDetailModal && selectedPoForDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="fixed inset-0 w-full h-full min-h-screen bg-slate-900/50 backdrop-blur-sm" onClick={() => setShowBatchDetailModal(false)} />
-          <div className="relative z-10 bg-white rounded-2xl shadow-2xl max-w-3xl w-full p-6 space-y-6 max-h-[95vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b pb-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto">
+          <div className="fixed inset-0 w-full h-full min-h-screen bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowBatchDetailModal(false)} />
+          <div className="relative z-10 bg-white dark:bg-[#18181B] dark:border dark:border-neutral-800 rounded-2xl shadow-2xl max-w-3xl w-full p-6 space-y-6 max-h-[95vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b dark:border-neutral-800 pb-4">
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-xl font-bold text-slate-900 font-mono">
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white font-mono">
                     {selectedPoForDetail.batchCode}
                   </h3>
-                  <Badge className="bg-indigo-100 text-indigo-700 border-indigo-200">
+                  <Badge className="bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-950/70 dark:text-indigo-300 dark:border-indigo-800/60 font-semibold">
                     PO: {selectedPoForDetail.code}
                   </Badge>
                 </div>
-                <p className="text-xs text-slate-500 mt-1">
-                  Nhà sản xuất: <strong>{selectedPoForDetail.manufacturerName}</strong>
+                <p className="text-xs text-slate-500 dark:text-neutral-400 mt-1">
+                  Nhà sản xuất: <strong className="text-slate-900 dark:text-white">{selectedPoForDetail.manufacturerName}</strong>
                 </p>
               </div>
-              <button onClick={() => setShowBatchDetailModal(false)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setShowBatchDetailModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-neutral-200">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 dark:bg-[#202024] p-4 rounded-xl border border-slate-200 dark:border-neutral-700 text-xs">
               <div>
-                <span className="text-slate-500 block">Ngày đặt hàng (OD):</span>
-                <span className="font-semibold text-slate-900">{selectedPoForDetail.orderDate}</span>
+                <span className="text-slate-500 dark:text-neutral-400 block">Ngày đặt hàng (OD):</span>
+                <span className="font-bold text-slate-900 dark:text-white">{selectedPoForDetail.orderDate}</span>
               </div>
               <div>
-                <span className="text-slate-500 block">Ngày hẹn giao:</span>
-                <span className="font-semibold text-indigo-600">{selectedPoForDetail.expectedDate}</span>
+                <span className="text-slate-500 dark:text-neutral-400 block">Ngày hẹn giao:</span>
+                <span className="font-bold text-indigo-600 dark:text-indigo-400">{selectedPoForDetail.expectedDate}</span>
               </div>
               <div>
-                <span className="text-slate-500 block">Ngày nhập kho (RC):</span>
-                <span className="font-semibold text-emerald-600">{selectedPoForDetail.receivedDate || "Đang sản xuất"}</span>
+                <span className="text-slate-500 dark:text-neutral-400 block">Ngày nhập kho (RC):</span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400">{selectedPoForDetail.receivedDate || "Đang sản xuất"}</span>
               </div>
             </div>
 
             {/* Table of items/variants in the order */}
             <div className="space-y-2">
-              <h4 className="font-bold text-xs text-slate-700 uppercase tracking-wider flex items-center justify-between">
+              <h4 className="font-bold text-xs text-slate-700 dark:text-neutral-200 uppercase tracking-wider flex items-center justify-between">
                 <span>Danh sách sản phẩm & biến thể trong lô ({selectedPoForDetail.items?.length || 1} mặt hàng)</span>
-                <span className="font-mono text-indigo-700 font-bold">Tổng đặt: {selectedPoForDetail.orderQuantity.toLocaleString()} cái</span>
+                <span className="font-mono text-indigo-700 dark:text-indigo-300 font-bold">Tổng đặt: {selectedPoForDetail.orderQuantity.toLocaleString()} cái</span>
               </h4>
-              <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-neutral-700">
                 <table className="w-full text-xs text-left">
                   <thead>
-                    <tr className="border-b bg-slate-100/80 text-slate-600 font-medium uppercase">
+                    <tr className="border-b dark:border-neutral-700 bg-slate-100/80 dark:bg-[#26262B] text-slate-600 dark:text-neutral-200 font-bold uppercase">
                       <th className="px-3 py-2.5">STT</th>
                       <th className="px-3 py-2.5">Tên sản phẩm</th>
                       <th className="px-3 py-2.5">Mã SKU</th>
@@ -2930,7 +3127,7 @@ export function ProductsClient({
                       <th className="px-3 py-2.5 text-center">Thao tác</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-slate-100 dark:divide-neutral-800">
                     {(selectedPoForDetail.items || [
                       {
                         id: "item-1",
@@ -2941,16 +3138,16 @@ export function ProductsClient({
                         qcFailedQuantity: selectedPoForDetail.qcFailedQuantity,
                       }
                     ]).map((item, idx) => (
-                      <tr key={item.id || idx} className="hover:bg-slate-50">
-                        <td className="px-3 py-2.5 text-slate-400 font-mono">{idx + 1}</td>
-                        <td className="px-3 py-2.5 font-bold text-slate-900">{item.productName}</td>
-                        <td className="px-3 py-2.5 font-mono text-indigo-600 font-bold">{item.sku}</td>
-                        <td className="px-3 py-2.5 text-slate-600">
+                      <tr key={item.id || idx} className="hover:bg-slate-50 dark:hover:bg-white/5">
+                        <td className="px-3 py-2.5 text-slate-400 dark:text-neutral-500 font-mono">{idx + 1}</td>
+                        <td className="px-3 py-2.5 font-bold text-slate-900 dark:text-white">{item.productName}</td>
+                        <td className="px-3 py-2.5 font-mono text-indigo-600 dark:text-indigo-300 font-bold">{item.sku}</td>
+                        <td className="px-3 py-2.5 text-slate-600 dark:text-neutral-300">
                           {item.colorName || item.sizeName ? `${item.colorName || ""} ${item.sizeName ? "• " + item.sizeName : ""}` : "—"}
                         </td>
-                        <td className="px-3 py-2.5 text-center font-mono font-bold text-slate-900">{item.orderQuantity.toLocaleString()} cái</td>
-                        <td className="px-3 py-2.5 text-center font-mono font-bold text-emerald-600">{(item.qcPassedQuantity || 0).toLocaleString()}</td>
-                        <td className="px-3 py-2.5 text-center font-mono font-bold text-rose-600">{(item.qcFailedQuantity || 0).toLocaleString()}</td>
+                        <td className="px-3 py-2.5 text-center font-mono font-bold text-slate-900 dark:text-white">{item.orderQuantity.toLocaleString()} cái</td>
+                        <td className="px-3 py-2.5 text-center font-mono font-bold text-emerald-600 dark:text-emerald-400">{(item.qcPassedQuantity || 0).toLocaleString()}</td>
+                        <td className="px-3 py-2.5 text-center font-mono font-bold text-rose-600 dark:text-rose-400">{(item.qcFailedQuantity || 0).toLocaleString()}</td>
                         <td className="px-3 py-2.5 text-center">
                           {selectedPoForDetail.status !== "COMPLETED" && selectedPoForDetail.status !== "PARTIAL_RETURN" ? (
                             <Button
@@ -2967,12 +3164,12 @@ export function ProductsClient({
                                 });
                                 setShowBatchLabelModal(true);
                               }}
-                              className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 text-[11px] font-semibold h-7 px-2"
+                              className="border-indigo-200 dark:border-neutral-700 text-indigo-600 dark:text-indigo-300 bg-transparent dark:bg-[#242428] hover:bg-indigo-50 dark:hover:bg-[#2C2C32] text-[11px] font-semibold h-7 px-2"
                             >
                               <Barcode className="h-3 w-3 mr-1" /> In Tem Lô
                             </Button>
                           ) : (
-                            <span className="text-slate-300">—</span>
+                            <span className="text-slate-400 dark:text-neutral-500">—</span>
                           )}
                         </td>
                       </tr>
@@ -2983,20 +3180,20 @@ export function ProductsClient({
             </div>
 
             {selectedPoForDetail.qcNotes && (
-              <div className="p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl text-xs space-y-1">
-                <div className="font-bold text-indigo-900">Ghi chú QC & Yêu cầu sản xuất:</div>
-                <div className="text-slate-700">{selectedPoForDetail.qcNotes}</div>
+              <div className="p-3 bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-800/60 rounded-xl text-xs space-y-1">
+                <div className="font-bold text-indigo-900 dark:text-indigo-300">Ghi chú QC & Yêu cầu sản xuất:</div>
+                <div className="text-slate-700 dark:text-neutral-200">{selectedPoForDetail.qcNotes}</div>
               </div>
             )}
 
             {selectedPoForDetail.failReasonNotes && (
-              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs space-y-1">
-                <div className="font-bold text-rose-900">Ghi chú lỗi kỹ thuật (Trả NSX):</div>
-                <div className="text-rose-800">{selectedPoForDetail.failReasonNotes}</div>
+              <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 rounded-xl text-xs space-y-1">
+                <div className="font-bold text-rose-900 dark:text-rose-200">Ghi chú lỗi kỹ thuật (Trả NSX):</div>
+                <div className="text-rose-800 dark:text-rose-300">{selectedPoForDetail.failReasonNotes}</div>
               </div>
             )}
 
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t dark:border-neutral-800 pt-4">
               <div className="flex items-center gap-2">
                 {selectedPoForDetail.status !== "COMPLETED" && selectedPoForDetail.status !== "PARTIAL_RETURN" && (
                   <Button
@@ -3014,7 +3211,7 @@ export function ProductsClient({
                   <Button
                     variant="outline"
                     onClick={() => handleDeleteBatchOrder(selectedPoForDetail)}
-                    className="border-rose-200 text-rose-600 hover:bg-rose-50 font-bold"
+                    className="border-rose-200 dark:border-rose-800/60 text-rose-600 dark:text-rose-400 bg-transparent dark:bg-rose-950/20 hover:bg-rose-50 dark:hover:bg-rose-950/40 font-bold"
                   >
                     <Trash2 className="h-4 w-4 mr-1.5" /> Xóa phiếu đặt
                   </Button>
@@ -3022,23 +3219,23 @@ export function ProductsClient({
               </div>
 
               <div className="flex items-center gap-2">
-                <Button variant="outline" onClick={() => setShowBatchDetailModal(false)}>
+                <Button variant="outline" onClick={() => setShowBatchDetailModal(false)} className="dark:bg-[#242428] dark:border-neutral-700 dark:text-neutral-200">
                   Đóng
                 </Button>
                 
                 {selectedPoForDetail.status === "COMPLETED" ? (
                   <Button
                     disabled
-                    className="bg-slate-100 text-slate-400 border border-slate-200 font-bold cursor-not-allowed"
+                    className="bg-slate-100 dark:bg-neutral-800 text-slate-400 dark:text-neutral-400 border border-slate-200 dark:border-neutral-700 font-bold cursor-not-allowed"
                   >
-                    <CheckCircle2 className="h-4 w-4 mr-1.5 text-emerald-600" /> Đã Nhập Kho (Đóng QC)
+                    <CheckCircle2 className="h-4 w-4 mr-1.5 text-emerald-600 dark:text-emerald-400" /> Đã Nhập Kho (Đóng QC)
                   </Button>
                 ) : selectedPoForDetail.status === "PARTIAL_RETURN" ? (
                   <Button
                     disabled
-                    className="bg-slate-100 text-slate-400 border border-slate-200 font-bold cursor-not-allowed"
+                    className="bg-slate-100 dark:bg-neutral-800 text-slate-400 dark:text-neutral-400 border border-slate-200 dark:border-neutral-700 font-bold cursor-not-allowed"
                   >
-                    <CheckCircle2 className="h-4 w-4 mr-1.5 text-amber-600" /> Đã QC & Tách Lô Trả NSX (Đóng QC)
+                    <CheckCircle2 className="h-4 w-4 mr-1.5 text-amber-600 dark:text-amber-400" /> Đã QC & Tách Lô Trả NSX (Đóng QC)
                   </Button>
                 ) : (
                   <Button
@@ -3061,22 +3258,22 @@ export function ProductsClient({
 
       {/* Modal Add Product (Tab Sản phẩm) */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full flex flex-col max-h-[90vh] overflow-hidden border border-slate-100">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-[#18181B] dark:border dark:border-neutral-800 rounded-2xl shadow-2xl max-w-2xl w-full flex flex-col max-h-[90vh] overflow-hidden border border-slate-100">
             {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50 shrink-0">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-neutral-800 bg-slate-50/50 dark:bg-[#202024] shrink-0">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-slate-900 text-white shadow-md">
+                <div className="p-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-black shadow-md">
                   <Plus className="h-4 w-4 stroke-[3]" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-900">Thêm sản phẩm mới</h3>
-                  <p className="text-xs text-slate-500">Khai báo sản phẩm và tự động khởi tạo biến thể SKU</p>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Thêm sản phẩm mới</h3>
+                  <p className="text-xs text-slate-500 dark:text-neutral-400">Khai báo sản phẩm và tự động khởi tạo biến thể SKU</p>
                 </div>
               </div>
               <button
                 onClick={() => setShowAddModal(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-neutral-200 hover:bg-slate-200/60 dark:hover:bg-neutral-800 transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -3086,7 +3283,7 @@ export function ProductsClient({
             <form onSubmit={handleAddProduct} className="flex flex-col flex-1 overflow-hidden">
               <div className="p-6 space-y-5 overflow-y-auto max-h-[calc(90vh-130px)]">
                 {/* SKU Preview Banner */}
-                <div className="p-4 rounded-xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white shadow-lg space-y-2">
+                <div className="p-4 rounded-xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white shadow-lg space-y-2 border border-white/10">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-300 flex items-center gap-1.5">
                       <Sparkles className="h-3.5 w-3.5 text-amber-400" /> Mã SKU Tự Động Sinh:
@@ -3115,14 +3312,14 @@ export function ProductsClient({
                 {/* General Info Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-neutral-200 uppercase tracking-wider mb-1">
                       Tên sản phẩm *
                     </label>
                     <Input
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="Ví dụ: Áo thun Polo Nam"
-                      className="h-10 text-sm"
+                      className="h-10 text-sm dark:bg-[#202024] dark:border-neutral-700/80 dark:text-white"
                       required
                     />
                   </div>
@@ -3130,7 +3327,7 @@ export function ProductsClient({
                   {/* Brand Field */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      <label className="block text-xs font-bold text-slate-700 dark:text-neutral-200 uppercase tracking-wider">
                         Thương hiệu
                       </label>
                       <button
@@ -3139,7 +3336,7 @@ export function ProductsClient({
                           if (brandMode === "SELECT") setBrandMode("ADD");
                           else setBrandMode("SELECT");
                         }}
-                        className="text-xs text-indigo-600 font-bold hover:underline"
+                        className="text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline"
                       >
                         {brandMode === "SELECT" ? "+ Thêm" : "Hủy"}
                       </button>
@@ -3150,26 +3347,26 @@ export function ProductsClient({
                         <button
                           type="button"
                           onClick={() => setOpenBrandDropdown(!openBrandDropdown)}
-                          className="w-full h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm font-medium flex items-center justify-between shadow-sm hover:border-slate-400 focus:ring-2 focus:ring-indigo-500 text-left"
+                          className="w-full h-10 px-3 rounded-lg border border-slate-300 dark:border-neutral-700 bg-white dark:bg-[#202024] text-sm font-medium flex items-center justify-between shadow-sm hover:border-slate-400 focus:ring-2 focus:ring-indigo-500 text-left"
                         >
-                          <span className={brandName ? "text-slate-900 font-semibold truncate pr-2" : "text-slate-400"}>
+                          <span className={brandName ? "text-slate-900 dark:text-white font-semibold truncate pr-2" : "text-slate-400 dark:text-neutral-400"}>
                             {brandName || "-- Chọn thương hiệu --"}
                           </span>
-                          <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />
+                          <ChevronDown className="h-4 w-4 text-slate-400 dark:text-neutral-400 shrink-0" />
                         </button>
 
                         {openBrandDropdown && (
                           <>
                             <div className="fixed inset-0 z-20" onClick={() => setOpenBrandDropdown(false)} />
-                            <div className="absolute left-0 right-0 top-full mt-1 max-h-60 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl py-1 z-30 divide-y divide-slate-50">
+                            <div className="absolute left-0 right-0 top-full mt-1 max-h-60 overflow-y-auto rounded-xl border border-slate-200 dark:border-neutral-700 bg-white dark:bg-[#1C1C20] shadow-xl py-1 z-30 divide-y divide-slate-50 dark:divide-neutral-800">
                               {brandsList.length === 0 ? (
-                                <div className="px-3 py-2 text-xs text-slate-400 italic">Chưa có thương hiệu nào</div>
+                                <div className="px-3 py-2 text-xs text-slate-400 dark:text-neutral-400 italic">Chưa có thương hiệu nào</div>
                               ) : (
                                 brandsList.map((b) => (
                                   <div
                                     key={b}
-                                    className={`group flex items-center justify-between px-3 py-2 text-sm cursor-pointer hover:bg-indigo-50 transition-colors ${
-                                      brandName === b ? "bg-indigo-50/70 font-semibold text-indigo-900" : "text-slate-700"
+                                    className={`group flex items-center justify-between px-3 py-2 text-sm cursor-pointer hover:bg-indigo-50 dark:hover:bg-white/5 transition-colors ${
+                                      brandName === b ? "bg-indigo-50/70 dark:bg-white/10 font-bold text-indigo-900 dark:text-indigo-300" : "text-slate-700 dark:text-neutral-200"
                                     }`}
                                     onClick={() => {
                                       setBrandName(b);
@@ -3177,7 +3374,7 @@ export function ProductsClient({
                                     }}
                                   >
                                     <span className="flex items-center gap-2 truncate pr-2">
-                                      {brandName === b && <Check className="h-4 w-4 text-indigo-600 shrink-0" />}
+                                      {brandName === b && <Check className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0" />}
                                       <span>{b}</span>
                                     </span>
                                     <div
@@ -3193,7 +3390,7 @@ export function ProductsClient({
                                           setBrandMode("EDIT");
                                           setOpenBrandDropdown(false);
                                         }}
-                                        className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-100/60 rounded"
+                                        className="p-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-100/60 dark:hover:bg-neutral-800 rounded"
                                         title="Sửa thương hiệu này"
                                       >
                                         <Pencil className="h-3.5 w-3.5" />
@@ -3202,12 +3399,12 @@ export function ProductsClient({
                                         type="button"
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          if (confirm(`Bạn có chắc muốn xóa thương hiệu "${b}" khỏi danh sách?`)) {
+                                          if (window.confirm(`Bạn có chắc muốn xóa thương hiệu "${b}" khỏi danh sách?`)) {
                                             setBrandsList(brandsList.filter((x) => x !== b));
                                             if (brandName === b) setBrandName("");
                                           }
                                         }}
-                                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-100/60 rounded"
+                                        className="p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-100/60 dark:hover:bg-rose-950/40 rounded"
                                         title="Xóa thương hiệu này"
                                       >
                                         <Trash2 className="h-3.5 w-3.5" />
@@ -3228,7 +3425,7 @@ export function ProductsClient({
                           value={brandName}
                           onChange={(e) => setBrandName(e.target.value)}
                           placeholder="Tên thương hiệu mới..."
-                          className="h-10 text-sm flex-1"
+                          className="h-10 text-sm flex-1 dark:bg-[#202024] dark:border-neutral-700/80 dark:text-white"
                         />
                         <Button
                           type="button"
@@ -3252,7 +3449,7 @@ export function ProductsClient({
                           value={modalBrandEditName}
                           onChange={(e) => setModalBrandEditName(e.target.value)}
                           placeholder="Sửa tên thương hiệu..."
-                          className="h-10 text-sm flex-1"
+                          className="h-10 text-sm flex-1 dark:bg-[#202024] dark:border-neutral-700/80 dark:text-white"
                         />
                         <Button
                           type="button"
@@ -3279,7 +3476,7 @@ export function ProductsClient({
                   {/* Category */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      <label className="block text-xs font-bold text-slate-700 dark:text-neutral-200 uppercase tracking-wider">
                         Chủng loại sản phẩm *
                       </label>
                       <button
@@ -3292,7 +3489,7 @@ export function ProductsClient({
                             setCatMode("SELECT");
                           }
                         }}
-                        className="text-xs text-indigo-600 font-bold hover:underline"
+                        className="text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline"
                       >
                         {catMode === "SELECT" ? "+ Thêm mới" : "Hủy"}
                       </button>
@@ -3303,25 +3500,25 @@ export function ProductsClient({
                         <button
                           type="button"
                           onClick={() => setOpenCatDropdown(!openCatDropdown)}
-                          className="w-full h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm font-medium flex items-center justify-between shadow-sm hover:border-slate-400 focus:ring-2 focus:ring-indigo-500 text-left"
+                          className="w-full h-10 px-3 rounded-lg border border-slate-300 dark:border-neutral-700 bg-white dark:bg-[#202024] text-sm font-medium flex items-center justify-between shadow-sm hover:border-slate-400 focus:ring-2 focus:ring-indigo-500 text-left"
                         >
-                          <span className={categoryName ? "text-slate-900 font-semibold truncate pr-2" : "text-slate-400"}>
+                          <span className={categoryName ? "text-slate-900 dark:text-white font-semibold truncate pr-2" : "text-slate-400 dark:text-neutral-400"}>
                             {categoryName
                               ? `${categoryName} (Mã: ${categoriesList.find((c) => c.name === categoryName)?.letter || customCatLetter})`
                               : "-- Chọn chủng loại --"}
                           </span>
-                          <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />
+                          <ChevronDown className="h-4 w-4 text-slate-400 dark:text-neutral-400 shrink-0" />
                         </button>
 
                         {openCatDropdown && (
                           <>
                             <div className="fixed inset-0 z-20" onClick={() => setOpenCatDropdown(false)} />
-                            <div className="absolute left-0 right-0 top-full mt-1 max-h-60 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl py-1 z-30 divide-y divide-slate-50">
+                            <div className="absolute left-0 right-0 top-full mt-1 max-h-60 overflow-y-auto rounded-xl border border-slate-200 dark:border-neutral-700 bg-white dark:bg-[#1C1C20] shadow-xl py-1 z-30 divide-y divide-slate-50 dark:divide-neutral-800">
                               {categoriesList.map((c) => (
                                 <div
                                   key={c.name}
-                                  className={`group flex items-center justify-between px-3 py-2 text-sm cursor-pointer hover:bg-indigo-50 transition-colors ${
-                                    categoryName === c.name ? "bg-indigo-50/70 font-semibold text-indigo-900" : "text-slate-700"
+                                  className={`group flex items-center justify-between px-3 py-2 text-sm cursor-pointer hover:bg-indigo-50 dark:hover:bg-white/5 transition-colors ${
+                                    categoryName === c.name ? "bg-indigo-50/70 dark:bg-white/10 font-bold text-indigo-900 dark:text-indigo-300" : "text-slate-700 dark:text-neutral-200"
                                   }`}
                                   onClick={() => {
                                     setCategoryName(c.name);
@@ -3330,9 +3527,9 @@ export function ProductsClient({
                                   }}
                                 >
                                   <span className="flex items-center gap-2 truncate pr-2">
-                                    {categoryName === c.name && <Check className="h-4 w-4 text-indigo-600 shrink-0" />}
+                                    {categoryName === c.name && <Check className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0" />}
                                     <span>
-                                      {c.name} <span className="text-xs text-slate-400 font-mono">(Mã: {c.letter})</span>
+                                      {c.name} <span className="text-xs text-slate-400 dark:text-neutral-400 font-mono">(Mã: {c.letter})</span>
                                     </span>
                                   </span>
                                   <div
@@ -3349,7 +3546,7 @@ export function ProductsClient({
                                         setCatMode("EDIT");
                                         setOpenCatDropdown(false);
                                       }}
-                                      className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-100/60 rounded"
+                                      className="p-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-100/60 dark:hover:bg-neutral-800 rounded"
                                       title="Sửa chủng loại này"
                                     >
                                       <Pencil className="h-3.5 w-3.5" />
@@ -3362,7 +3559,7 @@ export function ProductsClient({
                                           alert("Phải giữ lại ít nhất 1 chủng loại sản phẩm trong danh sách!");
                                           return;
                                         }
-                                        if (confirm(`Bạn có chắc muốn xóa chủng loại "${c.name}"?`)) {
+                                        if (window.confirm(`Bạn có chắc muốn xóa chủng loại "${c.name}"?`)) {
                                           const nextList = categoriesList.filter((x) => x.name !== c.name);
                                           setCategoriesList(nextList);
                                           if (categoryName === c.name) {
@@ -3371,7 +3568,7 @@ export function ProductsClient({
                                           }
                                         }
                                       }}
-                                      className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-100/60 rounded"
+                                      className="p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-100/60 dark:hover:bg-rose-950/40 rounded"
                                       title="Xóa chủng loại này"
                                     >
                                       <Trash2 className="h-3.5 w-3.5" />
@@ -3391,7 +3588,7 @@ export function ProductsClient({
                           value={categoryName}
                           onChange={(e) => setCategoryName(e.target.value)}
                           placeholder="Tên chủng loại mới..."
-                          className="h-9 text-sm"
+                          className="h-9 text-sm dark:bg-[#202024] dark:border-neutral-700/80 dark:text-white"
                           required
                         />
                         <div className="flex items-center gap-1.5">
@@ -3400,7 +3597,7 @@ export function ProductsClient({
                             onChange={(e) => setCustomCatLetter(e.target.value.toUpperCase().slice(0, 1))}
                             placeholder="Mã (1 chữ cái)"
                             maxLength={1}
-                            className="h-9 w-24 text-center font-mono font-bold uppercase text-sm"
+                            className="h-9 w-24 text-center font-mono font-bold uppercase text-sm dark:bg-[#202024] dark:border-neutral-700/80 dark:text-white"
                             required
                           />
                           <Button
@@ -3429,7 +3626,7 @@ export function ProductsClient({
                           value={editCatName}
                           onChange={(e) => setEditCatName(e.target.value)}
                           placeholder="Tên chủng loại..."
-                          className="h-9 text-sm"
+                          className="h-9 text-sm dark:bg-[#202024] dark:border-neutral-700/80 dark:text-white"
                           required
                         />
                         <div className="flex items-center gap-1.5">
@@ -3438,7 +3635,7 @@ export function ProductsClient({
                             onChange={(e) => setEditCatLetter(e.target.value.toUpperCase().slice(0, 1))}
                             placeholder="Mã (1 chữ cái)"
                             maxLength={1}
-                            className="h-9 w-24 text-center font-mono font-bold uppercase text-sm"
+                            className="h-9 w-24 text-center font-mono font-bold uppercase text-sm dark:bg-[#202024] dark:border-neutral-700/80 dark:text-white"
                             required
                           />
                           <Button
@@ -3469,7 +3666,7 @@ export function ProductsClient({
                   {/* Material / Raw Ingredient */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      <label className="block text-xs font-bold text-slate-700 dark:text-neutral-200 uppercase tracking-wider">
                         Chất liệu / Nguyên liệu *
                       </label>
                       <button
@@ -3482,7 +3679,7 @@ export function ProductsClient({
                             setMatMode("SELECT");
                           }
                         }}
-                        className="text-xs text-indigo-600 font-bold hover:underline"
+                        className="text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline"
                       >
                         {matMode === "SELECT" ? "+ Thêm mới" : "Hủy"}
                       </button>
@@ -3493,25 +3690,25 @@ export function ProductsClient({
                         <button
                           type="button"
                           onClick={() => setOpenMatDropdown(!openMatDropdown)}
-                          className="w-full h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm font-medium flex items-center justify-between shadow-sm hover:border-slate-400 focus:ring-2 focus:ring-indigo-500 text-left"
+                          className="w-full h-10 px-3 rounded-lg border border-slate-300 dark:border-neutral-700 bg-white dark:bg-[#202024] text-sm font-medium flex items-center justify-between shadow-sm hover:border-slate-400 focus:ring-2 focus:ring-indigo-500 text-left"
                         >
-                          <span className={subcategoryName ? "text-slate-900 font-semibold truncate pr-2" : "text-slate-400"}>
+                          <span className={subcategoryName ? "text-slate-900 dark:text-white font-semibold truncate pr-2" : "text-slate-400 dark:text-neutral-400"}>
                             {subcategoryName
                               ? `${subcategoryName} (Mã: ${materialsList.find((m) => m.name === subcategoryName)?.letter || customMatLetter})`
                               : "-- Chọn chất liệu --"}
                           </span>
-                          <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />
+                          <ChevronDown className="h-4 w-4 text-slate-400 dark:text-neutral-400 shrink-0" />
                         </button>
 
                         {openMatDropdown && (
                           <>
                             <div className="fixed inset-0 z-20" onClick={() => setOpenMatDropdown(false)} />
-                            <div className="absolute left-0 right-0 top-full mt-1 max-h-60 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl py-1 z-30 divide-y divide-slate-50">
+                            <div className="absolute left-0 right-0 top-full mt-1 max-h-60 overflow-y-auto rounded-xl border border-slate-200 dark:border-neutral-700 bg-white dark:bg-[#1C1C20] shadow-xl py-1 z-30 divide-y divide-slate-50 dark:divide-neutral-800">
                               {materialsList.map((m) => (
                                 <div
                                   key={m.name}
-                                  className={`group flex items-center justify-between px-3 py-2 text-sm cursor-pointer hover:bg-indigo-50 transition-colors ${
-                                    subcategoryName === m.name ? "bg-indigo-50/70 font-semibold text-indigo-900" : "text-slate-700"
+                                  className={`group flex items-center justify-between px-3 py-2 text-sm cursor-pointer hover:bg-indigo-50 dark:hover:bg-white/5 transition-colors ${
+                                    subcategoryName === m.name ? "bg-indigo-50/70 dark:bg-white/10 font-bold text-indigo-900 dark:text-indigo-300" : "text-slate-700 dark:text-neutral-200"
                                   }`}
                                   onClick={() => {
                                     setSubcategoryName(m.name);
@@ -3520,9 +3717,9 @@ export function ProductsClient({
                                   }}
                                 >
                                   <span className="flex items-center gap-2 truncate pr-2">
-                                    {subcategoryName === m.name && <Check className="h-4 w-4 text-indigo-600 shrink-0" />}
+                                    {subcategoryName === m.name && <Check className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0" />}
                                     <span>
-                                      {m.name} <span className="text-xs text-slate-400 font-mono">(Mã: {m.letter})</span>
+                                      {m.name} <span className="text-xs text-slate-400 dark:text-neutral-400 font-mono">(Mã: {m.letter})</span>
                                     </span>
                                   </span>
                                   <div
@@ -3539,7 +3736,7 @@ export function ProductsClient({
                                         setMatMode("EDIT");
                                         setOpenMatDropdown(false);
                                       }}
-                                      className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-100/60 rounded"
+                                      className="p-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-100/60 dark:hover:bg-neutral-800 rounded"
                                       title="Sửa chất liệu này"
                                     >
                                       <Pencil className="h-3.5 w-3.5" />
@@ -3552,7 +3749,7 @@ export function ProductsClient({
                                           alert("Phải giữ lại ít nhất 1 chất liệu / nguyên liệu trong danh sách!");
                                           return;
                                         }
-                                        if (confirm(`Bạn có chắc muốn xóa chất liệu "${m.name}"?`)) {
+                                        if (window.confirm(`Bạn có chắc muốn xóa chất liệu "${m.name}"?`)) {
                                           const nextList = materialsList.filter((x) => x.name !== m.name);
                                           setMaterialsList(nextList);
                                           if (subcategoryName === m.name) {
@@ -3561,7 +3758,7 @@ export function ProductsClient({
                                           }
                                         }
                                       }}
-                                      className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-100/60 rounded"
+                                      className="p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-100/60 dark:hover:bg-rose-950/40 rounded"
                                       title="Xóa chất liệu này"
                                     >
                                       <Trash2 className="h-3.5 w-3.5" />
@@ -3581,7 +3778,7 @@ export function ProductsClient({
                           value={subcategoryName}
                           onChange={(e) => setSubcategoryName(e.target.value)}
                           placeholder="Tên chất liệu / nguyên liệu mới..."
-                          className="h-9 text-sm"
+                          className="h-9 text-sm dark:bg-[#202024] dark:border-neutral-700/80 dark:text-white"
                           required
                         />
                         <div className="flex items-center gap-1.5">
@@ -3590,7 +3787,7 @@ export function ProductsClient({
                             onChange={(e) => setCustomMatLetter(e.target.value.toUpperCase().slice(0, 1))}
                             placeholder="Mã (1 chữ cái)"
                             maxLength={1}
-                            className="h-9 w-24 text-center font-mono font-bold uppercase text-sm"
+                            className="h-9 w-24 text-center font-mono font-bold uppercase text-sm dark:bg-[#202024] dark:border-neutral-700/80 dark:text-white"
                             required
                           />
                           <Button
@@ -3619,7 +3816,7 @@ export function ProductsClient({
                           value={editMatName}
                           onChange={(e) => setEditMatName(e.target.value)}
                           placeholder="Tên chất liệu / nguyên liệu..."
-                          className="h-9 text-sm"
+                          className="h-9 text-sm dark:bg-[#202024] dark:border-neutral-700/80 dark:text-white"
                           required
                         />
                         <div className="flex items-center gap-1.5">
@@ -3628,7 +3825,7 @@ export function ProductsClient({
                             onChange={(e) => setEditMatLetter(e.target.value.toUpperCase().slice(0, 1))}
                             placeholder="Mã (1 chữ cái)"
                             maxLength={1}
-                            className="h-9 w-24 text-center font-mono font-bold uppercase text-sm"
+                            className="h-9 w-24 text-center font-mono font-bold uppercase text-sm dark:bg-[#202024] dark:border-neutral-700/80 dark:text-white"
                             required
                           />
                           <Button
@@ -3657,44 +3854,25 @@ export function ProductsClient({
                   </div>
                 </div>
 
-                {/* Price & Manufacturer */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                      Giá bán dự kiến (VNĐ) *
-                    </label>
-                    <Input
-                      type="number"
-                      value={sellingPrice}
-                      onChange={(e) => setSellingPrice(e.target.value)}
-                      placeholder="Ví dụ: 350000"
-                      className="h-10 text-sm font-medium"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                      Nhà sản xuất (NSX)
-                    </label>
-                    <select
-                      value={manufacturerId}
-                      onChange={(e) => setManufacturerId(e.target.value)}
-                      className="w-full h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm font-medium focus:ring-2 focus:ring-indigo-500"
-                    >
-                      <option value="">-- Chọn NSX (Tùy chọn) --</option>
-                      {manufacturers.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.name} ({m.code})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                {/* Selling Price */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-neutral-200 uppercase tracking-wider mb-1">
+                    Giá bán dự kiến (VNĐ) *
+                  </label>
+                  <Input
+                    type="number"
+                    value={sellingPrice}
+                    onChange={(e) => setSellingPrice(e.target.value)}
+                    placeholder="Ví dụ: 350000"
+                    className="h-10 text-sm font-medium dark:bg-[#202024] dark:border-neutral-700/80 dark:text-white font-mono"
+                    required
+                  />
                 </div>
 
                 {/* Color Selection Section */}
-                <div className="space-y-2 border-t border-slate-100 pt-4">
+                <div className="space-y-2 border-t border-slate-100 dark:border-neutral-800 pt-4">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                    <label className="text-xs font-bold text-slate-800 dark:text-neutral-200 uppercase tracking-wider">
                       Màu sắc ({selectedColors.length})
                     </label>
                     <div className="flex items-center gap-1.5">
@@ -3708,14 +3886,14 @@ export function ProductsClient({
                           }
                         }}
                         placeholder="+ Nhập màu..."
-                        className="h-7 text-xs w-32"
+                        className="h-7 text-xs w-32 dark:bg-[#202024] dark:border-neutral-700/80 dark:text-white"
                       />
                       <Button
                         type="button"
                         size="sm"
                         variant="outline"
                         onClick={addCustomColor}
-                        className="h-7 text-xs px-2"
+                        className="h-7 text-xs px-2 dark:bg-[#242428] dark:border-neutral-700 dark:text-neutral-200"
                       >
                         Thêm
                       </Button>
@@ -3730,8 +3908,8 @@ export function ProductsClient({
                           key={cName}
                           className={`group relative inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all border shadow-sm ${
                             isSelected
-                              ? "bg-slate-900 text-white border-slate-900"
-                              : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                              ? "bg-slate-900 dark:bg-white text-white dark:text-black border-slate-900 dark:border-white font-bold"
+                              : "bg-slate-50 dark:bg-[#202024] text-slate-700 dark:text-neutral-200 border-slate-200 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-800"
                           }`}
                         >
                           <button
@@ -3749,14 +3927,14 @@ export function ProductsClient({
                           </button>
 
                           {/* Hover Pencil & Trash2 icons */}
-                          <div className="flex items-center gap-0.5 ml-1 border-l pl-1 border-slate-300 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center gap-0.5 ml-1 border-l pl-1 border-slate-300 dark:border-neutral-600 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleEditColorChip(cName);
                               }}
-                              className="p-0.5 text-slate-400 hover:text-white rounded"
+                              className="p-0.5 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded"
                               title="Sửa tên màu"
                             >
                               <Pencil className="h-3 w-3" />
@@ -3780,9 +3958,9 @@ export function ProductsClient({
                 </div>
 
                 {/* Size Selection Section */}
-                <div className="space-y-2 border-t border-slate-100 pt-4">
+                <div className="space-y-2 border-t border-slate-100 dark:border-neutral-800 pt-4">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                    <label className="text-xs font-bold text-slate-800 dark:text-neutral-200 uppercase tracking-wider">
                       Kích thước / Size ({selectedSizes.length})
                     </label>
                     <div className="flex items-center gap-1.5">
@@ -3796,14 +3974,14 @@ export function ProductsClient({
                           }
                         }}
                         placeholder="+ Nhập size..."
-                        className="h-7 text-xs w-32 uppercase"
+                        className="h-7 text-xs w-32 uppercase dark:bg-[#202024] dark:border-neutral-700/80 dark:text-white"
                       />
                       <Button
                         type="button"
                         size="sm"
                         variant="outline"
                         onClick={addCustomSize}
-                        className="h-7 text-xs px-2"
+                        className="h-7 text-xs px-2 dark:bg-[#242428] dark:border-neutral-700 dark:text-neutral-200"
                       >
                         Thêm
                       </Button>
@@ -3818,8 +3996,8 @@ export function ProductsClient({
                           key={sz}
                           className={`group relative inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all border shadow-sm ${
                             isSelected
-                              ? "bg-slate-900 text-white border-slate-900"
-                              : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                              ? "bg-slate-900 dark:bg-white text-white dark:text-black border-slate-900 dark:border-white"
+                              : "bg-slate-50 dark:bg-[#202024] text-slate-700 dark:text-neutral-200 border-slate-200 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-800"
                           }`}
                         >
                           <button
@@ -3837,14 +4015,14 @@ export function ProductsClient({
                           </button>
 
                           {/* Hover Pencil & Trash2 icons */}
-                          <div className="flex items-center gap-0.5 ml-1 border-l pl-1 border-indigo-300 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center gap-0.5 ml-1 border-l pl-1 border-indigo-300 dark:border-neutral-600 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleEditSizeChip(sz);
                               }}
-                              className="p-0.5 text-slate-300 hover:text-white rounded"
+                              className="p-0.5 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded"
                               title="Sửa size"
                             >
                               <Pencil className="h-3 w-3" />
@@ -3855,7 +4033,7 @@ export function ProductsClient({
                                 e.stopPropagation();
                                 handleDeleteSizeChip(sz);
                               }}
-                              className="p-0.5 text-slate-300 hover:text-rose-200 rounded"
+                              className="p-0.5 text-slate-400 hover:text-rose-200 rounded"
                               title="Xóa size này khỏi danh sách"
                             >
                               <Trash2 className="h-3 w-3" />
@@ -3869,14 +4047,14 @@ export function ProductsClient({
               </div>
 
               {/* Modal Footer Bar */}
-              <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/50 shrink-0">
-                <Button type="button" variant="outline" onClick={() => setShowAddModal(false)} className="text-slate-600">
+              <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 dark:border-neutral-800 bg-slate-50/50 dark:bg-[#202024] shrink-0">
+                <Button type="button" variant="outline" onClick={() => setShowAddModal(false)} className="text-slate-600 dark:text-neutral-200 dark:bg-[#242428] dark:border-neutral-700">
                   Hủy bỏ
                 </Button>
                 <Button
                   type="submit"
                   disabled={isSubmitting}
-                  className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-5 shadow-lg"
+                  className="bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-black dark:hover:bg-neutral-200 font-bold px-5 shadow-lg"
                 >
                   {isSubmitting ? "Đang lưu..." : "Lưu Sản Phẩm & Sinh SKU"}
                 </Button>
@@ -3886,99 +4064,423 @@ export function ProductsClient({
         </div>
       )}
 
+      {/* Modal Thêm / Sửa Nhà sản xuất (NSX) */}
+      {showMfrModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-[#18181B] dark:border dark:border-neutral-800 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-neutral-800 bg-slate-50/50 dark:bg-[#202024]">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-indigo-600 text-white">
+                  <Building2 className="h-4 w-4" />
+                </div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  {editingMfr ? "Sửa Nhà sản xuất" : "Thêm Nhà sản xuất mới"}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowMfrModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-neutral-200 hover:bg-slate-100 dark:hover:bg-neutral-800"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddManufacturer} className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-neutral-200 uppercase tracking-wider mb-1">
+                  Tên Nhà sản xuất (Xưởng may) *
+                </label>
+                <Input
+                  value={mfrName}
+                  onChange={(e) => setMfrName(e.target.value)}
+                  placeholder="Ví dụ: Xưởng may Thanh Nam"
+                  className="h-10 text-sm dark:bg-[#202024] dark:border-neutral-700/80 dark:text-white"
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-neutral-200 uppercase tracking-wider mb-1">
+                  Mã NSX (3 chữ số EAN-8 Barcode)
+                </label>
+                <Input
+                  value={mfrCode}
+                  onChange={(e) => setMfrCode(e.target.value.replace(/\D/g, "").slice(0, 3))}
+                  placeholder="Ví dụ: 893 (để trống tự sinh ngẫu nhiên)"
+                  maxLength={3}
+                  className="h-10 text-sm font-mono dark:bg-[#202024] dark:border-neutral-700/80 dark:text-white"
+                />
+                <p className="text-[11px] text-slate-400 dark:text-neutral-400 mt-1">Dùng để ghép mã vạch sản phẩm chuẩn EAN-8</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-neutral-200 uppercase tracking-wider mb-1">
+                    Số điện thoại
+                  </label>
+                  <Input
+                    value={mfrPhone}
+                    onChange={(e) => setMfrPhone(e.target.value)}
+                    placeholder="090..."
+                    className="h-9 text-sm dark:bg-[#202024] dark:border-neutral-700/80 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-neutral-200 uppercase tracking-wider mb-1">
+                    Mã số thuế
+                  </label>
+                  <Input
+                    value={mfrTaxId}
+                    onChange={(e) => setMfrTaxId(e.target.value)}
+                    placeholder="MST..."
+                    className="h-9 text-sm dark:bg-[#202024] dark:border-neutral-700/80 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-neutral-200 uppercase tracking-wider mb-1">
+                  Địa chỉ xưởng / trụ sở
+                </label>
+                <Input
+                  value={mfrAddress}
+                  onChange={(e) => setMfrAddress(e.target.value)}
+                  placeholder="Địa chỉ..."
+                  className="h-9 text-sm dark:bg-[#202024] dark:border-neutral-700/80 dark:text-white"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-neutral-800">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowMfrModal(false)}
+                  className="text-xs h-9 dark:bg-[#242428] dark:border-neutral-700 dark:text-neutral-200"
+                >
+                  Hủy
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isMfrSubmitting}
+                  className="text-xs h-9 bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
+                >
+                  {isMfrSubmitting ? "Đang lưu..." : editingMfr ? "Cập nhật" : "Tạo Nhà sản xuất"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Quản lý Danh sách Nhà sản xuất (NSX) */}
+      {showMfrListModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-[#18181B] dark:border dark:border-neutral-800 rounded-2xl shadow-2xl max-w-2xl w-full flex flex-col max-h-[90vh] overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-neutral-800 bg-slate-50/50 dark:bg-[#202024] shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-indigo-600 text-white shadow-md">
+                  <Building2 className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    Quản lý Nhà sản xuất / Xưởng may
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 font-semibold">
+                      {manufacturers.length} NSX
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-neutral-400">Khai báo danh sách xưởng may, nhà cung ứng và mã barcode EAN-8</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setEditingMfr(null);
+                    setMfrName("");
+                    setMfrCode("");
+                    setMfrAddress("");
+                    setMfrPhone("");
+                    setMfrTaxId("");
+                    setShowMfrModal(true);
+                  }}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm"
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Thêm NSX mới
+                </Button>
+                <button
+                  onClick={() => setShowMfrListModal(false)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-neutral-200 hover:bg-slate-200/60 dark:hover:bg-neutral-800 transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body: Table of Manufacturers */}
+            <div className="p-6 overflow-y-auto flex-1 divide-y divide-slate-100 dark:divide-neutral-800">
+              {manufacturers.length === 0 ? (
+                <div className="py-12 text-center">
+                  <div className="inline-flex p-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 mb-3">
+                    <Building2 className="h-8 w-8 stroke-[1.5]" />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-700 dark:text-neutral-200">Chưa có Nhà sản xuất nào</p>
+                  <p className="text-xs text-slate-400 dark:text-neutral-400 mt-1 max-w-xs mx-auto">
+                    Thêm các xưởng may hoặc đối tác sản xuất để quản lý đơn đặt hàng và sinh mã vạch Barcode.
+                  </p>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setEditingMfr(null);
+                      setMfrName("");
+                      setMfrCode("");
+                      setMfrAddress("");
+                      setMfrPhone("");
+                      setMfrTaxId("");
+                      setShowMfrModal(true);
+                    }}
+                    className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold"
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Thêm Nhà sản xuất đầu tiên
+                  </Button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-neutral-700">
+                  <table className="w-full text-xs text-left">
+                    <thead>
+                      <tr className="bg-slate-50 dark:bg-[#26262B] border-b dark:border-neutral-700 text-slate-600 dark:text-neutral-200 uppercase font-bold">
+                        <th className="px-4 py-3">Mã EAN-8</th>
+                        <th className="px-4 py-3">Tên Nhà sản xuất / Xưởng</th>
+                        <th className="px-4 py-3">Điện thoại</th>
+                        <th className="px-4 py-3">Địa chỉ / MST</th>
+                        <th className="px-4 py-3 text-right">Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-neutral-800">
+                      {manufacturers.map((m) => (
+                        <tr key={m.id} className="hover:bg-slate-50/80 dark:hover:bg-white/5 transition-colors">
+                          <td className="px-4 py-3">
+                            <span className="font-mono font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800/60 px-2 py-0.5 rounded text-[11px]">
+                              {m.code}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 font-semibold text-slate-900 dark:text-white">
+                            {m.name}
+                          </td>
+                          <td className="px-4 py-3 text-slate-600 dark:text-neutral-300">
+                            {m.phone || <span className="text-slate-400 dark:text-neutral-500 italic">--</span>}
+                          </td>
+                          <td className="px-4 py-3 text-slate-500 dark:text-neutral-400">
+                            <div>{m.address || <span className="text-slate-400 dark:text-neutral-500 italic">Chưa có địa chỉ</span>}</div>
+                            {m.taxId && <div className="text-[10px] text-slate-400 dark:text-neutral-500">MST: {m.taxId}</div>}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setEditingMfr(m);
+                                  setMfrName(m.name);
+                                  setMfrCode(m.code);
+                                  setMfrAddress(m.address || "");
+                                  setMfrPhone(m.phone || "");
+                                  setMfrTaxId(m.taxId || "");
+                                  setShowMfrModal(true);
+                                }}
+                                className="h-7 text-[11px] px-2 text-slate-700 dark:text-neutral-200 hover:text-indigo-600 dark:hover:text-white border-slate-200 dark:border-neutral-700 dark:bg-[#242428]"
+                              >
+                                <Pencil className="h-3 w-3 mr-1" /> Sửa
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={async () => {
+                                  const ok = await confirm({
+                                    title: `Xóa Nhà sản xuất "${m.name}"?`,
+                                    description: `Bạn có chắc muốn xóa NSX "${m.name}" (Mã: ${m.code})? Các sản phẩm liên kết với NSX này sẽ được chuyển về trạng thái không thuộc NSX nào.`,
+                                    confirmLabel: "Xóa",
+                                    cancelLabel: "Hủy",
+                                    tone: "destructive",
+                                  });
+                                  if (ok) {
+                                    try {
+                                      const res = await fetch(`/api/manufacturers/${m.id}`, { method: "DELETE" });
+                                      if (!res.ok) throw new Error("Lỗi xóa NSX");
+                                      notify({ tone: "success", title: "Đã xóa NSX", body: `Đã xóa "${m.name}"` });
+                                      mutate();
+                                    } catch (e: any) {
+                                      notify({ tone: "error", title: "Lỗi", body: e.message });
+                                    }
+                                  }
+                                }}
+                                className="h-7 text-[11px] px-2 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 border-rose-200 dark:border-rose-800/60 dark:bg-rose-950/20"
+                              >
+                                <Trash2 className="h-3 w-3 mr-1" /> Xóa
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end px-6 py-3 border-t border-slate-100 dark:border-neutral-800 bg-slate-50/50 dark:bg-[#202024] shrink-0">
+              <Button variant="outline" size="sm" onClick={() => setShowMfrListModal(false)} className="dark:bg-[#242428] dark:border-neutral-700 dark:text-neutral-200">
+                Đóng
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal Sửa Dòng Sản Phẩm / SKU (editingGroup) */}
       {editingGroup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full p-6 space-y-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b pb-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-[#18181B] dark:border dark:border-neutral-800 rounded-2xl shadow-2xl max-w-xl w-full p-6 space-y-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b dark:border-neutral-800 pb-4">
               <div>
-                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <Pencil className="h-5 w-5 text-indigo-600" /> Sửa Dòng Sản Phẩm & SKU
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Pencil className="h-5 w-5 text-indigo-600 dark:text-indigo-400" /> Sửa Dòng Sản Phẩm & SKU
                 </h3>
-                <p className="text-xs text-slate-500 font-mono">Mã gốc: {editingGroup.baseSku}xxxx</p>
+                <p className="text-xs text-slate-500 dark:text-neutral-400 font-mono">Mã gốc: {editingGroup.baseSku}xxxx</p>
               </div>
-              <button onClick={() => setEditingGroup(null)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setEditingGroup(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-neutral-200">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             <form onSubmit={handleSaveGroupEdit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Tên sản phẩm *</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-neutral-200 uppercase tracking-wider mb-1">Tên sản phẩm *</label>
                 <Input
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
+                  className="dark:bg-[#202024] dark:border-neutral-700/80 dark:text-white"
                   required
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Thương hiệu (Brand)</label>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-neutral-200 uppercase tracking-wider mb-1">Thương hiệu (Brand)</label>
                   <Input
                     value={editBrandName}
                     onChange={(e) => setEditBrandName(e.target.value)}
                     placeholder="VD: Dakblancy"
+                    className="dark:bg-[#202024] dark:border-neutral-700/80 dark:text-white"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Đơn vị tính</label>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-neutral-200 uppercase tracking-wider mb-1">Đơn vị tính</label>
                   <Input
                     value={editUnit}
                     onChange={(e) => setEditUnit(e.target.value)}
+                    className="dark:bg-[#202024] dark:border-neutral-700/80 dark:text-white"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Màu sắc (phân cách bởi dấu phẩy)</label>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-neutral-200 uppercase tracking-wider mb-1">Màu sắc (phân cách bởi dấu phẩy)</label>
                   <Input
                     value={editColorsInput}
                     onChange={(e) => setEditColorsInput(e.target.value)}
                     placeholder="Đỏ, Đen, Xanh..."
+                    className="dark:bg-[#202024] dark:border-neutral-700/80 dark:text-white"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Size (phân cách bởi dấu phẩy)</label>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-neutral-200 uppercase tracking-wider mb-1">Size (phân cách bởi dấu phẩy)</label>
                   <Input
                     value={editSizesInput}
                     onChange={(e) => setEditSizesInput(e.target.value)}
                     placeholder="S, M, L, XL..."
+                    className="dark:bg-[#202024] dark:border-neutral-700/80 dark:text-white"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Giá nhập (VND)</label>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-neutral-200 uppercase tracking-wider mb-1">Giá nhập (VND)</label>
                   <Input
                     type="number"
                     value={editCostPrice}
                     onChange={(e) => setEditCostPrice(e.target.value)}
+                    className="dark:bg-[#202024] dark:border-neutral-700/80 dark:text-white font-mono"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Giá bán (VND) *</label>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-neutral-200 uppercase tracking-wider mb-1">Giá bán (VND) *</label>
                   <Input
                     type="number"
                     value={editSellingPrice}
                     onChange={(e) => setEditSellingPrice(e.target.value)}
+                    className="dark:bg-[#202024] dark:border-neutral-700/80 dark:text-white font-mono"
                     required
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 border-t pt-4">
-                <Button type="button" variant="outline" onClick={() => setEditingGroup(null)}>
-                  Hủy
+              <div className="flex items-center justify-between border-t dark:border-neutral-800 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={async () => {
+                    if (!editingGroup) return;
+                    const groupTitle = editingGroup.colorName ? `${editingGroup.name} - Màu ${editingGroup.colorName}` : editingGroup.name;
+                    const ok = await confirm({
+                      title: `Xác nhận xóa cụm sản phẩm?`,
+                      description: `Bạn có chắc muốn xóa vĩnh viễn cụm sản phẩm "${groupTitle}" (Mã gốc: ${editingGroup.baseSku}xx) cùng toàn bộ ${editingGroup.variants.length} biến thể size của màu này?`,
+                      confirmLabel: "Xóa toàn bộ",
+                      cancelLabel: "Hủy",
+                      tone: "destructive",
+                    });
+                    if (ok) {
+                      try {
+                        const res = await fetch("/api/products/batch-update", {
+                          method: "DELETE",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            categoryId: editingGroup.category.id,
+                            subcategoryId: editingGroup.subcategory.id,
+                            itemCode: editingGroup.itemCode,
+                            colorCode: editingGroup.colorCode || undefined,
+                          }),
+                        });
+                        const resJson = await res.json();
+                        if (!res.ok) throw new Error(resJson.error || "Lỗi xóa cụm sản phẩm");
+                        notify({ tone: "success", title: "Đã xóa", body: `Đã xóa cụm sản phẩm "${groupTitle}"` });
+                        setEditingGroup(null);
+                        mutate();
+                      } catch (err: any) {
+                        notify({ tone: "error", title: "Lỗi", body: err.message });
+                      }
+                    }
+                  }}
+                  className="text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 border-rose-200 dark:border-rose-800/60 dark:bg-rose-950/20 text-xs font-semibold"
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-1" /> Xóa cụm này
                 </Button>
-                <Button type="submit" disabled={isEditSubmitting} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold">
-                  {isEditSubmitting ? "Đang lưu..." : "Lưu Cập Nhật SKU"}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="outline" onClick={() => setEditingGroup(null)} className="dark:bg-[#242428] dark:border-neutral-700 dark:text-neutral-200">
+                    Hủy
+                  </Button>
+                  <Button type="submit" disabled={isEditSubmitting} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold">
+                    {isEditSubmitting ? "Đang lưu..." : "Lưu Cập Nhật SKU"}
+                  </Button>
+                </div>
               </div>
             </form>
           </div>
@@ -3987,76 +4489,111 @@ export function ProductsClient({
 
       {/* Modal Sửa Biến Thể Đơn Lẻ (editingVariant) */}
       {editingVariant && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b pb-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-[#18181B] dark:border dark:border-neutral-800 rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b dark:border-neutral-800 pb-4">
               <div>
-                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <Pencil className="h-5 w-5 text-indigo-600" /> Sửa Biến Thể SKU
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Pencil className="h-5 w-5 text-indigo-600 dark:text-indigo-400" /> Sửa Biến Thể SKU
                 </h3>
-                <p className="text-xs text-slate-500 font-mono">Mã SKU: {editingVariant.sku}</p>
+                <p className="text-xs text-slate-500 dark:text-neutral-400 font-mono">Mã SKU: {editingVariant.sku}</p>
               </div>
-              <button onClick={() => setEditingVariant(null)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setEditingVariant(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-neutral-200">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             <form onSubmit={handleSaveVariantEdit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Tên sản phẩm</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-neutral-200 uppercase tracking-wider mb-1">Tên sản phẩm</label>
                 <Input
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
+                  className="dark:bg-[#202024] dark:border-neutral-700/80 dark:text-white"
                   required
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Màu sắc</label>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-neutral-200 uppercase tracking-wider mb-1">Màu sắc</label>
                   <Input
                     value={editColorName}
                     onChange={(e) => setEditColorName(e.target.value)}
+                    className="dark:bg-[#202024] dark:border-neutral-700/80 dark:text-white"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Size</label>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-neutral-200 uppercase tracking-wider mb-1">Size</label>
                   <Input
                     value={editSizeName}
                     onChange={(e) => setEditSizeName(e.target.value)}
+                    className="dark:bg-[#202024] dark:border-neutral-700/80 dark:text-white"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Giá nhập (VND)</label>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-neutral-200 uppercase tracking-wider mb-1">Giá nhập (VND)</label>
                   <Input
                     type="number"
                     value={editCostPrice}
                     onChange={(e) => setEditCostPrice(e.target.value)}
+                    className="dark:bg-[#202024] dark:border-neutral-700/80 dark:text-white font-mono"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Giá bán (VND) *</label>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-neutral-200 uppercase tracking-wider mb-1">Giá bán (VND) *</label>
                   <Input
                     type="number"
                     value={editSellingPrice}
                     onChange={(e) => setEditSellingPrice(e.target.value)}
+                    className="dark:bg-[#202024] dark:border-neutral-700/80 dark:text-white font-mono"
                     required
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 border-t pt-4">
-                <Button type="button" variant="outline" onClick={() => setEditingVariant(null)}>
-                  Hủy
+              <div className="flex items-center justify-between border-t dark:border-neutral-800 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={async () => {
+                    if (!editingVariant) return;
+                    const ok = await confirm({
+                      title: `Xóa biến thể SKU "${editingVariant.sku}"?`,
+                      description: `Bạn có chắc muốn xóa biến thể SKU "${editingVariant.sku}" (${editingVariant.colorName || "Không màu"} - Size ${editingVariant.sizeName || "—"})?`,
+                      confirmLabel: "Xóa biến thể",
+                      cancelLabel: "Hủy",
+                      tone: "destructive",
+                    });
+                    if (ok) {
+                      try {
+                        const res = await fetch(`/api/products/${editingVariant.id}`, { method: "DELETE" });
+                        if (!res.ok) throw new Error("Lỗi xóa biến thể");
+                        notify({ tone: "success", title: "Đã xóa", body: `Đã xóa biến thể SKU "${editingVariant.sku}"` });
+                        setEditingVariant(null);
+                        mutate();
+                      } catch (err: any) {
+                        notify({ tone: "error", title: "Lỗi", body: err.message });
+                      }
+                    }
+                  }}
+                  className="text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 border-rose-200 dark:border-rose-800/60 dark:bg-rose-950/20 text-xs font-semibold"
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-1" /> Xóa biến thể
                 </Button>
-                <Button type="submit" disabled={isEditSubmitting} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold">
-                  {isEditSubmitting ? "Đang lưu..." : "Lưu Thay Đổi"}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="outline" onClick={() => setEditingVariant(null)} className="dark:bg-[#242428] dark:border-neutral-700 dark:text-neutral-200">
+                    Hủy
+                  </Button>
+                  <Button type="submit" disabled={isEditSubmitting} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold">
+                    {isEditSubmitting ? "Đang lưu..." : "Lưu Thay Đổi"}
+                  </Button>
+                </div>
               </div>
             </form>
           </div>
@@ -4072,7 +4609,7 @@ export function ProductsClient({
           try {
             await fetch(`/api/products/${productId}/mark-printed`, { method: "POST" });
             mutate();
-          } catch (err) {
+          } catch (err: any) {
             console.error("Mark printed error:", err);
           }
         }}

@@ -38,6 +38,7 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  serverExternalPackages: ["sharp", "@aws-sdk/client-s3"],
   allowedDevOrigins: localNetworkHosts,
   turbopack: {
     root: process.cwd(),

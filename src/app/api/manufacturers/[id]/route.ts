@@ -85,7 +85,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const { error, companyId } = await requireAuth(["OWNER", "ADMIN"], { module: "products", action: "EDIT" });
+  const { error, companyId } = await requireAuth(["OWNER", "ADMIN"], { module: "products", action: "DELETE" });
   if (error || !companyId) return error;
 
   try {

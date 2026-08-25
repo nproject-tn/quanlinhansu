@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/api-auth";
 
 export async function GET(request: Request) {
-  const { session, error, companyId } = await requireAuth(["OWNER", "ADMIN"]);
+  const { session, error, companyId } = await requireAuth(["OWNER", "ADMIN"], { module: "settings", action: "VIEW" });
   if (error || !companyId) return error;
 
   try {
@@ -24,7 +24,7 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  const { session, error, companyId } = await requireAuth(["OWNER", "ADMIN"]);
+  const { session, error, companyId } = await requireAuth(["OWNER", "ADMIN"], { module: "settings", action: "EDIT" });
   if (error || !companyId) return error;
 
   try {

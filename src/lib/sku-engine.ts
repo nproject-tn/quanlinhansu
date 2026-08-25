@@ -41,9 +41,9 @@ export function generateEan8Barcode(manufacturerCode: string, productCode: strin
 }
 
 /**
- * Generates SKU based on category letter (Chủng loại), material letter (Chất vải/Nguyên liệu), 4-digit item code, and 2-digit variant code.
- * Structure: [CatLetter (1)][MaterialLetter (1)][ItemCode (4)][VariantCode (2)]
- * Example: AB016904 (A = Áo, B = Bông/Cotton, 0169 = Mẫu sản phẩm, 04 = Biến thể màu/size)
+ * Generates SKU based on category letter (Chủng loại), material letter (Chất vải/Nguyên liệu), 2-digit random item code, 2-digit color code, and 2-digit size code.
+ * Structure: [CatLetter (1)][MaterialLetter (1)][ItemCode (2)][ColorCode (2)][SizeCode (2)] = 8 characters
+ * Example: VX010605 (V = Áo thun, X = Thun giấy, 01 = Tên SP, 06 = Màu Vàng, 05 = Size XL)
  */
 export function generateSku(
   categoryLetter: string,
@@ -54,11 +54,12 @@ export function generateSku(
 ): string {
   const cat = (categoryLetter || "A").slice(0, 1).toUpperCase();
   const subcat = (subcategoryLetter || "B").slice(0, 1).toUpperCase();
-  let item = (itemCode || "0169").padStart(4, "0");
-  if (item.length > 4) item = item.slice(-4);
-  const color = (colorCode || "01").padStart(2, "0").slice(-2);
+  let item = (itemCode || "01").padStart(2, "0");
+  if (item.length > 2) item = item.slice(-2);
+  const color = (colorCode || "00").padStart(2, "0").slice(-2);
+  const size = (sizeCode || "00").padStart(2, "0").slice(-2);
 
-  return `${cat}${subcat}${item}${color}`;
+  return `${cat}${subcat}${item}${color}${size}`;
 }
 
 /**
@@ -82,8 +83,8 @@ export function stringToUniqueLetter(name: string): string {
 }
 
 /**
- * Automatically computes an unused 4-digit numeric item code (e.g., "0001", "0002"...)
- * that guarantees no SKU collision exists for the given category & subcategory prefix.
+ * Automatically generates a random unused 2-digit numeric item code (e.g., "01".."99")
+ * that guarantees no collision exists for the given category & subcategory prefix.
  */
 export function getUniqueItemCode(existingSkus: string[], catLet: string, subcatLet: string): string {
   const prefix = `${(catLet || "A").slice(0, 1)}${(subcatLet || "B").slice(0, 1)}`.toUpperCase();
@@ -93,27 +94,33 @@ export function getUniqueItemCode(existingSkus: string[], catLet: string, subcat
     if (!sku) continue;
     const clean = sku.trim().toUpperCase();
     if (clean.startsWith(prefix)) {
-      const numericPart = clean.slice(2, 6);
-      if (/^\d{4}$/.test(numericPart)) {
+      const numericPart = clean.slice(2, 4);
+      if (/^\d{2}$/.test(numericPart)) {
         usedNumbers.add(parseInt(numericPart, 10));
       }
     }
   }
 
-  // Find smallest unused 4-digit number starting from 1
-  for (let num = 1; num <= 9999; num++) {
+  // Find unused 2-digit numbers
+  const unused: number[] = [];
+  for (let num = 1; num <= 99; num++) {
     if (!usedNumbers.has(num)) {
-      return String(num).padStart(4, "0");
+      unused.push(num);
     }
   }
 
-  return "9999";
+  if (unused.length > 0) {
+    const randomPick = unused[Math.floor(Math.random() * unused.length)];
+    return String(randomPick).padStart(2, "0");
+  }
+
+  return "01";
 }
 
 /**
  * Generates a random N-digit numeric string for product model numbers.
  */
-export function generateRandomNumericCode(length: number = 4): string {
+export function generateRandomNumericCode(length: number = 2): string {
   let result = "";
   for (let i = 0; i < length; i++) {
     result += Math.floor(Math.random() * 10).toString();
@@ -131,6 +138,7 @@ export function indexToLetter(index: number): string {
 export const SIZE_CODE_MAP: Record<string, string> = {
   F: "00",
   FREE: "00",
+  FREESIZE: "00",
   XS: "01",
   S: "02",
   M: "03",
@@ -140,48 +148,57 @@ export const SIZE_CODE_MAP: Record<string, string> = {
   "2XL": "06",
   XXXL: "07",
   "3XL": "07",
+  "4XL": "08",
+  "5XL": "09",
 };
 
 export function getSizeCode(sizeName?: string): string {
   if (!sizeName) return "00";
-  const normalized = sizeName.trim().toUpperCase();
+  const normalized = sizeName.trim().toUpperCase().replace(/\s+/g, "");
   if (SIZE_CODE_MAP[normalized]) return SIZE_CODE_MAP[normalized];
   
-  // If size is numeric (e.g., shoe size 39, 40, 41)
+  // If size is numeric (e.g., shoe size 28, 29, 30, 39, 40, 41)
   const num = parseInt(normalized, 10);
-  if (!isNaN(num)) return String(num).padStart(2, "0").slice(-2);
+  if (!isNaN(num) && num > 0 && num <= 99) {
+    return String(num).padStart(2, "0");
+  }
   
-  return "99";
+  // Reusable 2-digit hash for custom size
+  let hash = 0;
+  for (let i = 0; i < normalized.length; i++) {
+    hash = (hash * 37 + normalized.charCodeAt(i)) % 80;
+  }
+  return String(hash + 11).padStart(2, "0");
 }
 
 /**
  * Color Code Generator helper (hash/index based 2-digit)
  */
+export const COMMON_COLOR_CODES: Record<string, string> = {
+  "trắng": "01", "white": "01",
+  "đen": "02", "black": "02",
+  "đỏ": "03", "red": "03",
+  "xanh dương": "04", "blue": "04",
+  "xanh lá": "05", "green": "05",
+  "vàng": "06", "yellow": "06",
+  "cam": "07", "orange": "07",
+  "hồng": "08", "pink": "08",
+  "tím": "09", "purple": "09",
+  "xám": "10", "gray": "10", "grey": "10",
+  "nâu": "11", "brown": "11",
+  "kem": "12", "beige": "12",
+};
+
 export function getColorCode(colorName?: string): string {
   if (!colorName) return "00";
   const name = colorName.trim().toLowerCase();
   
-  const commonColors: Record<string, string> = {
-    "trắng": "01", "white": "01",
-    "đen": "02", "black": "02",
-    "đỏ": "03", "red": "03",
-    "xanh dương": "04", "blue": "04",
-    "xanh lá": "05", "green": "05",
-    "vàng": "06", "yellow": "06",
-    "cam": "07", "orange": "07",
-    "hồng": "08", "pink": "08",
-    "tím": "09", "purple": "09",
-    "xám": "10", "gray": "10", "grey": "10",
-    "nâu": "11", "brown": "11",
-    "kem": "12", "beige": "12",
-  };
-
-  if (commonColors[name]) return commonColors[name];
+  if (COMMON_COLOR_CODES[name]) return COMMON_COLOR_CODES[name];
   
-  // Hash name into 2-digit code (13 - 98)
+  // Deterministic 2-digit code for custom color (13 - 99)
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
-    hash = (hash * 31 + name.charCodeAt(i)) % 86;
+    hash = (hash * 31 + name.charCodeAt(i)) % 87;
   }
   return String(hash + 13).padStart(2, "0");
 }

@@ -1,48 +1,43 @@
-import { auth, signIn } from "@/lib/auth";
+import { Suspense } from "react";
+import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { LoginForm } from "./login-form";
+import { LoginShowcase } from "./login-showcase";
 
 export default async function LoginPage() {
   const session = await auth();
-  if (session?.user) {
-    redirect("/workspaces");
-  }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 relative overflow-hidden p-4">
-      <div className="absolute top-0 -left-64 h-[500px] w-[500px] rounded-full bg-slate-300/20 blur-[120px] mix-blend-multiply"></div>
-      <div className="absolute bottom-0 -right-64 h-[500px] w-[500px] rounded-full bg-slate-200/20 blur-[120px] mix-blend-multiply"></div>
-      
-      <Card className="w-full max-w-md relative z-10 border-white/60 bg-white/60 backdrop-blur-md shadow-2xl shadow-slate-200/50 supports-[backdrop-filter]:bg-white/40">
-        <CardHeader className="text-center pt-8">
-          <div className="flex justify-center mb-4">
-            <a href="/home-apexflow" title="Về trang chủ" className="relative z-50 block p-2">
-              <img src="/logo-shape.svg" alt="Apexflow HR" className="h-8 w-auto object-contain grayscale hover:opacity-80 transition-opacity" />
-            </a>
-          </div>
-          <CardTitle>
-            Chào mừng bạn đến với ApexFlow
-          </CardTitle>
-          <p className="text-sm text-slate-500 mt-2">Đăng nhập để vào không gian làm việc của bạn</p>
-        </CardHeader>
-        <CardContent className="pb-8">
-          <form action={async () => {
-            "use server";
-            await signIn("google", { redirectTo: "/workspaces" });
-          }}>
-            <Button type="submit" className="w-full flex items-center justify-center gap-2" variant="outline" size="lg">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className="h-5 w-5">
-                <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/>
-                <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/>
-                <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/>
-                <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"/>
-              </svg>
-              Tiếp tục với Google
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+    <main className="h-screen w-screen bg-white flex overflow-hidden font-sans select-none p-1.5 sm:p-2 lg:p-2">
+      {/* LEFT HALF: DARK LUXURY HERO & SHOWCASE (50% ON DESKTOP) */}
+      <div className="hidden lg:block lg:w-1/2 h-full rounded-lg lg:rounded-xl overflow-hidden bg-black shadow-md">
+        <LoginShowcase />
+      </div>
+
+      {/* RIGHT HALF: CLEAN MINIMALIST AUTH (50% ON DESKTOP) */}
+      <div className="w-full lg:w-1/2 h-full bg-white flex flex-col justify-between p-6 sm:p-10 lg:p-12 overflow-y-auto no-scrollbar">
+        {/* Top right home link */}
+        <div className="w-full flex justify-end">
+          <a
+            href="/home-apexflow"
+            className="text-xs font-semibold text-slate-400 hover:text-slate-900 transition-colors"
+          >
+            Về trang chủ
+          </a>
+        </div>
+
+        {/* Centered Login Box */}
+        <div className="w-full max-w-[360px] mx-auto my-auto py-2">
+          <Suspense fallback={<div className="text-center py-6 text-sm text-slate-400">Đang tải...</div>}>
+            <LoginForm currentSessionUser={session?.user ?? null} />
+          </Suspense>
+        </div>
+
+        {/* Bottom copyright */}
+        <div className="w-full text-center text-[11px] text-slate-400 pt-2">
+          © {new Date().getFullYear()} ApexFlow Cloud Enterprise.
+        </div>
+      </div>
+    </main>
   );
 }

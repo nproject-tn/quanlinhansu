@@ -180,19 +180,19 @@ export function MonthPicker({
           setOpen((current) => !current);
         }}
         className={cn(
-          "glass-control flex h-11 min-w-[220px] items-center justify-between gap-3 rounded-xl px-4 py-3 text-left text-sm text-slate-800 outline-none ring-slate-900 transition-[border-color,box-shadow] hover:border-slate-400 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-55",
+          "glass-control flex h-11 min-w-[220px] items-center justify-between gap-3 rounded-xl px-4 py-3 text-left text-sm text-slate-800 outline-none ring-slate-900 transition-[border-color,box-shadow] hover:border-slate-400 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-55 dark:text-slate-100 dark:ring-slate-100 dark:hover:border-slate-500",
           className
         )}
       >
         <span className="truncate">{label}</span>
-        <CalendarDays className="h-4 w-4 shrink-0 text-slate-500" />
+        <CalendarDays className="h-4 w-4 shrink-0 text-slate-500 dark:text-neutral-400" />
       </button>
 
       {open && typeof document !== "undefined"
         ? createPortal(
             <div
               ref={panelRef}
-              className="month-picker-liquid month-picker-liquid-solid z-[120] border border-white/50 p-4 shadow-2xl"
+              className="z-[120] rounded-[24px] border border-slate-200 bg-white p-4 shadow-2xl dark:border-[#333333] dark:bg-[#252526]"
               style={{
                 position: "fixed",
                 width: panelPosition.width,
@@ -209,16 +209,16 @@ export function MonthPicker({
                     onClick={() => setViewYear((current) => String(Number(current) - 1))}
                     aria-label="Năm trước"
                   >
-                    <ChevronLeft className="h-4 w-4" />
+                    <ChevronLeft className="h-4 w-4 dark:text-neutral-300" />
                   </MonthButton>
-                  <div className="rounded-xl bg-white/65 px-4 py-2 text-sm font-semibold text-slate-800">
+                  <div className="rounded-xl bg-white/65 px-4 py-2 text-sm font-semibold text-slate-800 dark:bg-neutral-800/80 dark:text-neutral-100">
                     {viewYear}
                   </div>
                   <MonthButton
                     onClick={() => setViewYear((current) => String(Number(current) + 1))}
                     aria-label="Năm sau"
                   >
-                    <ChevronRight className="h-4 w-4" />
+                    <ChevronRight className="h-4 w-4 dark:text-neutral-300" />
                   </MonthButton>
                 </div>
 
@@ -234,8 +234,8 @@ export function MonthPicker({
                         className={cn(
                           "rounded-xl px-2 py-3 text-sm transition-colors",
                           isActive
-                            ? "bg-slate-900 font-semibold text-white shadow-[0_12px_26px_rgba(15,23,42,0.28)]"
-                            : "bg-white/10 text-slate-700 hover:bg-slate-900/10 hover:text-slate-900"
+                            ? "bg-slate-900 font-semibold text-white shadow-[0_12px_26px_rgba(15,23,42,0.28)] dark:bg-neutral-100 dark:text-neutral-900 dark:shadow-[0_12px_26px_rgba(0,0,0,0.6)]"
+                            : "bg-white/10 text-slate-700 hover:bg-slate-900/10 hover:text-slate-900 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
                         )}
                       >
                         {month.label}
@@ -244,18 +244,18 @@ export function MonthPicker({
                   })}
                 </div>
 
-                <div className="mt-4 flex items-center justify-between border-t border-white/35 pt-3">
+                <div className="mt-4 flex items-center justify-between border-t border-white/35 dark:border-neutral-800/80 pt-3">
                   <button
                     type="button"
                     onClick={() => setOpen(false)}
-                    className="text-sm font-medium text-slate-600 hover:text-slate-900"
+                    className="text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-neutral-400 dark:hover:text-neutral-200"
                   >
                     Đóng
                   </button>
                   <button
                     type="button"
                     onClick={selectCurrentMonth}
-                    className="text-sm font-medium text-slate-900 hover:text-slate-800"
+                    className="text-sm font-medium text-slate-900 hover:text-slate-800 dark:text-neutral-100 dark:hover:text-white"
                   >
                     Tháng này
                   </button>

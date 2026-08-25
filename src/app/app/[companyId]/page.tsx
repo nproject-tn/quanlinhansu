@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { verifyCompanyAccess } from "@/lib/dal";
+import { hasPermission } from "@/lib/permissions";
 
 export default async function DashboardPage(props: {
   params: Promise<{ companyId: string }>;
@@ -17,6 +18,7 @@ export default async function DashboardPage(props: {
   const access = await verifyCompanyAccess(companyId);
   const today = format(new Date(), "yyyy-MM-dd");
   const isEmployee = access.role === "EMPLOYEE";
+  const canViewSchedule = hasPermission(access.role, access.permissions, "schedule", "VIEW");
 
   const [employeeCount, storeCount, unfilledCount] = isEmployee
     ? [0, 0, 0]
@@ -40,33 +42,33 @@ export default async function DashboardPage(props: {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Nhân viên</CardTitle>
-              <Users className="h-5 w-5 text-slate-900" />
+              <Users className="h-5 w-5 text-slate-900 dark:text-white" />
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold">{employeeCount}</p>
-              <p className="text-sm text-slate-500">đang hoạt động</p>
+              <p className="text-sm text-slate-500 dark:text-[#A0A0A0]">đang hoạt động</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Cửa hàng</CardTitle>
-              <Building2 className="h-5 w-5 text-slate-900" />
+              <Building2 className="h-5 w-5 text-slate-900 dark:text-white" />
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold">{storeCount}</p>
-              <p className="text-sm text-slate-500">đang hoạt động</p>
+              <p className="text-sm text-slate-500 dark:text-[#A0A0A0]">đang hoạt động</p>
             </CardContent>
           </Card>
 
-          <Card className={unfilledCount > 0 ? "border-amber-200" : ""}>
+          <Card className={unfilledCount > 0 ? "border-amber-200 dark:border-amber-500/40" : ""}>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Ca trống</CardTitle>
-              <AlertTriangle className={`h-5 w-5 ${unfilledCount > 0 ? "text-amber-600" : "text-emerald-600"}`} />
+              <AlertTriangle className={`h-5 w-5 ${unfilledCount > 0 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`} />
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold">{unfilledCount}</p>
-              <p className="text-sm text-slate-500">từ hôm nay trở đi</p>
+              <p className="text-sm text-slate-500 dark:text-[#A0A0A0]">từ hôm nay trở đi</p>
             </CardContent>
           </Card>
         </div>
@@ -80,9 +82,11 @@ export default async function DashboardPage(props: {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-slate-600">
+          <p className="text-slate-600 dark:text-[#B0B0B0]">
             {isEmployee
-              ? "Xem lịch ca được phân công cho bạn."
+              ? canViewSchedule
+                ? "Xem lịch ca được phân công cho bạn."
+                : "Bạn chưa được cấp quyền xem lịch làm việc. Vui lòng liên hệ quản trị viên nếu cần hỗ trợ."
               : "Xếp ca tự động theo giờ tối đa, đa dạng ca và cửa hàng. Có thể chỉnh thủ công bằng kéo thả."}
           </p>
           <div className="flex flex-wrap gap-2">
@@ -91,9 +95,11 @@ export default async function DashboardPage(props: {
             <Badge>Multi-store</Badge>
             <Badge>Chống trùng ca</Badge>
           </div>
-          <Link href="/lich-xep-ca">
-            <Button>Xem lịch xếp ca</Button>
-          </Link>
+          {canViewSchedule && (
+            <Link href={`/app/${companyId}/lich-xep-ca`}>
+              <Button>Xem lịch xếp ca</Button>
+            </Link>
+          )}
         </CardContent>
       </Card>
     </div>

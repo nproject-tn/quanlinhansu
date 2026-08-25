@@ -48,25 +48,24 @@ export function WorkspaceSwitcher({
       <PopoverTrigger asChild>
         <button
           className={cn(
-            "p-1 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-200/50 transition-all duration-300 flex items-center justify-center",
-            open && "bg-slate-200/50 text-slate-900",
-            isCollapsed && "w-full"
+            "h-9 w-9 shrink-0 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-200/50 transition-all duration-300 flex items-center justify-center dark:text-[#9D9D9D] dark:hover:text-white dark:hover:bg-[#252526]",
+            open && "bg-slate-200/50 text-slate-900 dark:bg-[#2D2D30] dark:text-white"
           )}
           title="Chuyển đổi doanh nghiệp"
         >
-          <div className="relative w-9 h-9 flex items-center justify-center">
+          <div className="relative w-[26px] h-[26px] flex items-center justify-center">
             <RefreshCw 
               className={cn(
-                "absolute inset-0 w-full h-full transition-transform duration-500", 
-                open ? "rotate-180 text-indigo-600" : "text-slate-400"
+                "absolute inset-0 w-full h-full text-slate-400 dark:text-[#9D9D9D] transition-transform duration-500", 
+                open ? "rotate-180 text-indigo-600 dark:text-indigo-400" : "group-hover:text-slate-600 dark:group-hover:text-white"
               )}
-              strokeWidth={1.5}
+              strokeWidth={1.75}
             />
-            <div className="relative z-10 h-5 w-5 rounded-full bg-white border border-slate-200 flex items-center justify-center overflow-hidden shadow-sm">
+            <div className="relative z-10 h-[15px] w-[15px] rounded-full bg-white border border-slate-300 flex items-center justify-center overflow-hidden shadow-2xs dark:bg-[#252526] dark:border-[#3C3C3C]">
               {currentCompany?.logo ? (
                 <img src={currentCompany.logo} alt="Logo" className="w-full h-full object-cover" />
               ) : (
-                <span className="text-[9px] font-bold text-slate-600 uppercase">
+                <span className="text-[8px] font-bold text-slate-700 uppercase dark:text-white leading-none">
                   {currentCompany?.name ? currentCompany.name.charAt(0) : "W"}
                 </span>
               )}
@@ -75,12 +74,12 @@ export function WorkspaceSwitcher({
         </button>
       </PopoverTrigger>
       <PopoverContent 
-        className="w-64 p-2 rounded-2xl shadow-xl border-slate-200/60 ml-4 mb-2"
-        side="right"
+        className="w-64 p-2 rounded-2xl shadow-xl border border-slate-200/60 ml-4 mb-2 dark:border-[#333333] dark:bg-[#252526] dark:text-[#E0E0E0] backdrop-blur-xl z-50"
+        side={isCollapsed ? "right" : "top"}
         align="end"
       >
         <div className="mb-2 px-2 pt-1">
-          <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+          <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider dark:text-[#9D9D9D]">
             Không gian làm việc
           </h4>
         </div>
@@ -90,7 +89,7 @@ export function WorkspaceSwitcher({
             <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
           </div>
         ) : !memberships || memberships.length === 0 ? (
-          <div className="p-3 text-sm text-slate-500 text-center">
+          <div className="p-3 text-sm text-slate-500 text-center dark:text-[#9D9D9D]">
             Không có doanh nghiệp nào
           </div>
         ) : (
@@ -103,38 +102,38 @@ export function WorkspaceSwitcher({
                   href={`/app/${m.companyId}`}
                   onClick={() => setOpen(false)}
                   className={cn(
-                    "flex items-center justify-between p-2 rounded-xl transition-colors cursor-pointer",
-                    isCurrent ? "bg-indigo-50" : "hover:bg-slate-100"
+                    "flex items-center justify-between p-2 rounded-xl transition-colors cursor-pointer text-sm",
+                    isCurrent 
+                      ? "bg-slate-100 font-medium text-slate-900 dark:bg-[#37373D] dark:text-white" 
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-[#CCCCCC] dark:hover:bg-[#2D2D30] dark:hover:text-white"
                   )}
                 >
-                  <div className="flex items-center gap-3 overflow-hidden">
-                    <div className="h-8 w-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center shrink-0 overflow-hidden">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="h-7 w-7 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 dark:bg-[#1E1E1E] dark:border-[#3C3C3C]">
                       {m.company.logo ? (
-                        <img src={m.company.logo} alt="Logo" className="w-full h-full object-cover" />
+                        <img src={m.company.logo} alt={m.company.name} className="w-full h-full object-cover" />
                       ) : (
-                        <span className="text-xs font-bold text-slate-600 uppercase">
+                        <span className="text-xs font-bold text-slate-700 uppercase dark:text-[#E0E0E0]">
                           {m.company.name.charAt(0)}
                         </span>
                       )}
                     </div>
-                    <span className={cn(
-                      "text-sm font-medium truncate",
-                      isCurrent ? "text-indigo-700" : "text-slate-700"
-                    )}>
-                      {m.company.name}
-                    </span>
+                    <span className="truncate">{m.company.name}</span>
                   </div>
-                  {isCurrent && <Check className="h-4 w-4 text-indigo-600 shrink-0 ml-2" />}
+                  {isCurrent && (
+                    <Check className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0 ml-2" />
+                  )}
                 </Link>
               );
             })}
           </div>
         )}
-        <div className="mt-2 pt-2 border-t border-slate-100">
+        
+        <div className="mt-2 pt-2 border-t border-slate-100 dark:border-[#333333]">
           <Link
             href="/workspaces"
             onClick={() => setOpen(false)}
-            className="flex items-center p-2 rounded-xl text-sm font-medium text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+            className="flex items-center p-2 rounded-xl text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors dark:text-[#9D9D9D] dark:hover:bg-[#2D2D30] dark:hover:text-white"
           >
             Quản lý tất cả doanh nghiệp
           </Link>

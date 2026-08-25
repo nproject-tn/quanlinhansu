@@ -111,12 +111,12 @@ export function RolesManagement({ companyId, roles, mutate, canEdit }: { company
 
   return (
     <>
-      <Card className="border-none shadow-sm overflow-hidden bg-white/80 glass-control">
-        <CardHeader className="bg-slate-50/50 border-b pb-4 flex flex-row items-center justify-between">
-          <CardTitle>Danh sách vai trò ({DEFAULT_ROLES.length + roles.length})</CardTitle>
+      <Card className="border-none shadow-sm overflow-hidden bg-white/90 dark:bg-[#18181B] dark:border dark:border-neutral-800 glass-control">
+        <CardHeader className="bg-slate-50/70 dark:bg-[#202024] border-b border-slate-200/80 dark:border-neutral-800 p-4 sm:px-6 sm:py-4 flex flex-row items-center justify-between">
+          <CardTitle className="text-base font-bold text-slate-900 dark:text-white">Danh sách vai trò ({DEFAULT_ROLES.length + roles.length})</CardTitle>
           {canEdit && (
-            <Button onClick={openCreate} size="sm" variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">
-              <Plus className="mr-2 h-4 w-4" /> Tạo vai trò tuỳ chỉnh
+            <Button onClick={openCreate} size="sm" variant="outline" className="border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-semibold shadow-xs dark:border-neutral-700 dark:bg-[#202024] dark:text-neutral-200 dark:hover:bg-[#28282C] dark:hover:text-white text-xs h-9">
+              <Plus className="mr-1.5 h-4 w-4" /> Tạo vai trò tuỳ chỉnh
             </Button>
           )}
         </CardHeader>
@@ -124,17 +124,17 @@ export function RolesManagement({ companyId, roles, mutate, canEdit }: { company
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b text-left text-slate-500 bg-slate-50/30">
-                  <th className="px-6 py-4 font-medium">Tên vai trò</th>
-                  {canEdit && <th className="px-6 py-4 font-medium text-right">Thao tác</th>}
+                <tr className="border-b text-left text-xs uppercase tracking-wider text-slate-500 bg-slate-50/50 dark:border-neutral-800 dark:text-neutral-300 dark:bg-[#1C1C20]">
+                  <th className="px-6 py-3.5 font-bold">Tên vai trò</th>
+                  {canEdit && <th className="px-6 py-3.5 font-bold text-right">Thao tác</th>}
                 </tr>
               </thead>
               <tbody>
                 {DEFAULT_ROLES.map((r) => (
-                  <tr key={r.id} className="border-b bg-slate-50/30">
-                    <td className="px-6 py-4 font-medium text-slate-900">
+                  <tr key={r.id} className="border-b dark:border-neutral-800/80 bg-slate-50/30 dark:bg-neutral-800/20">
+                    <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">
                       {r.name}
-                      <span className="ml-2 inline-flex items-center rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wide">
+                      <span className="ml-2.5 inline-flex items-center rounded-full bg-slate-100 dark:bg-[#242428] px-2.5 py-0.5 text-[10px] font-bold text-slate-600 dark:text-neutral-300 uppercase tracking-wide border border-slate-200 dark:border-neutral-700">
                         Mặc định
                       </span>
                     </td>
@@ -147,10 +147,10 @@ export function RolesManagement({ companyId, roles, mutate, canEdit }: { company
                 ))}
                 
                 {roles.map((role) => (
-                  <tr key={role.id} className="border-b last:border-0 hover:bg-slate-50/80">
-                    <td className="px-6 py-4 font-medium text-slate-900">
+                  <tr key={role.id} className="border-b last:border-0 hover:bg-slate-50/80 dark:border-neutral-800/80 dark:hover:bg-neutral-800/40">
+                    <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">
                       {role.name}
-                      <span className="ml-2 inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 uppercase tracking-wide">
+                      <span className="ml-2.5 inline-flex items-center rounded-full bg-slate-100 dark:bg-[#242428] px-2.5 py-0.5 text-[10px] font-bold text-slate-800 dark:text-neutral-200 uppercase tracking-wide border border-slate-200 dark:border-neutral-700">
                         Tuỳ chỉnh
                       </span>
                     </td>
@@ -161,15 +161,15 @@ export function RolesManagement({ companyId, roles, mutate, canEdit }: { company
                           variant="ghost" 
                           size="sm"
                           onClick={() => openEdit(role)}
-                          className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 mr-2"
+                          className="text-slate-700 hover:text-slate-900 hover:bg-slate-100 dark:text-neutral-300 dark:hover:text-white dark:hover:bg-neutral-800 font-semibold mr-1.5"
                         >
-                          <Settings2 className="h-4 w-4 mr-2" /> Sửa
+                          <Settings2 className="h-4 w-4 mr-1.5 text-slate-500 dark:text-neutral-400" /> Sửa
                         </Button>
                         <Button 
                           variant="ghost" 
                           size="sm"
                           onClick={(e) => handleDelete(e, role.id)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -184,19 +184,24 @@ export function RolesManagement({ companyId, roles, mutate, canEdit }: { company
       </Card>
 
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col animate-in slide-in-from-bottom-4">
-            <div className="p-6 border-b shrink-0">
-              <h3 className="text-xl font-bold">{editingRole ? "Sửa vai trò" : "Tạo vai trò mới"}</h3>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-4 animate-in fade-in backdrop-blur-sm">
+          <div className="bg-white dark:bg-[#18181B] border border-slate-200 dark:border-neutral-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col animate-in slide-in-from-bottom-4 overflow-hidden">
+            <div className="p-6 border-b border-slate-100 dark:border-neutral-800 bg-white dark:bg-[#202024] shrink-0">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">{editingRole ? "Sửa vai trò" : "Tạo vai trò mới"}</h3>
             </div>
-            <div className="p-6 space-y-6 flex-1 overflow-y-auto">
+            <div className="p-6 space-y-6 flex-1 overflow-y-auto bg-slate-50/50 dark:bg-[#121212]">
               <div>
-                <label className="text-sm font-medium text-slate-700 block mb-1">Tên vai trò</label>
-                <Input value={name} onChange={e => setName(e.target.value)} placeholder="Ví dụ: Kế toán, Cửa hàng trưởng..." />
+                <label className="text-xs font-bold text-slate-700 dark:text-neutral-300 uppercase tracking-wider block mb-1.5">Tên vai trò</label>
+                <Input 
+                  value={name} 
+                  onChange={e => setName(e.target.value)} 
+                  placeholder="Ví dụ: Kế toán, Cửa hàng trưởng..." 
+                  className="dark:bg-[#202024] dark:border-neutral-700 dark:text-white"
+                />
               </div>
 
               <div className="space-y-3">
-                <label className="text-sm font-medium text-slate-700 block border-b pb-2">Quyền mặc định</label>
+                <label className="text-xs font-bold text-slate-700 dark:text-neutral-300 uppercase tracking-wider block border-b border-slate-200 dark:border-neutral-800 pb-2">Quyền mặc định</label>
                 {MODULES.map((mod) => {
                   const currentValue = permissions[mod.id];
                   const perm: any = (typeof currentValue === "object" && currentValue !== null) ? { ...(currentValue as any) } : {};
@@ -268,121 +273,131 @@ export function RolesManagement({ companyId, roles, mutate, canEdit }: { company
                     }
                   };
 
-                    return (
-                      <div key={mod.id} className="flex flex-col p-4 rounded-xl border bg-white shadow-sm transition-all duration-200">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="p-2 bg-slate-50 rounded-lg text-indigo-600 border border-slate-100">
-                              <mod.icon className="h-5 w-5" />
-                            </div>
-                            <div>
-                              <span className="font-semibold text-slate-800">{mod.label}</span>
-                            </div>
+                  return (
+                    <div key={mod.id} className="flex flex-col p-4 rounded-xl border border-slate-200 dark:border-neutral-700/80 bg-white dark:bg-[#1C1C20] shadow-xs transition-all duration-200">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-slate-100 dark:bg-[#28282C] rounded-lg text-slate-800 dark:text-neutral-200 border border-slate-200/80 dark:border-neutral-700">
+                            <mod.icon className="h-5 w-5" />
                           </div>
-                          <Switch checked={isModuleEnabled} onCheckedChange={toggleModule} />
+                          <div>
+                            <span className="font-bold text-slate-900 dark:text-white text-sm">{mod.label}</span>
+                          </div>
                         </div>
-                        
-                        <div className={cn("grid transition-all duration-300 ease-in-out", isModuleEnabled ? "grid-rows-[1fr] opacity-100 mt-4" : "grid-rows-[0fr] opacity-0 mt-0 pointer-events-none")}>
-                          <div className="overflow-hidden">
-                            <div className="pl-14 pr-2 space-y-4 pb-1">
-                          {mod.id === "employees" ? (
-                            <>
-                              <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-sm font-medium text-slate-700">Chỉ xem</span>
-                                </div>
-                                <div className="pl-4 space-y-3 border-l-2 border-slate-100">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-sm text-slate-600">Danh sách nhân viên</span>
-                                    <Switch checked={!!perm.viewList || !!perm.edit} disabled={!!perm.edit} onCheckedChange={(c) => updatePermObj("viewList", c)} className="scale-90" />
-                                  </div>
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-sm text-slate-600">Giờ làm thực tế trong tháng</span>
-                                    <Switch checked={!!perm.viewHours || !!perm.edit} disabled={!!perm.edit} onCheckedChange={(c) => updatePermObj("viewHours", c)} className="scale-90" />
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="space-y-3 pt-2">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-sm font-medium text-slate-700">Chỉnh sửa</span>
-                                  <Switch checked={!!perm.edit} onCheckedChange={(c) => updatePermObj("edit", c)} className="scale-90" />
-                                </div>
-                                <div className="pl-4 space-y-3 border-l-2 border-slate-100">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-sm text-slate-600">Xoá nhân viên</span>
-                                    <Switch checked={!!perm.delete} onCheckedChange={(c) => updatePermObj("delete", c)} className="scale-90" />
-                                  </div>
-                                </div>
-                              </div>
-                            </>
-                          ) : mod.id === "schedule" ? (
-                            <>
+                        <Switch checked={isModuleEnabled} onCheckedChange={toggleModule} />
+                      </div>
+                      
+                      <div className={cn("grid transition-all duration-300 ease-in-out", isModuleEnabled ? "grid-rows-[1fr] opacity-100 mt-4" : "grid-rows-[0fr] opacity-0 mt-0 pointer-events-none")}>
+                        <div className="overflow-hidden">
+                          <div className="pl-14 pr-2 space-y-4 pb-1">
+                        {mod.id === "employees" ? (
+                          <>
+                            <div className="space-y-3">
                               <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium text-slate-700">Chỉ xem</span>
-                                <Switch checked={!!perm.view || !!perm.edit} disabled={!!perm.edit} onCheckedChange={(c) => updatePermObj("view", c)} className="scale-90" />
+                                <span className="text-xs font-bold uppercase tracking-wide text-slate-600 dark:text-neutral-400">Chỉ xem</span>
                               </div>
-                              <div className="space-y-3 pt-2">
+                              <div className="pl-4 space-y-3 border-l-2 border-slate-200 dark:border-neutral-700">
                                 <div className="flex items-center justify-between">
-                                  <span className="text-sm font-medium text-slate-700">Chỉnh sửa</span>
-                                  <Switch checked={!!perm.edit} onCheckedChange={(c) => updatePermObj("edit", c)} className="scale-90" />
+                                  <span className="text-sm text-slate-700 dark:text-neutral-300">Danh sách nhân viên</span>
+                                  <Switch checked={!!perm.viewList || !!perm.edit} disabled={!!perm.edit} onCheckedChange={(c) => updatePermObj("viewList", c)} className="scale-90" />
                                 </div>
-                                {!!perm.edit && (
-                                  <div className="pl-4 space-y-3 border-l-2 border-slate-100 animate-in slide-in-from-top-2 fade-in">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm text-slate-700 dark:text-neutral-300">Giờ làm thực tế trong tháng</span>
+                                  <Switch checked={!!perm.viewHours || !!perm.edit} disabled={!!perm.edit} onCheckedChange={(c) => updatePermObj("viewHours", c)} className="scale-90" />
+                                </div>
+                              </div>
+                            </div>
+                            <div className="space-y-3 pt-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold uppercase tracking-wide text-slate-600 dark:text-neutral-400">Chỉnh sửa</span>
+                                <Switch checked={!!perm.edit} onCheckedChange={(c) => updatePermObj("edit", c)} className="scale-90" />
+                              </div>
+                              <div className={cn("grid transition-all duration-300 ease-in-out", perm.edit ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0 pointer-events-none")}>
+                                <div className="overflow-hidden">
+                                  <div className="pl-4 space-y-3 border-l-2 border-slate-200 dark:border-neutral-700 pt-1 pb-1">
                                     <div className="flex items-center justify-between">
-                                      <span className="text-sm text-slate-600">Toàn quyền xếp ca</span>
+                                      <span className="text-sm text-slate-700 dark:text-neutral-300">Xoá nhân viên</span>
+                                      <Switch checked={!!perm.delete} onCheckedChange={(c) => updatePermObj("delete", c)} className="scale-90" />
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </>
+                        ) : mod.id === "schedule" ? (
+                          <>
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold uppercase tracking-wide text-slate-600 dark:text-neutral-400">Chỉ xem</span>
+                              <Switch checked={!!perm.view || !!perm.edit} disabled={!!perm.edit} onCheckedChange={(c) => updatePermObj("view", c)} className="scale-90" />
+                            </div>
+                            <div className="space-y-3 pt-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold uppercase tracking-wide text-slate-600 dark:text-neutral-400">Chỉnh sửa</span>
+                                <Switch checked={!!perm.edit} onCheckedChange={(c) => updatePermObj("edit", c)} className="scale-90" />
+                              </div>
+                              <div className={cn("grid transition-all duration-300 ease-in-out", perm.edit ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0 pointer-events-none")}>
+                                <div className="overflow-hidden">
+                                  <div className="pl-4 space-y-3 border-l-2 border-slate-200 dark:border-neutral-700 pt-1 pb-1">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-sm text-slate-700 dark:text-neutral-300">Toàn quyền xếp ca</span>
                                       <Switch checked={!!perm.editFree} onCheckedChange={(c) => updatePermObj("editFree", c)} className="scale-90" />
                                     </div>
                                     <div className="flex items-center justify-between">
-                                      <span className="text-sm text-slate-600">Duyệt yêu cầu</span>
+                                      <span className="text-sm text-slate-700 dark:text-neutral-300">Duyệt yêu cầu</span>
                                       <Switch checked={!!perm.approve} onCheckedChange={(c) => updatePermObj("approve", c)} className="scale-90" />
                                     </div>
                                   </div>
-                                )}
-                              </div>
-                            </>
-                          ) : mod.id === "store" ? (
-                            <>
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium text-slate-700">Chỉ xem</span>
-                                <Switch checked={!!perm.view || !!perm.edit} disabled={!!perm.edit} onCheckedChange={(c) => updatePermObj("view", c)} className="scale-90" />
-                              </div>
-                              <div className="space-y-3 pt-2">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-sm font-medium text-slate-700">Chỉnh sửa</span>
-                                  <Switch checked={!!perm.edit} onCheckedChange={(c) => updatePermObj("edit", c)} className="scale-90" />
                                 </div>
-                                <div className="pl-4 space-y-3 border-l-2 border-slate-100">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-sm text-slate-600">Xoá cửa hàng</span>
-                                    <Switch checked={!!perm.delete} onCheckedChange={(c) => updatePermObj("delete", c)} className="scale-90" />
+                              </div>
+                            </div>
+                          </>
+                        ) : mod.id === "store" ? (
+                          <>
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold uppercase tracking-wide text-slate-600 dark:text-neutral-400">Chỉ xem</span>
+                              <Switch checked={!!perm.view || !!perm.edit} disabled={!!perm.edit} onCheckedChange={(c) => updatePermObj("view", c)} className="scale-90" />
+                            </div>
+                            <div className="space-y-3 pt-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold uppercase tracking-wide text-slate-600 dark:text-neutral-400">Chỉnh sửa</span>
+                                <Switch checked={!!perm.edit} onCheckedChange={(c) => updatePermObj("edit", c)} className="scale-90" />
+                              </div>
+                              <div className={cn("grid transition-all duration-300 ease-in-out", perm.edit ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0 pointer-events-none")}>
+                                <div className="overflow-hidden">
+                                  <div className="pl-4 space-y-3 border-l-2 border-slate-200 dark:border-neutral-700 pt-1 pb-1">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-sm text-slate-700 dark:text-neutral-300">Xoá cửa hàng</span>
+                                      <Switch checked={!!perm.delete} onCheckedChange={(c) => updatePermObj("delete", c)} className="scale-90" />
+                                    </div>
                                   </div>
                                 </div>
                               </div>
-                            </>
-                          ) : (
-                            <>
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium text-slate-700">Chỉ xem</span>
-                                <Switch checked={!!perm.view || !!perm.edit} disabled={!!perm.edit} onCheckedChange={(c) => updatePermObj("view", c)} className="scale-90" />
-                              </div>
-                              <div className="flex items-center justify-between pt-2">
-                                <span className="text-sm font-medium text-slate-700">Chỉnh sửa</span>
-                                <Switch checked={!!perm.edit} onCheckedChange={(c) => updatePermObj("edit", c)} className="scale-90" />
-                              </div>
-                            </>
-                          )}
                             </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold uppercase tracking-wide text-slate-600 dark:text-neutral-400">Chỉ xem</span>
+                              <Switch checked={!!perm.view || !!perm.edit} disabled={!!perm.edit} onCheckedChange={(c) => updatePermObj("view", c)} className="scale-90" />
+                            </div>
+                            <div className="flex items-center justify-between pt-2">
+                              <span className="text-xs font-bold uppercase tracking-wide text-slate-600 dark:text-neutral-400">Chỉnh sửa</span>
+                              <Switch checked={!!perm.edit} onCheckedChange={(c) => updatePermObj("edit", c)} className="scale-90" />
+                            </div>
+                          </>
+                        )}
                           </div>
                         </div>
                       </div>
+                    </div>
                   );
                 })}
               </div>
 
             </div>
-            <div className="p-6 flex justify-end gap-3 border-t shrink-0 rounded-b-xl bg-slate-50">
-              <Button variant="outline" onClick={() => setIsOpen(false)}>Huỷ</Button>
-              <Button onClick={handleSave} disabled={isLoading} className="bg-indigo-600 hover:bg-indigo-700">
+            <div className="p-6 flex justify-end gap-3 border-t border-slate-100 dark:border-neutral-800 shrink-0 bg-white dark:bg-[#202024]">
+              <Button variant="outline" onClick={() => setIsOpen(false)} className="dark:bg-[#28282C] dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800">Huỷ</Button>
+              <Button onClick={handleSave} disabled={isLoading} className="bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-black dark:hover:bg-neutral-200 font-bold shadow-xs">
                 {isLoading ? "Đang lưu..." : "Lưu vai trò"}
               </Button>
             </div>

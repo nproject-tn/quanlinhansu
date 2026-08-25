@@ -12,11 +12,16 @@ export default async function StoresPage(props: {
   const access = await verifyCompanyAccess(companyId);
   const permissions = access.permissions as any;
 
-  if (!hasPermission(access.role, permissions, "store", "EDIT") && !hasPermission(access.role, permissions, "store", "VIEW")) {
+  if (
+    !hasPermission(access.role, permissions, "store", "EDIT") &&
+    !hasPermission(access.role, permissions, "store", "VIEW") &&
+    !hasPermission(access.role, permissions, "store", "DELETE")
+  ) {
     redirect(`/app/${companyId}`);
   }
 
   const canEdit = hasPermission(access.role, permissions, "store", "EDIT");
+  const canDelete = hasPermission(access.role, permissions, "store", "DELETE");
 
-  return <StoresClient canEdit={canEdit} />;
+  return <StoresClient canEdit={canEdit} canDelete={canDelete} />;
 }

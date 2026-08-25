@@ -5,8 +5,10 @@ import { requireAuth } from "@/lib/api-auth";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const { error, companyId } = await requireAuth(["OWNER"], { module: "settings", action: "VIEW" });
-  if (error) return error;
+  const authCheck = await requireAuth(["OWNER"], { module: "settings", action: "VIEW" });
+  if (authCheck.error) return authCheck.error;
+
+  const { companyId } = authCheck;
 
   try {
     const members = await prisma.companyMember.findMany({
@@ -14,11 +16,26 @@ export async function GET(request: Request) {
       include: {
         user: {
           select: {
+            id: true,
             name: true,
             email: true,
             image: true,
           }
         },
+        companyRole: {
+          select: {
+            id: true,
+            name: true,
+            permissions: true,
+          }
+        }
+      },
+      orderBy: { createdAt: "asc" }
+    });
+
+    const invitations = await prisma.companyInvitation.findMany({
+      where: { companyId, status: "PENDING" },
+      include: {
         companyRole: {
           select: {
             id: true,
@@ -29,37 +46,56 @@ export async function GET(request: Request) {
       orderBy: { createdAt: "asc" }
     });
 
-    const invitations = await prisma.companyInvitation.findMany({
-      where: { companyId, status: "PENDING" },
-      orderBy: { createdAt: "asc" }
-    });
-
     const roles = await prisma.companyRole.findMany({
       where: { companyId },
       orderBy: { createdAt: "asc" }
     });
 
-    return NextResponse.json({ members, invitations, roles });
+    const pendingTransfer = await prisma.ownershipTransfer.findFirst({
+      where: { companyId, status: "PENDING" },
+      include: {
+        fromUser: { select: { id: true, name: true, email: true } },
+        toUser: { select: { id: true, name: true, email: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return NextResponse.json({ members, invitations, roles, pendingTransfer });
   } catch (err) {
     return NextResponse.json({ error: "Lỗi tải dữ liệu thành viên" }, { status: 500 });
   }
 }
 
 export async function PUT(request: Request) {
-  const { error, companyId } = await requireAuth(["OWNER"], { module: "settings", action: "EDIT" });
-  if (error) return error;
+  const authCheck = await requireAuth(["OWNER"], { module: "settings", action: "EDIT" });
+  if (authCheck.error) return authCheck.error;
+
+  const { companyId, user } = authCheck;
 
   try {
     const body = await request.json();
     const { memberId, permissions, role, companyRoleId } = body;
 
+    // Direct assignment of OWNER role is blocked (must use ownership transfer workflow)
+    if (role === "OWNER") {
+      return NextResponse.json({ 
+        error: "Không thể gán quyền Chủ sở hữu trực tiếp. Vui lòng sử dụng tính năng Chuyển giao quyền Chủ sở hữu." 
+      }, { status: 400 });
+    }
+
     // Verify member belongs to this company
     const member = await prisma.companyMember.findUnique({
-      where: { id: memberId }
+      where: { id: memberId },
+      include: { user: { select: { email: true } } }
     });
 
     if (!member || member.companyId !== companyId) {
       return NextResponse.json({ error: "Không tìm thấy thành viên" }, { status: 404 });
+    }
+
+    // Protect OWNER member: non-owners cannot edit the owner
+    if (member.role === "OWNER" && user.role !== "OWNER") {
+      return NextResponse.json({ error: "Bạn không có quyền chỉnh sửa tài khoản của Chủ sở hữu" }, { status: 403 });
     }
 
     const updated = await prisma.companyMember.update({
@@ -79,8 +115,10 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const { session, error, companyId } = await requireAuth(["OWNER"]);
-  if (error) return error;
+  const authCheck = await requireAuth(["OWNER"]);
+  if (authCheck.error) return authCheck.error;
+
+  const { companyId, user } = authCheck;
 
   try {
     const url = new URL(request.url);
@@ -92,23 +130,51 @@ export async function DELETE(request: Request) {
 
     // Verify member belongs to this company
     const member = await prisma.companyMember.findUnique({
-      where: { id: memberId }
+      where: { id: memberId },
+      include: { user: { select: { email: true } } }
     });
 
     if (!member || member.companyId !== companyId) {
       return NextResponse.json({ error: "Không tìm thấy thành viên" }, { status: 404 });
     }
 
-    if (member.userId === session.user.id) {
-      return NextResponse.json({ error: "Bạn không thể tự xoá chính mình khỏi doanh nghiệp. Vui lòng chuyển quyền chủ sở hữu cho người khác trước." }, { status: 400 });
+    if (member.role === "OWNER") {
+      return NextResponse.json({ error: "Không thể xoá tài khoản Chủ sở hữu của doanh nghiệp" }, { status: 400 });
     }
 
+    if (member.userId === user.id) {
+      return NextResponse.json({ error: "Bạn không thể tự xoá chính mình khỏi doanh nghiệp" }, { status: 400 });
+    }
+
+    // 1. Delete CompanyMember record
     await prisma.companyMember.delete({
       where: { id: memberId }
     });
 
-    return NextResponse.json({ success: true });
-  } catch (err) {
-    return NextResponse.json({ error: "Lỗi khi xoá thành viên" }, { status: 500 });
+    // 2. Clear legacy user.companyId if it points to this company
+    await prisma.user.updateMany({
+      where: {
+        id: member.userId,
+        companyId: companyId,
+      },
+      data: {
+        companyId: null,
+      }
+    });
+
+    // 3. Delete any lingering invitation records for this user in this company
+    if (member.user?.email) {
+      await prisma.companyInvitation.deleteMany({
+        where: {
+          companyId: companyId,
+          email: member.user.email,
+        }
+      });
+    }
+
+    return NextResponse.json({ success: true, message: "Đã xoá thành viên khỏi doanh nghiệp" });
+  } catch (err: any) {
+    console.error("DELETE /api/settings/members error:", err);
+    return NextResponse.json({ error: "Lỗi khi xoá thành viên: " + err.message }, { status: 500 });
   }
 }

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
+import { Plus, Pencil, Trash2, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -79,11 +80,11 @@ function StoreFilterLogo({ store }: { store?: Store }) {
   const initials = store?.name.trim().slice(0, 2).toUpperCase() || "CH";
 
   return (
-    <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+    <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:bg-[#1E1E1E] dark:border-[#3C3C3C]">
       {store?.logoUrl ? (
         <img src={store.logoUrl} alt={store.name} className="h-full w-full object-cover" />
       ) : (
-        <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-[#9D9D9D]">
           {initials}
         </span>
       )}
@@ -720,13 +721,13 @@ export default function ShiftConfigClient({ canEdit }: { canEdit?: boolean }) {
         <CardHeader>
           <CardTitle>Bộ lọc cấu hình</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-wrap items-start gap-4">
-          <div className="flex items-center gap-3">
+        <CardContent className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-3 w-full sm:w-auto">
             <StoreFilterLogo store={selectedStoreData} />
             <Select
               value={selectedStore}
               onChange={(e) => onStoreChange(e.target.value)}
-              className="max-w-xs"
+              className="w-full sm:max-w-xs"
             >
               {stores.map((store) => (
                 <option key={store.id} value={store.id}>
@@ -736,13 +737,32 @@ export default function ShiftConfigClient({ canEdit }: { canEdit?: boolean }) {
             </Select>
           </div>
 
-          <MonthPicker value={selectedMonth} onChange={setSelectedMonth} />
+          <MonthPicker value={selectedMonth} onChange={setSelectedMonth} className="w-full sm:w-auto" />
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Ca hiện tại theo từng ngày trong tháng</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between gap-3 pb-4">
+          <CardTitle className="text-sm sm:text-base md:text-lg font-bold truncate">
+            Ca hiện tại theo từng ngày trong tháng
+          </CardTitle>
+          {canEdit && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                setIsAddingShift(true);
+                if (configScrollRef.current) {
+                  configScrollRef.current.scrollTop = configScrollRef.current.scrollHeight;
+                }
+              }}
+              title="Thêm ca mới"
+              className="h-8 px-2.5 sm:px-3 text-xs font-semibold shrink-0 whitespace-nowrap flex items-center gap-1 shadow-sm"
+            >
+              <Plus className="h-4 w-4 shrink-0" />
+              <span className="hidden sm:inline">Thêm ca mới</span>
+            </Button>
+          )}
         </CardHeader>
         <CardContent className="group px-0 py-0">
           {loading ? (
@@ -752,30 +772,35 @@ export default function ShiftConfigClient({ canEdit }: { canEdit?: boolean }) {
           ) : (
             <>
             <div className="px-6">
-              <div ref={configScrollRef} className="hover-scrollbars overflow-x-auto pt-0">
-              <table ref={configTableRef} className={cn("w-full min-w-max text-sm", !canEdit && "pointer-events-none opacity-90")}>
+              <div ref={configScrollRef} className="hover-scrollbars max-h-[calc(100vh-14rem)] overflow-auto pt-0">
+              <table ref={configTableRef} className={cn("w-full min-w-max border-separate border-spacing-0 text-sm", !canEdit && "pointer-events-none opacity-90")}>
               <thead>
-                <tr className="border-b text-left">
-                  <th className="pb-2 pr-2 sticky left-0 z-20 bg-white w-[80px] min-w-[80px]">Ca</th>
-                  <th className={cn("pb-2 pr-2 sticky left-[80px] z-20 bg-white w-[150px] min-w-[150px]", !canEdit && "border-r border-slate-200")}>Giờ</th>
-                  {canEdit && (
-                    <th className="pb-2 pr-2 sticky left-[230px] z-20 bg-white w-[140px] min-w-[140px] border-r border-slate-200">Thao tác</th>
-                  )}
+                <tr className="text-left">
+                  <th className="h-[52px] px-2.5 sticky top-0 left-0 z-30 bg-white dark:bg-[#252526] text-slate-800 dark:text-[#E0E0E0] w-[60px] min-w-[60px] max-w-[60px] border-b border-slate-200 dark:border-[#333333] font-bold text-xs">
+                    Ca
+                  </th>
+                  <th className="h-[52px] px-2.5 sticky top-0 left-[60px] z-30 bg-white dark:bg-[#252526] text-slate-800 dark:text-[#E0E0E0] w-[165px] min-w-[165px] max-w-[165px] border-r border-b border-slate-200 dark:border-[#333333] font-bold text-xs">
+                    Giờ & Thao tác
+                  </th>
                   {monthDays.map((day) => (
                     <th
                       key={formatDateOnly(day)}
-                      className={`pb-2 px-1 text-center ${hasVisibleDayNote(formatDateOnly(day)) ? getDayNoteColor(getDayNote(formatDateOnly(day))?.colorKey).softClass : ""}`}
+                      className={cn(
+                        "h-[52px] px-1 text-center text-slate-800 dark:text-[#E0E0E0] sticky top-0 z-20 bg-white dark:bg-[#252526] border-b border-slate-200 dark:border-[#333333]",
+                        hasVisibleDayNote(formatDateOnly(day)) ? getDayNoteColor(getDayNote(formatDateOnly(day))?.colorKey).softClass : ""
+                      )}
                     >
                       <div>{day.getUTCDate()}</div>
-                      <div className="text-[11px] font-normal text-slate-500">
+                      <div className="text-[11px] font-normal text-slate-500 dark:text-[#9D9D9D]">
                         {DAY_NAMES[day.getUTCDay()].replace("Thứ ", "T")}
                       </div>
                     </th>
                   ))}
                 </tr>
-                <tr className="border-b bg-slate-50 align-top">
-                  <th className="py-2 pr-2 text-xs font-medium text-slate-600 sticky left-0 z-20 bg-slate-50 border-r border-slate-200" colSpan={canEdit ? 3 : 2}>
-                    Ghi chú ngày / màu đánh dấu
+                <tr className="align-top">
+                  <th className="py-2.5 px-2.5 sticky top-[52px] left-0 z-30 bg-slate-50 dark:bg-[#252526] w-[60px] min-w-[60px] max-w-[60px] border-b border-slate-200 dark:border-[#333333]" />
+                  <th className="py-2.5 px-2.5 text-xs font-medium text-slate-600 dark:text-[#9D9D9D] sticky top-[52px] left-[60px] z-30 bg-slate-50 dark:bg-[#252526] w-[165px] min-w-[165px] max-w-[165px] border-r border-b border-slate-200 dark:border-[#333333]">
+                    Ghi chú ngày
                   </th>
                   {monthDays.map((day) => {
                     const dateStr = formatDateOnly(day);
@@ -784,7 +809,7 @@ export default function ShiftConfigClient({ canEdit }: { canEdit?: boolean }) {
                     return (
                       <th
                         key={`note-${dateStr}`}
-                        className={`px-1 py-2 ${note?.note.trim() ? color.softClass : ""}`}
+                        className={cn("px-1 py-2.5 sticky top-[52px] z-10 bg-slate-50 dark:bg-[#1E1E1E] border-b border-slate-200 dark:border-[#333333]", note?.note.trim() ? color.softClass : "")}
                       >
                         <div ref={openColorPickerDate === dateStr ? colorPickerShellRef : null} className="relative space-y-2">
                           <div className="relative">
@@ -799,13 +824,13 @@ export default function ShiftConfigClient({ canEdit }: { canEdit?: boolean }) {
                               }}
                               onBlur={(e) => updateDayNote(dateStr, { note: e.target.value })}
                               placeholder="Ghi chú"
-                              className="h-8 min-w-[120px] pr-10 text-xs disabled:opacity-100 disabled:text-slate-800"
+                              className="h-8 min-w-[120px] pr-10 text-xs disabled:opacity-100 disabled:text-slate-800 dark:disabled:text-[#E0E0E0]"
                               disabled={!canEdit}
                             />
                             <button
                               type="button"
                               aria-label="Chon mau"
-                              className="absolute top-1/2 right-1 h-6 w-6 -translate-y-1/2 rounded-md border border-slate-300 shadow-sm transition-transform hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
+                              className="absolute top-1/2 right-1 h-6 w-6 -translate-y-1/2 rounded-md border border-slate-300 shadow-sm transition-transform hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed dark:border-[#3C3C3C]"
                               style={{ backgroundColor: color.swatch }}
                               onClick={() =>
                                 setOpenColorPickerDate((current) =>
@@ -816,14 +841,19 @@ export default function ShiftConfigClient({ canEdit }: { canEdit?: boolean }) {
                             />
                           </div>
                           {openColorPickerDate === dateStr && (
-                            <div className="absolute left-1/2 top-10 z-20 w-44 -translate-x-1/2 rounded-xl border border-slate-200 bg-white p-3 text-left shadow-xl">
-                              <p className="text-[11px] font-medium text-slate-500">Bảng màu</p>
+                            <div className="absolute left-1/2 top-10 z-20 w-44 -translate-x-1/2 rounded-xl border border-slate-200 bg-white p-3 text-left shadow-xl dark:border-[#333333] dark:bg-[#252526]">
+                              <p className="text-[11px] font-medium text-slate-500 dark:text-[#9D9D9D]">Bảng màu</p>
                               <div className="mt-2 grid grid-cols-3 gap-2">
                                 {DAY_NOTE_COLORS.map((option) => (
                                   <button
                                     key={option.key}
                                     type="button"
-                                    className={`h-8 rounded-lg border ${option.key === (note?.colorKey ?? "amber") ? "border-slate-900 ring-2 ring-slate-300" : "border-slate-200"}`}
+                                    className={cn(
+                                      "h-8 rounded-lg border",
+                                      option.key === (note?.colorKey ?? "amber")
+                                        ? "border-slate-900 ring-2 ring-slate-300 dark:border-white dark:ring-neutral-500"
+                                        : "border-slate-200 dark:border-[#3C3C3C]"
+                                    )}
                                     style={{ backgroundColor: option.swatch }}
                                     onClick={() => {
                                       upsertLocalDayNote(dateStr, { colorKey: option.key });
@@ -836,8 +866,8 @@ export default function ShiftConfigClient({ canEdit }: { canEdit?: boolean }) {
                                   />
                                 ))}
                               </div>
-                              <div className="mt-3 border-t border-slate-100 pt-3">
-                                <p className="text-[11px] font-medium text-slate-500">Gần đây</p>
+                              <div className="mt-3 border-t border-slate-100 pt-3 dark:border-[#333333]">
+                                <p className="text-[11px] font-medium text-slate-500 dark:text-[#9D9D9D]">Gần đây</p>
                                 <div className="mt-2 flex flex-wrap gap-2">
                                   {recentColorKeys.map((colorKey) => {
                                     const recentColor = getDayNoteColor(colorKey);
@@ -845,7 +875,7 @@ export default function ShiftConfigClient({ canEdit }: { canEdit?: boolean }) {
                                       <button
                                         key={`${dateStr}-${colorKey}`}
                                         type="button"
-                                        className="h-7 w-7 rounded-md border border-slate-200"
+                                        className="h-7 w-7 rounded-md border border-slate-200 dark:border-slate-700"
                                         style={{ backgroundColor: recentColor.swatch }}
                                         onClick={() => {
                                           upsertLocalDayNote(dateStr, { colorKey });
@@ -888,100 +918,130 @@ export default function ShiftConfigClient({ canEdit }: { canEdit?: boolean }) {
               </thead>
               <tbody>
                 {storeShifts.map((shift) => (
-                  <tr key={shift.id} className="border-b border-slate-100 align-top">
-                    <td className="py-3 pr-2 font-medium sticky left-0 z-20 bg-white w-[80px] min-w-[80px]">
+                  <tr key={shift.id} className="align-top">
+                    <td className="py-2.5 px-2.5 font-bold sticky left-0 z-10 bg-white dark:bg-[#252526] text-slate-800 dark:text-[#E0E0E0] w-[60px] min-w-[60px] max-w-[60px] border-b border-slate-100 dark:border-[#333333]/80 text-xs">
                       {editingShift === shift.id ? (
-                        <Input
-                          value={editForm.name}
-                          onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                          className="h-8 w-14 px-2"
-                        />
+                        <div className="h-7 flex items-center">
+                          <Input
+                            value={editForm.name}
+                            onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                            className="h-7 w-12 px-1 text-xs font-bold"
+                          />
+                        </div>
                       ) : (
-                        shift.name
+                        <div className="h-6 flex items-center">
+                          <span>{shift.name}</span>
+                        </div>
                       )}
                     </td>
-                    <td className={cn("py-3 pr-2 sticky left-[80px] z-20 bg-white w-[150px] min-w-[150px]", !canEdit && "border-r border-slate-200")}>
+                    <td className="py-2.5 px-2.5 sticky left-[60px] z-10 bg-white dark:bg-[#252526] text-slate-700 dark:text-[#CCCCCC] w-[165px] min-w-[165px] max-w-[165px] border-r border-b border-slate-200 dark:border-[#333333] dark:border-b-[#333333]/80">
                       {editingShift === shift.id ? (
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-1">
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex items-center gap-1 h-7">
                             <Input
                               type="time"
                               value={editForm.startTime}
                               onChange={(e) => setEditForm({ ...editForm, startTime: e.target.value })}
-                              className="h-8 w-[72px] px-1"
+                              className="h-7 w-[64px] px-1 text-xs"
                             />
-                            <span>-</span>
+                            <span className="text-xs text-slate-400">-</span>
                             <Input
                               type="time"
                               value={editForm.endTime}
                               onChange={(e) => setEditForm({ ...editForm, endTime: e.target.value })}
-                              className="h-8 w-[72px] px-1"
+                              className="h-7 w-[64px] px-1 text-xs"
                             />
                           </div>
-                          <span className="text-xs text-slate-500">
-                            ({calcDurationHours(editForm.startTime, editForm.endTime)}h)
-                          </span>
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-[11px] text-slate-500 font-mono">
+                              ({calcDurationHours(editForm.startTime, editForm.endTime)}h)
+                            </span>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                title="Lưu ca"
+                                onClick={() => saveEditShift(shift)}
+                                className="h-6 w-6 rounded flex items-center justify-center bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-xs"
+                              >
+                                <Check className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                title="Hủy"
+                                onClick={() => setEditingShift(null)}
+                                className="h-6 w-6 rounded flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-600 dark:bg-[#333] dark:text-slate-300 transition-colors"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       ) : (
-                        `${shift.startTime}-${shift.endTime} (${shift.durationHours}h)`
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center justify-between gap-1 h-6">
+                            <span className="font-semibold text-xs text-slate-800 dark:text-[#E0E0E0] whitespace-nowrap">
+                              {shift.startTime}-{shift.endTime}{" "}
+                              <span className="text-[11px] font-normal text-slate-500 dark:text-[#9D9D9D]">
+                                ({shift.durationHours}h)
+                              </span>
+                            </span>
+                            {canEdit && (
+                              <div className="flex items-center gap-0.5 shrink-0">
+                                <button
+                                  type="button"
+                                  title="Sửa ca"
+                                  onClick={() => startEditShift(shift)}
+                                  className="h-6 w-6 rounded-md flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:hover:text-white dark:hover:bg-[#3C3C3C] transition-colors"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  title="Xóa ca"
+                                  onClick={() => deleteShift(shift)}
+                                  className="h-6 w-6 rounded-md flex items-center justify-center text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:text-rose-400 dark:hover:bg-rose-950/40 transition-colors"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                          {canEdit && (
+                            <Select
+                              className="h-6.5 text-[11px] px-1.5 py-0 w-full bg-white/70 dark:bg-[#2D2D30] border-slate-200 dark:border-[#3C3C3C]"
+                              value=""
+                              onChange={(e) =>
+                                e.target.value &&
+                                applyRuleToMonth(shift.id, Number(e.target.value))
+                              }
+                            >
+                              <option value="">Áp dụng cả tháng</option>
+                              {STAFF_OPTIONS.map((option) => (
+                                <option key={option} value={option}>
+                                  {option} NV / ngày
+                                </option>
+                              ))}
+                            </Select>
+                          )}
+                        </div>
                       )}
                     </td>
-                    {canEdit && (
-                    <td className="py-3 pr-2 sticky left-[230px] z-20 bg-white w-[140px] min-w-[140px] border-r border-slate-200">
-                      <div className="flex min-w-[120px] flex-col gap-1">
-                        {editingShift === shift.id ? (
-                          <>
-                            <Button size="sm" onClick={() => saveEditShift(shift)}>
-                              Lưu
-                            </Button>
-                            <Button size="sm" variant="outline" onClick={() => setEditingShift(null)}>
-                              Hủy
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            {canEdit && (
-                              <>
-                                <Button size="sm" variant="outline" onClick={() => startEditShift(shift)}>
-                                  Sửa ca
-                                </Button>
-                                <Button size="sm" variant="destructive" onClick={() => deleteShift(shift)}>
-                                  Xóa ca
-                                </Button>
-                                <Select
-                                  className="h-8 text-xs"
-                                  value=""
-                                  onChange={(e) =>
-                                    e.target.value &&
-                                    applyRuleToMonth(shift.id, Number(e.target.value))
-                                  }
-                                >
-                                  <option value="">Áp dụng cả tháng</option>
-                                  {STAFF_OPTIONS.map((option) => (
-                                    <option key={option} value={option}>
-                                      {option} nhân viên/ngày
-                                    </option>
-                                  ))}
-                                </Select>
-                              </>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </td>
-                    )}
                     {monthDays.map((day) => {
                       const dateStr = formatDateOnly(day);
-                      const dayNote = getDayNote(dateStr);
                       return (
                         <td
-                          key={dateStr}
-                          className={`py-3 px-1 text-center ${dayNote?.note.trim() ? getDayNoteColor(dayNote.colorKey).softClass : ""}`}
+                          key={`${shift.id}-${dateStr}`}
+                          className={cn(
+                            "px-1 py-2 text-center align-middle border-b border-slate-100 dark:border-[#333333]/80",
+                            hasVisibleDayNote(dateStr)
+                              ? getDayNoteColor(getDayNote(dateStr)?.colorKey).softClass
+                              : ""
+                          )}
                         >
                           <Select
                             value={String(getDailyStaff(shift.id, dateStr))}
                             onChange={(e) => updateOverride(shift.id, dateStr, Number(e.target.value))}
-                            className="h-8 w-[125px] text-xs disabled:opacity-100 disabled:text-slate-800"
+                            className="h-8 w-[125px] text-xs disabled:opacity-100 disabled:text-slate-800 dark:disabled:text-[#E0E0E0]"
                             disabled={!canEdit}
                           >
                             {STAFF_OPTIONS.map((option) => (
@@ -996,45 +1056,57 @@ export default function ShiftConfigClient({ canEdit }: { canEdit?: boolean }) {
                   </tr>
                 ))}
                 {isAddingShift && (
-                  <tr className="border-b border-slate-100 align-top bg-slate-50">
-                    <td className="py-3 pr-2 font-medium sticky left-0 z-20 bg-slate-50 w-[80px] min-w-[80px]">
-                      <Input
-                        value={newShiftForm.name}
-                        onChange={(e) => setNewShiftForm({ ...newShiftForm, name: e.target.value })}
-                        className="h-8 w-14 px-2"
-                        placeholder="Tên"
-                      />
+                  <tr className="border-b border-slate-100 dark:border-[#333333] align-top bg-slate-50 dark:bg-[#1E1E1E]">
+                    <td className="py-2.5 px-2.5 font-bold sticky left-0 z-20 bg-slate-50 dark:bg-[#1E1E1E] text-slate-800 dark:text-[#E0E0E0] w-[60px] min-w-[60px] max-w-[60px]">
+                      <div className="h-7 flex items-center">
+                        <Input
+                          value={newShiftForm.name}
+                          onChange={(e) => setNewShiftForm({ ...newShiftForm, name: e.target.value })}
+                          className="h-7 w-12 px-1 text-xs font-bold"
+                          placeholder="Tên"
+                        />
+                      </div>
                     </td>
-                    <td className="py-3 pr-2 sticky left-[80px] z-20 bg-slate-50 w-[150px] min-w-[150px]">
-                      <div className="flex flex-col gap-1">
+                    <td className="py-2.5 px-2.5 sticky left-[60px] z-20 bg-slate-50 dark:bg-[#1E1E1E] w-[165px] min-w-[165px] max-w-[165px] border-r border-slate-200 dark:border-[#333333]">
+                      <div className="flex flex-col gap-1.5">
                         <div className="flex items-center gap-1">
                           <Input
                             type="time"
                             value={newShiftForm.startTime}
                             onChange={(e) => setNewShiftForm({ ...newShiftForm, startTime: e.target.value })}
-                            className="h-8 w-[72px] px-1"
+                            className="h-7 w-[64px] px-1 text-xs"
                           />
-                          <span>-</span>
+                          <span className="text-xs text-slate-400">-</span>
                           <Input
                             type="time"
                             value={newShiftForm.endTime}
                             onChange={(e) => setNewShiftForm({ ...newShiftForm, endTime: e.target.value })}
-                            className="h-8 w-[72px] px-1"
+                            className="h-7 w-[64px] px-1 text-xs"
                           />
                         </div>
-                        <span className="text-xs text-slate-500">
-                          ({calcDurationHours(newShiftForm.startTime, newShiftForm.endTime)}h)
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-3 pr-2 sticky left-[230px] z-20 bg-slate-50 w-[140px] min-w-[140px] border-r border-slate-200">
-                      <div className="flex min-w-[120px] flex-col gap-1">
-                        <Button size="sm" onClick={saveNewShift}>
-                          Lưu
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => setIsAddingShift(false)}>
-                          Hủy
-                        </Button>
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-[11px] text-slate-500 font-mono">
+                            ({calcDurationHours(newShiftForm.startTime, newShiftForm.endTime)}h)
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              title="Lưu ca"
+                              onClick={saveNewShift}
+                              className="h-6 px-2 rounded flex items-center justify-center bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold gap-1 transition-colors"
+                            >
+                              <Check className="h-3 w-3" /> Lưu
+                            </button>
+                            <button
+                              type="button"
+                              title="Hủy"
+                              onClick={() => setIsAddingShift(false)}
+                              className="h-6 px-2 rounded flex items-center justify-center bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold gap-1 transition-colors"
+                            >
+                              <X className="h-3 w-3" /> Hủy
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </td>
                     <td colSpan={monthDays.length}></td>
@@ -1042,11 +1114,13 @@ export default function ShiftConfigClient({ canEdit }: { canEdit?: boolean }) {
                 )}
                 {!isAddingShift && canEdit && (
                   <tr>
-                    <td colSpan={3 + monthDays.length} className="py-4">
-                      <Button variant="outline" size="sm" onClick={() => setIsAddingShift(true)}>
-                        + Thêm ca mới
+                    <td className="py-3 sticky left-0 z-20 bg-white dark:bg-[#252526]" colSpan={2}>
+                      <Button variant="outline" size="sm" onClick={() => setIsAddingShift(true)} className="h-8 text-xs font-semibold">
+                        <Plus className="mr-1.5 h-3.5 w-3.5" />
+                        Thêm ca mới
                       </Button>
                     </td>
+                    <td colSpan={monthDays.length}></td>
                   </tr>
                 )}
               </tbody>
@@ -1057,11 +1131,11 @@ export default function ShiftConfigClient({ canEdit }: { canEdit?: boolean }) {
               <div
                 ref={configScrollbarTrackRef}
                 onMouseDown={handleConfigScrollbarTrackPointerDown}
-                className={`relative h-2 rounded-full bg-slate-200/70 opacity-0 transition-opacity duration-200 group-hover:opacity-100 ${hasConfigHorizontalOverflow ? "cursor-pointer" : "pointer-events-none"}`}
+                className={`relative h-2 rounded-full bg-slate-200/70 dark:bg-[#2D2D30] opacity-0 transition-opacity duration-200 group-hover:opacity-100 ${hasConfigHorizontalOverflow ? "cursor-pointer" : "pointer-events-none"}`}
               >
                 <div
                   onMouseDown={handleConfigScrollbarThumbPointerDown}
-                  className={`absolute top-0 h-2 rounded-full bg-slate-500/70 shadow-sm transition-colors ${hasConfigHorizontalOverflow ? "cursor-grab hover:bg-slate-600/80 active:cursor-grabbing" : "hidden"}`}
+                  className={`absolute top-0 h-2 rounded-full bg-slate-500/70 dark:bg-[#45454C] shadow-sm transition-colors ${hasConfigHorizontalOverflow ? "cursor-grab hover:bg-slate-600/80 dark:hover:bg-[#585860] active:cursor-grabbing" : "hidden"}`}
                   style={{
                     width: `${configScrollbarThumbWidthPercent}%`,
                     left: `${configScrollbarThumbOffsetPercent}%`,

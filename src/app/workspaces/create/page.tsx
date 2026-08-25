@@ -40,11 +40,11 @@ export default function CreateWorkspacePage() {
         </Link>
         <div className="bg-white py-8 px-4 shadow-xl shadow-slate-200/40 sm:rounded-2xl sm:px-10 border border-slate-100">
           <div className="text-center mb-8">
-            <div className="mx-auto h-12 w-12 rounded-xl bg-indigo-50 flex items-center justify-center mb-4">
-              <Building2 className="h-6 w-6 text-indigo-600" />
+            <div className="mx-auto h-12 w-12 rounded-2xl bg-slate-100 dark:bg-neutral-800 flex items-center justify-center mb-4 border border-slate-200/80 dark:border-neutral-700">
+              <Building2 className="h-6 w-6 text-slate-900 dark:text-white" />
             </div>
-            <h2 className="text-2xl font-bold tracking-tight text-slate-900">Tạo doanh nghiệp mới</h2>
-            <p className="mt-2 text-sm text-slate-500">
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Tạo doanh nghiệp mới</h2>
+            <p className="mt-2 text-sm text-slate-500 dark:text-neutral-400">
               Bắt đầu quản lý chuỗi cửa hàng và lịch làm việc của bạn
             </p>
           </div>
@@ -53,15 +53,15 @@ export default function CreateWorkspacePage() {
             <div className="flex flex-col items-center justify-center mb-6">
               <div className="relative group">
                 <label htmlFor="logo" className="cursor-pointer block">
-                  <div className="h-20 w-20 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center overflow-hidden transition-all group-hover:border-indigo-300 group-hover:shadow-md">
+                  <div className="h-20 w-20 rounded-2xl bg-slate-100 dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 flex items-center justify-center overflow-hidden transition-all group-hover:border-slate-400 group-hover:shadow-md">
                     {logoPreview ? (
                       <img src={logoPreview} alt="Logo preview" className="w-full h-full object-cover" />
                     ) : (
-                      <ImagePlus className="h-8 w-8 text-indigo-400 group-hover:text-indigo-600 transition-colors" />
+                      <ImagePlus className="h-8 w-8 text-slate-400 group-hover:text-slate-700 dark:group-hover:text-neutral-200 transition-colors" />
                     )}
                   </div>
-                  <div className="absolute -bottom-2 -right-2 bg-white rounded-full p-1 shadow-sm border border-slate-200">
-                    <div className="bg-indigo-600 rounded-full p-1 text-white">
+                  <div className="absolute -bottom-2 -right-2 bg-white dark:bg-[#18181B] rounded-full p-1 shadow-sm border border-slate-200 dark:border-neutral-700">
+                    <div className="bg-slate-900 dark:bg-white dark:text-black rounded-full p-1 text-white">
                       <ImagePlus className="h-3 w-3" />
                     </div>
                   </div>
@@ -96,11 +96,11 @@ export default function CreateWorkspacePage() {
                   </button>
                 )}
               </div>
-              <span className="text-xs text-slate-500 mt-3 font-medium">Thêm logo doanh nghiệp (Tùy chọn)</span>
+              <span className="text-xs text-slate-500 dark:text-neutral-400 mt-3 font-medium">Thêm logo doanh nghiệp (Tùy chọn)</span>
             </div>
 
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-slate-700">
+              <label htmlFor="name" className="block text-sm font-medium text-slate-700 dark:text-neutral-300">
                 Tên doanh nghiệp
               </label>
               <div className="mt-2">
@@ -110,21 +110,21 @@ export default function CreateWorkspacePage() {
                   type="text"
                   required
                   placeholder="Ví dụ: TokyoLife HCM"
-                  className="block w-full rounded-xl"
+                  className="block w-full rounded-xl dark:bg-[#202024] dark:border-neutral-700 dark:text-white"
                   autoFocus
                 />
               </div>
             </div>
 
             {error && (
-              <div className="text-sm text-red-600 bg-red-50 p-3 rounded-xl border border-red-100">
+              <div className="text-sm text-red-600 bg-red-50 dark:bg-rose-950/40 p-3 rounded-xl border border-red-100 dark:border-rose-900/60">
                 {error}
               </div>
             )}
 
             <Button
               type="submit"
-              className="w-full justify-center bg-indigo-600 hover:bg-indigo-700 rounded-xl h-11"
+              className="w-full justify-center bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-black dark:hover:bg-neutral-200 font-bold rounded-xl h-11 shadow-md"
               disabled={isLoading}
             >
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

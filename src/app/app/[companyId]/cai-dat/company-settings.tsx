@@ -84,28 +84,28 @@ export function CompanySettings({ companyId, canEdit }: { companyId: string, can
   if (!company) return null;
 
   return (
-    <Card className="border-none shadow-sm overflow-hidden bg-white/80 glass-control">
-      <CardHeader className="bg-slate-50/50 border-b pb-4">
-        <CardTitle>Thông tin doanh nghiệp</CardTitle>
-        <CardDescription>Cập nhật logo và tên doanh nghiệp (hiển thị trên Sidebar).</CardDescription>
+    <Card className="border-none shadow-sm overflow-hidden bg-white/90 dark:bg-[#18181B] dark:border dark:border-neutral-800 glass-control">
+      <CardHeader className="bg-slate-50/70 dark:bg-[#202024] border-b border-slate-200/80 dark:border-neutral-800 p-4 sm:px-6 sm:py-4">
+        <CardTitle className="text-base font-bold text-slate-900 dark:text-white">Thông tin doanh nghiệp</CardTitle>
+        <CardDescription className="dark:text-neutral-400 text-xs mt-0.5">Cập nhật logo và tên doanh nghiệp (hiển thị trên Sidebar).</CardDescription>
       </CardHeader>
       <CardContent className="p-6">
         <div className="flex items-center gap-6">
           <div className="relative group/logo">
-            <div className="h-24 w-24 rounded-2xl bg-indigo-50 border border-slate-200 flex items-center justify-center overflow-hidden">
+            <div className="h-20 w-20 rounded-2xl bg-slate-100 dark:bg-[#202024] border border-slate-200 dark:border-neutral-700 flex items-center justify-center overflow-hidden shadow-xs">
               {uploading ? (
-                <Loader2 className="h-6 w-6 text-indigo-500 animate-spin" />
+                <Loader2 className="h-6 w-6 text-slate-700 dark:text-neutral-300 animate-spin" />
               ) : company.logo ? (
                 <img src={company.logo} alt="Logo" className="w-full h-full object-cover" />
               ) : (
-                <span className="text-3xl font-bold text-indigo-300 uppercase">{company.name.charAt(0)}</span>
+                <span className="text-2xl font-bold text-slate-700 dark:text-neutral-300 uppercase">{company.name.charAt(0)}</span>
               )}
             </div>
             {canEdit && (
               <>
-                <label className="absolute inset-0 bg-black/50 text-white rounded-2xl opacity-0 group-hover/logo:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-opacity">
-                  <Upload className="h-6 w-6 mb-1" />
-                  <span className="text-xs font-medium">Đổi Logo</span>
+                <label className="absolute inset-0 bg-black/60 text-white rounded-2xl opacity-0 group-hover/logo:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-opacity">
+                  <Upload className="h-5 w-5 mb-0.5" />
+                  <span className="text-[10px] font-bold">Đổi Logo</span>
                   <input 
                     type="file" 
                     accept="image/*" 
@@ -118,19 +118,19 @@ export function CompanySettings({ companyId, canEdit }: { companyId: string, can
                   <button
                     type="button"
                     title="Xoá logo"
-                    className="absolute -top-2 -right-2 bg-red-100 text-red-600 rounded-full p-1 opacity-0 group-hover/logo:opacity-100 transition-opacity hover:bg-red-500 hover:text-white shadow-sm border border-red-200 z-10"
+                    className="absolute -top-2 -right-2 bg-rose-100 text-rose-600 rounded-full p-1 opacity-0 group-hover/logo:opacity-100 transition-opacity hover:bg-rose-600 hover:text-white shadow-xs border border-rose-200 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800 z-10"
                     onClick={handleDeleteLogo}
                     disabled={uploading}
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 )}
               </>
             )}
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-slate-900">{company.name}</h3>
-            <p className="text-sm text-slate-500">Workspace ID: {company.id}</p>
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">{company.name}</h3>
+            <p className="text-xs text-slate-500 dark:text-neutral-400 font-mono mt-0.5">Workspace ID: {company.id}</p>
           </div>
         </div>
       </CardContent>

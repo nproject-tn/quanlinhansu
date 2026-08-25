@@ -25,19 +25,28 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const mode = (searchParams.get("mode") ?? "week") as "week" | "month";
     const referenceDate = parseDateOnly(searchParams.get("date") ?? format(new Date(), "yyyy-MM-dd"));
-    const storeId = searchParams.get("storeId");
+    const storeIdParam = searchParams.get("storeIds") || searchParams.get("storeId");
+    const requestedStoreIds = storeIdParam
+      ? storeIdParam.split(",").map((s) => s.trim()).filter(Boolean)
+      : [];
+
+    const storeFilterCondition =
+      requestedStoreIds.length === 1
+        ? { id: requestedStoreIds[0] }
+        : requestedStoreIds.length > 1
+        ? { id: { in: requestedStoreIds } }
+        : {};
 
     const { start, end } = getDateRange(mode, referenceDate);
     const dates = getDaysInRange(start, end);
     const isEmployee = session!.user.role === "EMPLOYEE";
 
-    let stores: { id: string; name: string; logoUrl?: string | null; maxHoursPerDay: number | null; maxShiftsPerDay: number | null }[];
+    let allStores: { id: string; name: string; logoUrl?: string | null; maxHoursPerDay: number | null; maxShiftsPerDay: number | null }[];
     try {
-      stores = await prisma.store.findMany({
+      allStores = await prisma.store.findMany({
         where: {
           companyId,
           isActive: true,
-          ...(storeId ? { id: storeId } : {}),
         },
         select: { id: true, name: true, logoUrl: true, maxHoursPerDay: true, maxShiftsPerDay: true },
         orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
@@ -47,24 +56,25 @@ export async function GET(request: Request) {
         throw storeError;
       }
 
-      stores = await prisma.store.findMany({
+      allStores = await prisma.store.findMany({
         where: {
           companyId,
           isActive: true,
-          ...(storeId ? { id: storeId } : {}),
         },
         select: { id: true, name: true, maxHoursPerDay: true, maxShiftsPerDay: true },
         orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
       });
     }
 
-    const storeIds = stores.map((s) => s.id);
+    const stores = allStores;
+    const storeIds = allStores.map((s) => s.id);
     if (storeIds.length === 0) {
       return NextResponse.json({
         mode,
         start: formatDateOnly(start),
         end: formatDateOnly(end),
-      stores: [],
+        stores: [],
+        allStores: [],
         shifts: [],
         rules: [],
         overrides: [],

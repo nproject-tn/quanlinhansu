@@ -8,23 +8,73 @@ import { parseDateOnly } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const { error, companyId } = await requireAuth(["OWNER"], { module: "employees", action: "VIEW" });
+  const { error, companyId } = await requireAuth(["OWNER"], [{ module: "employees", action: "VIEW_HOURS" }, { module: "employees", action: "VIEW" }]);
   if (error || !companyId) return error;
 
   const { searchParams } = new URL(request.url);
   const month = searchParams.get("month") ?? format(new Date(), "yyyy-MM");
   const { start, end } = getDateRange("month", parseDateOnly(`${month}-01`));
 
+  const storeIdsParam = searchParams.get("storeIds") || searchParams.get("storeId");
+  const requestedStoreIds = storeIdsParam
+    ? storeIdsParam.split(",").map((s) => s.trim()).filter(Boolean)
+    : [];
+
+  const employeeIdsParam = searchParams.get("employeeIds") || searchParams.get("employeeId");
+  const requestedEmployeeIds = employeeIdsParam
+    ? employeeIdsParam.split(",").map((e) => e.trim()).filter(Boolean)
+    : [];
+
+  const storeFilter = requestedStoreIds.length > 0 ? { storeId: { in: requestedStoreIds } } : {};
+  const employeeFilter = requestedEmployeeIds.length > 0 ? { id: { in: requestedEmployeeIds } } : {};
+
+  // Build employee query conditions
+  let employeeWhere: any = {
+    companyId,
+    ...employeeFilter,
+  };
+
+  if (requestedStoreIds.length > 0) {
+    employeeWhere = {
+      ...employeeWhere,
+      OR: [
+        {
+          isArchived: false,
+          deletedAt: null,
+          stores: { some: { storeId: { in: requestedStoreIds } } },
+        },
+        {
+          shiftAssignments: {
+            some: {
+              storeId: { in: requestedStoreIds },
+              date: { gte: start, lte: end },
+            },
+          },
+        },
+        {
+          shiftOvertimes: {
+            some: {
+              storeId: { in: requestedStoreIds },
+              date: { gte: start, lte: end },
+            },
+          },
+        },
+      ],
+    };
+  } else {
+    employeeWhere = {
+      ...employeeWhere,
+      OR: [
+        { isArchived: false, deletedAt: null },
+        { shiftAssignments: { some: { date: { gte: start, lte: end } } } },
+        { shiftOvertimes: { some: { date: { gte: start, lte: end } } } },
+      ],
+    };
+  }
+
   const [employees, assignments, faultsRaw, overtimesRaw] = await Promise.all([
     prisma.employee.findMany({
-      where: {
-        companyId,
-        OR: [
-          { isArchived: false, deletedAt: null },
-          { shiftAssignments: { some: { date: { gte: start, lte: end } } } },
-          { shiftOvertimes: { some: { date: { gte: start, lte: end } } } },
-        ],
-      },
+      where: employeeWhere,
       select: {
         id: true,
         name: true,
@@ -42,6 +92,8 @@ export async function GET(request: Request) {
         companyId,
         employeeId: { not: null },
         date: { gte: start, lte: end },
+        ...storeFilter,
+        ...(requestedEmployeeIds.length > 0 ? { employeeId: { in: requestedEmployeeIds } } : {}),
       },
       select: {
         employeeId: true,
@@ -58,7 +110,11 @@ export async function GET(request: Request) {
     prisma.shiftFault.findMany({
       where: {
         companyId,
-        assignment: { date: { gte: start, lte: end } }
+        assignment: {
+          date: { gte: start, lte: end },
+          ...storeFilter,
+        },
+        ...(requestedEmployeeIds.length > 0 ? { employeeId: { in: requestedEmployeeIds } } : {}),
       },
       select: {
         id: true,
@@ -69,21 +125,23 @@ export async function GET(request: Request) {
         assignment: {
           select: {
             date: true,
-            shiftTemplate: { select: { name: true } }
-          }
-        }
+            shiftTemplate: { select: { name: true } },
+          },
+        },
       },
-      orderBy: { createdAt: "desc" }
+      orderBy: { createdAt: "desc" },
     }),
     prisma.shiftOvertime.findMany({
       where: {
         companyId,
-        date: { gte: start, lte: end }
+        date: { gte: start, lte: end },
+        ...storeFilter,
+        ...(requestedEmployeeIds.length > 0 ? { employeeId: { in: requestedEmployeeIds } } : {}),
       },
       select: {
         employeeId: true,
         hours: true,
-      }
+      },
     }),
   ]);
 

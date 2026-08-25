@@ -13,10 +13,21 @@ export default async function SettingsPage(props: {
   const access = await verifyCompanyAccess(companyId);
 
   const permissions = access.permissions as any;
+  const hasSettingsAccess = access.role === "OWNER" || hasPermission(access.role, permissions, "settings", "EDIT") || hasPermission(access.role, permissions, "settings", "VIEW");
+  const hasPendingTransfer = !!access.pendingTransfer;
 
-  if (!hasPermission(access.role, permissions, "settings", "EDIT") && !hasPermission(access.role, permissions, "settings", "VIEW")) {
+  if (!hasSettingsAccess && !hasPendingTransfer) {
     redirect(`/app/${companyId}`);
   }
 
-  return <SettingsClient userRole={access.role} companyId={companyId} canEdit={hasPermission(access.role, permissions, "settings", "EDIT")} />;
+  return (
+    <SettingsClient 
+      userRole={access.role} 
+      companyId={companyId} 
+      currentUserId={access.userId}
+      canEdit={access.role === "OWNER" || hasPermission(access.role, permissions, "settings", "EDIT")} 
+      pendingTransfer={access.pendingTransfer}
+      hasSettingsAccess={hasSettingsAccess}
+    />
+  );
 }

@@ -41,7 +41,7 @@ export async function PUT(request: Request, { params }: Params) {
 }
 
 export async function DELETE(_request: Request, { params }: Params) {
-  const { error, companyId } = await requireAuth(["OWNER"], { module: "store", action: "EDIT" });
+  const { error, companyId } = await requireAuth(["OWNER"], { module: "store", action: "DELETE" });
   if (error) return error;
 
   const { id } = await params;

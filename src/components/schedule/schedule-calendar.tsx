@@ -71,9 +71,14 @@ type Slot = {
   faults?: { id: string; note: string | null; evidenceUrl: string | null; createdAt: Date | string }[];
 };
 
-type Unfilled = { storeName: string; shiftName: string; date: string };
-type DayNote = { date: string; note: string; colorKey: string };
+type DayNote = {
+  id?: string;
+  date: string;
+  note: string;
+  colorKey?: string;
+};
 
+type Unfilled = { storeName: string; shiftName: string; date: string };
 type ScheduleCalendarProps = {
   stores: Store[];
   shifts: Shift[];
@@ -82,7 +87,9 @@ type ScheduleCalendarProps = {
   dayNotes: DayNote[];
   overtimes: { id: string; storeId: string; shiftTemplateId: string; date: string; employeeId: string; hours: number }[];
   unfilled: Unfilled[];
-  selectedEmployeeId: string;
+  selectedEmployeeId?: string;
+  selectedEmployeeIds?: string[];
+  selectedStoreIds?: string[];
   layoutMode: "horizontal" | "vertical";
   onLayoutModeChange: (mode: "horizontal" | "vertical") => void;
   canEdit: boolean;
@@ -231,79 +238,81 @@ function SlotCard({
       ref={setDropRef}
       className={cn(
         "rounded-lg border p-2 text-xs transition-colors",
-        employee ? "border-blue-200 bg-blue-50 assigned-slot" : "border-dashed border-slate-300 bg-slate-50",
+        employee
+          ? "border-slate-300/80 bg-[#EDF2F7] shadow-xs dark:border-[#333333] dark:bg-[#252526] assigned-slot"
+          : "border-dashed border-slate-300/80 bg-slate-50 dark:border-[#333333] dark:bg-[#1E1E1E]",
         isOver && canEdit && "ring-2 ring-blue-400",
         isDragging && "opacity-40"
       )}
     >
-      <div className="flex items-start justify-between gap-1">
+      <div className="flex items-start justify-between gap-1 min-w-0">
         <div className="min-w-0 flex-1">
-          <p className="font-medium text-slate-800">
+          <p className="font-bold text-slate-900 dark:text-white truncate">
             {shift?.name} ({shift?.startTime}-{shift?.endTime})
           </p>
-          <p className="text-slate-500">{store.name}</p>
+          <p className="text-slate-500 dark:text-[#9D9D9D] font-semibold truncate">{store.name}</p>
         </div>
         {canEdit && employee && (
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5 shrink-0 ml-1">
             <button
               type="button"
               onClick={() => onAddFault(slot)}
               disabled={loading}
-              className="rounded p-1 text-slate-400 hover:bg-white hover:text-slate-600"
+              className="rounded p-1 text-slate-400 hover:bg-white hover:text-slate-600 dark:hover:bg-[#37373D] dark:hover:text-white transition-colors"
               aria-label="Thêm lỗi nhân viên"
               title="Thêm lỗi nhân viên"
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-3.5 w-3.5" />
             </button>
             <button
               ref={setDragRef}
               type="button"
-              className="touch-none rounded p-1 text-slate-400 hover:bg-white hover:text-slate-600"
+              className="touch-none rounded p-1 text-slate-400 hover:bg-white hover:text-slate-600 dark:hover:bg-[#37373D] dark:hover:text-white cursor-grab active:cursor-grabbing transition-colors"
               {...listeners}
               {...attributes}
               aria-label="Kéo để đổi ca"
               title="Kéo để đổi ca"
             >
-              <GripVertical className="h-4 w-4" />
+              <GripVertical className="h-3.5 w-3.5" />
             </button>
           </div>
         )}
       </div>
 
       {employee ? (
-        <div className="mt-1 flex items-center justify-between gap-1">
-          <div className="flex flex-col">
-            <p className="font-semibold text-slate-900">{employee.name}</p>
+        <div className="mt-1.5 flex items-center justify-between gap-1 min-w-0 rounded-lg bg-white border border-slate-300/90 px-2 py-1 shadow-xs dark:bg-[#2D2D30] dark:border-[#3C3C3C]">
+          <div className="flex flex-col min-w-0 flex-1 overflow-hidden pr-1">
+            <p className="font-bold text-slate-900 dark:text-white truncate" title={employee.name}>{employee.name}</p>
             {slot.faults && slot.faults.length > 0 && (
               <button 
                 type="button"
                 onClick={() => onAddFault(slot)}
-                className="flex items-center gap-0.5 text-[10px] text-red-500 font-medium mt-0.5 hover:underline text-left cursor-pointer"
+                className="flex items-center gap-0.5 text-[10px] text-red-500 dark:text-red-400 font-medium mt-0.5 hover:underline text-left cursor-pointer truncate"
                 aria-label="Xem chi tiết lỗi"
               >
-                <AlertTriangle className="h-3 w-3" />
-                <span>lỗi : {slot.faults.length}</span>
+                <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
+                <span className="truncate">lỗi : {slot.faults.length}</span>
               </button>
             )}
           </div>
           {canEdit && (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-0.5 shrink-0 ml-1">
               <button
                 type="button"
                 onClick={() => onClear()}
                 disabled={loading}
-                className="rounded p-1 text-slate-400 hover:bg-white hover:text-red-500"
+                className="rounded p-1 text-slate-400 hover:bg-rose-50 hover:text-red-500 dark:hover:bg-rose-950/40 dark:hover:text-red-400 transition-colors"
                 aria-label="Xóa phân công"
                 title="Xóa phân công"
               >
-                <X className="h-4 w-4" />
+                <X className="h-3.5 w-3.5" />
               </button>
             </div>
           )}
         </div>
       ) : canEdit ? (
         <Select
-          className="mt-1 h-8 text-xs"
+          className="mt-1 h-8 text-xs w-full"
           value=""
           disabled={loading}
           onChange={(e) => {
@@ -319,14 +328,14 @@ function SlotCard({
           ))}
         </Select>
       ) : (
-        <p className="mt-1 font-semibold text-slate-400">— Trống —</p>
+        <p className="mt-1 font-semibold text-slate-400 dark:text-neutral-400">— Trống —</p>
       )}
 
       <Badge
         variant={slot.requiredStaff <= 1 ? "warning" : "default"}
         className={cn(
-          "mt-1",
-          slot.requiredStaff > 1 && "border-rose-200 bg-rose-100 text-rose-700"
+          "mt-1 text-[10px] truncate",
+          slot.requiredStaff > 1 && "border-rose-200 bg-rose-100 text-rose-700 dark:border-rose-800/80 dark:bg-rose-950/70 dark:text-rose-300"
         )}
       >
         {slot.requiredStaff} người/ca
@@ -352,7 +361,7 @@ function StoreLogo({
   return (
     <div
       className={cn(
-        "flex shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white",
+        "flex shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-neutral-700 dark:bg-[#18181B]",
         className
       )}
     >
@@ -365,7 +374,7 @@ function StoreLogo({
       ) : (
         <span
           className={cn(
-            "text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400",
+            "text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-neutral-400",
             fallbackClassName
           )}
         >
@@ -425,17 +434,19 @@ function CompactSlotGroup({
   return (
     <div
       className={cn(
-        "rounded-lg border p-2 text-xs transition-colors",
-        hasAssigned ? "border-blue-200 bg-blue-50" : "border-dashed border-slate-300 bg-slate-50"
+        "rounded-xl border p-2 sm:p-2.5 text-xs transition-colors flex flex-col justify-between min-w-0 overflow-hidden",
+        hasAssigned
+          ? "border-slate-300/80 bg-[#EDF2F7] shadow-xs dark:border-[#333333] dark:bg-[#252526]"
+          : "border-dashed border-slate-300/80 bg-slate-50/70 dark:border-[#333333] dark:bg-[#1E1E1E]"
       )}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="font-medium text-slate-800">{shift.name}</p>
-          <p className="text-slate-500">
+      <div className="flex items-start justify-between gap-1 min-w-0">
+        <div className="min-w-0 flex-1">
+          <p className="font-bold text-slate-900 text-xs truncate dark:text-white">{shift.name}</p>
+          <p className="text-[10px] sm:text-[11px] font-mono font-medium text-slate-500 truncate dark:text-[#CCCCCC]">
             {shift.startTime}-{shift.endTime}
           </p>
-          <p className="text-slate-500">{store.name}</p>
+          <p className="text-[10px] sm:text-[11px] font-semibold text-slate-400 truncate dark:text-[#9D9D9D] uppercase tracking-tight">{store.name}</p>
         </div>
         {canEdit && (
           <Button
@@ -444,16 +455,16 @@ function CompactSlotGroup({
             size="sm"
             onClick={onAddOvertime}
             disabled={!hasAssigned || loading}
-            className="h-6 w-6 p-0 rounded-md text-slate-400 hover:text-slate-900 hover:bg-white hover:shadow-sm focus-visible:ring-1 focus-visible:ring-slate-400 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:shadow-none transition-all"
+            className="h-5 w-5 sm:h-6 sm:w-6 p-0 shrink-0 rounded-md text-slate-400 hover:text-slate-900 hover:bg-white hover:shadow-xs focus-visible:ring-1 focus-visible:ring-slate-400 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:shadow-none transition-all dark:text-[#9D9D9D] dark:hover:text-white dark:hover:bg-[#2D2D30]"
             title={!hasAssigned ? "Ca trống không thể thêm giờ làm thêm" : "Thêm giờ làm thêm"}
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-3 w-3 sm:h-3.5 w-3.5" />
           </Button>
         )}
       </div>
 
       {assignedSlots.length > 0 ? (
-        <div className="mt-1 space-y-1">
+        <div className="mt-1.5 space-y-1 min-w-0">
           <div className="min-w-0 flex-1 space-y-1">
             {assignedSlots.map((slot) => {
               const employee = employeeMap.get(slot.employeeId ?? "");
@@ -475,20 +486,20 @@ function CompactSlotGroup({
             })}
           </div>
           {overtimes.length > 0 && (
-            <div className="min-w-0 flex-1 space-y-0.5 pt-1">
+            <div className="min-w-0 flex-1 space-y-0.5 pt-1 border-t border-slate-200/60 dark:border-neutral-700/60">
               {overtimes.map((ot) => {
                 const emp = employeeMap.get(ot.employeeId);
                 if (!emp) return null;
                 return (
-                  <div key={ot.id} className="group/ot flex items-center justify-between text-[11px] italic text-slate-500">
-                    <span>{emp.name} làm thêm {ot.hours} tiếng</span>
+                  <div key={ot.id} className="group/ot flex items-center justify-between text-[11px] italic text-slate-500 dark:text-neutral-300 min-w-0">
+                    <span className="truncate">{emp.name} +{ot.hours}h</span>
                     {canEdit && (
-                      <div className="flex items-center gap-1 opacity-0 group-hover/ot:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover/ot:opacity-100 transition-opacity">
                         <button
                           type="button"
                           onClick={() => onEditOvertime(ot.id, ot.employeeId, ot.hours)}
                           disabled={loading}
-                          className="text-slate-400 hover:text-slate-900"
+                          className="text-slate-400 hover:text-slate-900 dark:hover:text-white p-0.5"
                           title="Sửa giờ làm thêm"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
@@ -497,7 +508,7 @@ function CompactSlotGroup({
                           type="button"
                           onClick={() => onDeleteOvertime(ot.id)}
                           disabled={loading}
-                          className="text-slate-400 hover:text-red-600"
+                          className="text-slate-400 hover:text-red-600 dark:hover:text-red-400 p-0.5"
                           title="Xoá giờ làm thêm"
                         >
                           <X className="h-3 w-3" />
@@ -511,13 +522,13 @@ function CompactSlotGroup({
           )}
         </div>
       ) : canEdit ? (
-        <p className="mt-1 font-semibold text-slate-400">— Trống —</p>
+        <p className="mt-1.5 text-[11px] font-medium text-slate-400 dark:text-neutral-400 italic">— Trống —</p>
       ) : (
-        <p className="mt-1 font-semibold text-slate-400">— Trống —</p>
+        <p className="mt-1.5 text-[11px] font-medium text-slate-400 dark:text-neutral-400 italic">— Trống —</p>
       )}
 
       {canEdit && emptySlots.length > 0 && (
-        <div className="mt-1 space-y-1.5">
+        <div className="mt-1.5 space-y-1.5 min-w-0">
           {emptySlots.map((slot) => (
             <CompactEmptySlotDropZone
               key={slotKey(slot)}
@@ -532,19 +543,21 @@ function CompactSlotGroup({
         </div>
       )}
 
-      <Badge
-        variant={slots[0]?.requiredStaff <= 1 ? "warning" : "default"}
-        className={cn(
-          "mt-1",
-          (slots[0]?.requiredStaff ?? slots.length) > 1 &&
-            "border-rose-200 bg-rose-100 text-rose-700"
-        )}
-      >
-        {slots[0]?.requiredStaff ?? slots.length} người/ca
-        {(slots[0]?.requiredStaff ?? slots.length) > 1
-          ? ` · ${assignedSlots.length} đã xếp`
-          : ""}
-      </Badge>
+      <div className="mt-2 pt-1 border-t border-slate-200/50 dark:border-neutral-800 flex items-center justify-between min-w-0">
+        <Badge
+          variant={slots[0]?.requiredStaff <= 1 ? "warning" : "default"}
+          className={cn(
+            "text-[10px] px-1.5 py-0.5 truncate",
+            (slots[0]?.requiredStaff ?? slots.length) > 1 &&
+              "border-rose-200 bg-rose-100 text-rose-700 dark:border-rose-800/80 dark:bg-rose-950/70 dark:text-rose-300"
+          )}
+        >
+          {slots[0]?.requiredStaff ?? slots.length} người/ca
+          {(slots[0]?.requiredStaff ?? slots.length) > 1
+            ? ` · ${assignedSlots.length} đã xếp`
+            : ""}
+        </Badge>
+      </div>
     </div>
   );
 }
@@ -584,60 +597,62 @@ function CompactAssignedSlotRow({
     <div
       ref={setDropRef}
       className={cn(
-        "assigned-slot flex items-center justify-between gap-2 rounded-md px-1 py-0.5 transition-colors duration-200",
-        isOver && "ring-2 ring-blue-400",
+        "assigned-slot group/slot flex items-center justify-between gap-1 rounded-lg bg-white hover:bg-white border border-slate-300/90 px-1.5 py-1 sm:px-2 sm:py-1 shadow-xs hover:shadow transition-all duration-150 min-w-0 overflow-hidden dark:bg-[#2D2D30] dark:hover:bg-[#37373D] dark:border-[#3C3C3C] dark:shadow-xs",
+        isOver && "ring-2 ring-slate-400 bg-blue-50/60 dark:bg-[#37373D] dark:ring-neutral-400",
         isDragging && "opacity-40",
-        flash === "success" && "bg-green-100 text-green-900 ring-1 ring-green-400",
-        flash === "error" && "bg-rose-100 text-rose-900 ring-1 ring-rose-400"
+        flash === "success" && "bg-green-100 text-green-900 ring-1 ring-green-400 dark:bg-green-950 dark:text-green-200",
+        flash === "error" && "bg-rose-100 text-rose-900 ring-1 ring-rose-400 dark:bg-rose-950 dark:text-rose-200"
       )}
     >
-      <div className="flex flex-col justify-center min-w-[120px]">
-        <p className="font-semibold text-slate-900">{employee.name}</p>
+      <div className="flex flex-col justify-center min-w-0 flex-1 overflow-hidden pr-0.5">
+        <p className="font-bold text-slate-900 text-[11px] sm:text-xs truncate dark:text-white" title={employee.name}>
+          {employee.name}
+        </p>
         {slot.faults && slot.faults.length > 0 && (
           <button 
             type="button"
             onClick={() => onAddFault(slot)}
-            className="flex items-center gap-0.5 text-[10px] text-red-500 font-medium mt-0.5 hover:underline text-left cursor-pointer"
+            className="flex items-center gap-0.5 text-[9px] sm:text-[10px] text-red-500 dark:text-red-400 font-medium hover:underline text-left cursor-pointer truncate"
             aria-label="Xem chi tiết lỗi"
           >
-            <AlertTriangle className="h-3 w-3" />
-            <span>lỗi : {slot.faults.length}</span>
+            <AlertTriangle className="h-2 w-2 sm:h-2.5 sm:w-2.5 shrink-0" />
+            <span className="truncate">lỗi : {slot.faults.length}</span>
           </button>
         )}
       </div>
 
       {canEdit && (
-        <div className="flex items-center gap-1.5 ml-auto">
+        <div className="flex items-center gap-0.5 shrink-0 ml-0.5">
           <button
             type="button"
             onClick={() => onAddFault(slot)}
             disabled={loading}
-            className="rounded p-0.5 text-slate-400 hover:bg-white hover:text-slate-600"
+            className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-[#45454C] dark:hover:text-white shrink-0 transition-colors"
             aria-label={`Thêm lỗi cho ${employee.name}`}
             title={`Thêm lỗi cho ${employee.name}`}
           >
-            <Plus className="h-3 w-3" />
+            <Plus className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
           </button>
           <button
             ref={setDragRef}
             type="button"
-            className="touch-none rounded p-0.5 text-slate-400 hover:bg-white hover:text-slate-600"
+            className="touch-none rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-[#45454C] dark:hover:text-white shrink-0 cursor-grab active:cursor-grabbing transition-colors"
             {...listeners}
             {...attributes}
             aria-label={`Kéo ${employee.name} để đổi ca ${shift.name}`}
             title={`Kéo ${employee.name} để đổi ca`}
           >
-            <GripVertical className="h-3.5 w-3.5" />
+            <GripVertical className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
           </button>
           <button
             type="button"
             onClick={() => void onClear()}
             disabled={loading}
-            className="rounded p-0.5 text-slate-400 hover:bg-white hover:text-red-500"
+            className="rounded p-0.5 text-slate-400 hover:bg-rose-50 hover:text-red-500 dark:hover:bg-rose-950/60 dark:hover:text-red-400 shrink-0 transition-colors"
             aria-label={`Xóa ${employee.name} khỏi ${shift.name}`}
             title={`Xóa khỏi ca ${shift.name}`}
           >
-            <X className="h-3.5 w-3.5" />
+            <X className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
           </button>
         </div>
       )}
@@ -690,7 +705,7 @@ function CompactEmptySlotDropZone({
       )}
     >
       <Select
-        className="h-8 text-xs"
+        className="h-7 sm:h-8 text-[10px] sm:text-xs px-1 sm:px-2"
         value=""
         disabled={loading || filteredEmployees.length === 0}
         onChange={(e) => {
@@ -699,7 +714,7 @@ function CompactEmptySlotDropZone({
         }}
       >
         <option value="">
-          {filteredEmployees.length > 0 ? "— Chọn nhân viên —" : "Không còn nhân viên phù hợp"}
+          {filteredEmployees.length > 0 ? "— Chọn NV —" : "Hết NV phù hợp"}
         </option>
         {filteredEmployees.map((employee) => (
           <option key={employee.id} value={employee.id}>
@@ -719,7 +734,9 @@ export function ScheduleCalendar({
   dayNotes,
   overtimes,
   unfilled,
-  selectedEmployeeId,
+  selectedEmployeeId = "",
+  selectedEmployeeIds = [],
+  selectedStoreIds = [],
   layoutMode,
   onLayoutModeChange,
   canEdit,
@@ -734,6 +751,18 @@ export function ScheduleCalendar({
   const [message, setMessage] = useState<string | null>(null);
   const [messageType, setMessageType] = useState<"success" | "error">("success");
   const [loading, setLoading] = useState(false);
+
+  const targetEmployeeIds = useMemo(() => {
+    if (selectedEmployeeIds && selectedEmployeeIds.length > 0) {
+      return selectedEmployeeIds;
+    }
+    if (selectedEmployeeId) {
+      return [selectedEmployeeId];
+    }
+    return [];
+  }, [selectedEmployeeIds, selectedEmployeeId]);
+
+  const hasEmployeeFilter = targetEmployeeIds.length > 0;
   const [isMoving, setIsMoving] = useState(false);
   const [pendingRequest, setPendingRequest] = useState<{
     title: string;
@@ -1009,37 +1038,45 @@ export function ScheduleCalendar({
     }
     return map;
   }, [shifts, stores]);
+
   const visibleGroupKeys = useMemo(() => {
-    if (!selectedEmployeeId) {
+    if (!hasEmployeeFilter) {
       return new Set(slotsByGroup.keys());
     }
 
     const keys = new Set<string>();
     for (const [groupKey, groupSlots] of slotsByGroup.entries()) {
-      if (groupSlots.some((slot) => slot.employeeId === selectedEmployeeId)) {
+      if (groupSlots.some((slot) => slot.employeeId && targetEmployeeIds.includes(slot.employeeId))) {
         keys.add(groupKey);
       }
     }
     return keys;
-  }, [selectedEmployeeId, slotsByGroup]);
+  }, [hasEmployeeFilter, targetEmployeeIds, slotsByGroup]);
+
   const visibleDates = useMemo(
     () =>
-      selectedEmployeeId
+      hasEmployeeFilter
         ? dates.filter((date) =>
             Array.from(visibleGroupKeys).some((groupKey) => groupKey.startsWith(`${date}|`))
           )
         : dates,
-    [dates, selectedEmployeeId, visibleGroupKeys]
+    [dates, hasEmployeeFilter, visibleGroupKeys]
   );
+
   const visibleStores = useMemo(() => {
-    if (!selectedEmployeeId) return stores;
+    let result = stores;
+    if (selectedStoreIds && selectedStoreIds.length > 0) {
+      result = result.filter((store) => selectedStoreIds.includes(store.id));
+    }
+    if (!hasEmployeeFilter) return result;
     const visibleStoreIds = new Set(
       Array.from(visibleGroupKeys).map((groupKey) => groupKey.split("|")[1])
     );
-    return stores.filter((store) => visibleStoreIds.has(store.id));
-  }, [selectedEmployeeId, stores, visibleGroupKeys]);
+    return result.filter((store) => visibleStoreIds.has(store.id));
+  }, [hasEmployeeFilter, stores, selectedStoreIds, visibleGroupKeys]);
+
   const visibleShiftIdsByStore = useMemo(() => {
-    if (!selectedEmployeeId) {
+    if (!hasEmployeeFilter) {
       return new Map(
         stores.map((store) => [store.id, new Set((shiftsByStore.get(store.id) ?? []).map((shift) => shift.id))])
       );
@@ -1053,7 +1090,7 @@ export function ScheduleCalendar({
       map.set(storeId, current);
     }
     return map;
-  }, [selectedEmployeeId, shiftsByStore, stores, visibleGroupKeys]);
+  }, [hasEmployeeFilter, shiftsByStore, stores, visibleGroupKeys]);
 
   function checkClientConflicts(
     targetSlot: Slot,
@@ -1680,16 +1717,30 @@ export function ScheduleCalendar({
     );
   }
 
-  if (selectedEmployeeId && visibleGroupKeys.size === 0) {
-    const selectedEmployee = employeeMap.get(selectedEmployeeId);
+  if (hasEmployeeFilter && visibleGroupKeys.size === 0) {
+    const employeeNames = targetEmployeeIds
+      .map((id) => employeeMap.get(id)?.name)
+      .filter(Boolean)
+      .join(", ");
 
     return (
       <Card>
         <CardContent className="py-8 text-center text-slate-500">
           <p className="font-medium">
-            {selectedEmployee?.name ?? "Nhân viên này"} chưa có ca nào trong khoảng đang xem.
+            {employeeNames ? `Nhân viên (${employeeNames})` : "Nhân viên đã chọn"} chưa có ca nào trong khoảng đang xem.
           </p>
           <p className="mt-1 text-sm">Đổi tuần/tháng hoặc bỏ bộ lọc nhân viên để xem toàn bộ lịch.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (visibleStores.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-8 text-center text-slate-500">
+          <p className="font-medium">Không có cửa hàng nào phù hợp với bộ lọc đã chọn.</p>
+          <p className="mt-1 text-sm">Vui lòng chọn lại cửa hàng hoặc chọn &quot;Tất cả cửa hàng&quot;.</p>
         </CardContent>
       </Card>
     );
@@ -1708,7 +1759,7 @@ export function ScheduleCalendar({
   return (
     <div className={cn("space-y-4", isMoving && "[&_.assigned-slot]:opacity-50 [&_.assigned-slot]:pointer-events-none")}>
       {canEdit && (
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-slate-600 dark:text-[#CCCCCC]">
           Chọn nhân viên từ dropdown, kéo biểu tượng <GripVertical className="inline h-3 w-3" /> để đổi ca,
           hoặc bấm <X className="inline h-3 w-3" /> để xóa nhân viên khỏi ca. Giữ <strong>R</strong> rồi kéo chuột để di chuyển bảng ngang.
         </p>
@@ -1740,7 +1791,7 @@ export function ScheduleCalendar({
               >
                 <thead>
                   <tr>
-                    <th className="sticky top-0 left-0 z-30 min-w-[180px] border-r border-b border-slate-200 bg-slate-100 px-4 py-2 text-left font-semibold text-slate-900">
+                    <th className="sticky top-0 left-0 z-30 min-w-[180px] border-r border-b border-slate-200 bg-slate-100 px-4 py-2 text-left font-bold text-slate-900 dark:border-[#333333] dark:bg-[#252526] dark:text-white">
                       Ca làm
                     </th>
                     {visibleDates.map((date) => {
@@ -1750,18 +1801,18 @@ export function ScheduleCalendar({
                         <th
                           key={date}
                           className={cn(
-                            "sticky top-0 z-20 min-w-[240px] border-r border-b border-slate-200 px-3 py-2 align-top text-center",
-                            note ? color.softClass : "bg-slate-50"
+                            "sticky top-0 z-20 min-w-[240px] border-r border-b border-slate-200 px-3 py-2 align-top text-center dark:border-[#333333]",
+                            note ? color.softClass : "bg-slate-50 dark:bg-[#1E1E1E]"
                           )}
                         >
                           <div className="space-y-1">
-                            <div className="min-h-[16px] text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+                            <div className="min-h-[16px] text-xs font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-[#9D9D9D]">
                               {note?.note ?? ""}
                             </div>
-                            <div className="font-semibold capitalize text-slate-900">
+                            <div className="font-bold capitalize text-slate-900 dark:text-white">
                               {format(parseISO(date), "EEEE", { locale: vi })}
                             </div>
-                            <div className="text-sm font-medium text-slate-700">
+                            <div className="text-sm font-semibold text-slate-700 dark:text-[#CCCCCC]">
                               {format(parseISO(date), "dd/MM/yyyy")}
                             </div>
                           </div>
@@ -1778,11 +1829,11 @@ export function ScheduleCalendar({
                     return (
                       <Fragment key={store.id}>
                         <tr key={`${store.id}-header`}>
-                          <td className="sticky top-[78px] left-0 z-20 border-r border-b border-slate-200 bg-slate-100 px-4 py-2 font-bold text-slate-900">
+                          <td className="sticky top-[78px] left-0 z-20 border-r border-b border-slate-200 bg-slate-100 px-4 py-2 font-bold text-slate-900 dark:border-[#333333] dark:bg-[#252526] dark:text-white">
                             <div className="flex items-center gap-3">
                               <StoreLogo
                                 store={store}
-                                className="h-5 w-5 bg-white"
+                                className="h-5 w-5 bg-white dark:bg-[#1E1E1E] dark:border-[#3C3C3C]"
                                 fallbackClassName="text-[8px]"
                               />
                               <span>{store.name}</span>
@@ -1794,14 +1845,14 @@ export function ScheduleCalendar({
                               <td
                                 key={`${store.id}-${date}-header`}
                                 className={cn(
-                                  "sticky top-[78px] z-10 border-r border-b border-slate-200 px-3 py-2",
-                                  note ? getDayNoteColor(note.colorKey).softClass : "bg-white"
+                                  "sticky top-[78px] z-10 border-r border-b border-slate-200 px-3 py-2 dark:border-[#333333]",
+                                  note ? getDayNoteColor(note.colorKey).softClass : "bg-white dark:bg-[#1E1E1E]"
                                 )}
                               >
                                 <div className="flex min-h-6 items-center justify-center">
                                   <StoreLogo
                                     store={store}
-                                    className="h-5 w-5 border-slate-200 bg-white shadow-sm"
+                                    className="h-5 w-5 border-slate-200 bg-white shadow-sm dark:border-[#3C3C3C] dark:bg-[#252526]"
                                     fallbackClassName="text-[7px] text-slate-300"
                                   />
                                 </div>
@@ -1811,24 +1862,24 @@ export function ScheduleCalendar({
                         </tr>
                         {storeShifts.map((shift) => (
                           <tr key={`${store.id}-${shift.id}`}>
-                            <td className="sticky left-0 z-10 border-r border-b border-slate-200 bg-white px-4 py-2 align-top">
-                              <div className="font-semibold text-slate-900">{shift.name}</div>
-                              <div className="text-xs text-slate-500">
+                            <td className="sticky left-0 z-10 border-r border-b border-slate-200 bg-white px-4 py-2 align-top dark:border-[#333333] dark:bg-[#252526]">
+                              <div className="font-bold text-slate-900 dark:text-white">{shift.name}</div>
+                              <div className="text-xs font-semibold font-mono text-slate-500 dark:text-[#CCCCCC]">
                                 {shift.startTime}-{shift.endTime}
                               </div>
                             </td>
                             {visibleDates.map((date) => {
                               const daySlots = slotsByGroup.get(`${date}|${store.id}|${shift.id}`) ?? [];
                               const hasSelectedEmployeeInGroup =
-                                !selectedEmployeeId ||
+                                !hasEmployeeFilter ||
                                 visibleGroupKeys.has(`${date}|${store.id}|${shift.id}`);
                               const note = dayNoteMap.get(date);
                               return (
                                 <td
                                   key={`${store.id}-${shift.id}-${date}`}
                                   className={cn(
-                                    "min-w-[240px] border-r border-b border-slate-200 align-top",
-                                    note ? getDayNoteColor(note.colorKey).softClass : "bg-white"
+                                    "min-w-[240px] border-r border-b border-slate-200 align-top dark:border-[#333333]",
+                                    note ? getDayNoteColor(note.colorKey).softClass : "bg-white dark:bg-[#1E1E1E]"
                                   )}
                                 >
                                   <div className="space-y-1.5 p-1.5">
@@ -1860,10 +1911,10 @@ export function ScheduleCalendar({
                                         onClear={(slot) => assignEmployee(slot, null)}
                                         onAddFault={(slot) => setFaultSlot(slot)}
                                       />
-                                    ) : selectedEmployeeId ? (
+                                    ) : hasEmployeeFilter ? (
                                       <div className="min-h-[112px]" />
                                     ) : (
-                                      <div className="rounded-md border border-dashed border-slate-200 bg-white/70 px-3 py-3 text-center text-xs text-slate-400">
+                                      <div className="rounded-md border border-dashed border-slate-200 bg-white/70 px-3 py-3 text-center text-xs text-slate-400 dark:border-neutral-800 dark:bg-neutral-900/50 dark:text-neutral-500">
                                         Không có ca
                                       </div>
                                     )}
@@ -1936,19 +1987,19 @@ export function ScheduleCalendar({
                     )}
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4 lg:grid-cols-2">
+                <CardContent className="p-3 sm:p-6">
+                  <div className="grid gap-6 grid-cols-1 xl:grid-cols-2">
                     {visibleStores.map((store) => (
-                      <div key={store.id} className="space-y-3">
-                        <div className="flex items-center gap-3">
+                      <div key={store.id} className="space-y-3 min-w-0">
+                        <div className="flex items-center gap-2.5">
                           <StoreLogo
                             store={store}
-                            className="h-5 w-5 bg-white"
-                            fallbackClassName="text-[8px]"
+                            className="h-6 w-6 bg-white shrink-0"
+                            fallbackClassName="text-[9px]"
                           />
-                          <h4 className="font-semibold text-slate-800">{store.name}</h4>
+                          <h4 className="font-bold text-slate-800 dark:text-neutral-100 truncate text-sm sm:text-base">{store.name}</h4>
                         </div>
-                        <div className="grid gap-2 sm:grid-cols-2">
+                        <div className="grid gap-2 sm:gap-2.5 grid-cols-2 2xl:grid-cols-3">
                           {shiftsByStore
                             .get(store.id)
                             ?.filter((shift) => visibleShiftIdsByStore.get(store.id)?.has(shift.id))
@@ -1957,7 +2008,7 @@ export function ScheduleCalendar({
                               const daySlots = slotsByGroup.get(`${date}|${store.id}|${shift.id}`) ?? [];
                               if (
                                 daySlots.length === 0 ||
-                                (selectedEmployeeId &&
+                                (hasEmployeeFilter &&
                                   !visibleGroupKeys.has(`${date}|${store.id}|${shift.id}`))
                               ) {
                                 return [];
@@ -2022,7 +2073,7 @@ export function ScheduleCalendar({
 
       {/* Full-screen Modal for Scheduler sending request */}
       {pendingRequest && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <Card className="w-full max-w-2xl shadow-2xl">
             <CardHeader className="border-b bg-slate-50/50 pb-4">
               <CardTitle className="text-xl text-blue-700">{pendingRequest.title}</CardTitle>

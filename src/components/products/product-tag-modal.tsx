@@ -392,19 +392,19 @@ export function ProductTagPrintModal({ product, isOpen, onClose, onPrinted }: Pr
   return (
     <>
       {/* 1. ON-SCREEN MODAL OVERLAY */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 print:hidden">
-        <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-5 space-y-4 max-h-[92vh] overflow-y-auto">
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 print:hidden">
+        <div className="bg-white dark:bg-[#18181B] dark:border dark:border-neutral-800 rounded-2xl shadow-2xl max-w-lg w-full p-5 space-y-4 max-h-[92vh] overflow-y-auto">
           {/* Header Modal */}
-          <div className="flex items-center justify-between border-b pb-3">
+          <div className="flex items-center justify-between border-b dark:border-neutral-800 pb-3">
             <div className="flex items-center gap-2">
-              <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
+              <div className="p-2 bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 rounded-xl">
                 <Tag className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-slate-900">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
                   Tem in sản phẩm ({config.widthCm} x {config.heightCm} cm)
                 </h3>
-                <p className="text-xs text-slate-500">Tự do chỉnh sửa kích thước & trường hiển thị</p>
+                <p className="text-xs text-slate-500 dark:text-neutral-400">Tự do chỉnh sửa kích thước & trường hiển thị</p>
               </div>
             </div>
 
@@ -415,7 +415,7 @@ export function ProductTagPrintModal({ product, isOpen, onClose, onPrinted }: Pr
                 className={`p-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all ${
                   showCustomizer
                     ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
-                    : "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200"
+                    : "bg-slate-50 dark:bg-[#242428] hover:bg-slate-100 dark:hover:bg-neutral-800 text-slate-700 dark:text-neutral-200 border-slate-200 dark:border-neutral-700"
                 }`}
                 title="Cấu hình thiết kế tem"
               >
@@ -423,7 +423,7 @@ export function ProductTagPrintModal({ product, isOpen, onClose, onPrinted }: Pr
                 <span>Cấu hình</span>
               </button>
 
-              <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1">
+              <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-neutral-200 p-1">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -431,15 +431,15 @@ export function ProductTagPrintModal({ product, isOpen, onClose, onPrinted }: Pr
 
           {/* CUSTOMIZER PANEL */}
           {showCustomizer && (
-            <div className="bg-slate-50/90 border border-indigo-100 rounded-2xl p-4 space-y-3 text-xs animate-in fade-in slide-in-from-top-2 duration-200">
-              <div className="flex items-center justify-between font-bold text-indigo-950 border-b pb-2">
+            <div className="bg-slate-50/90 dark:bg-[#202024] border border-indigo-100 dark:border-neutral-700 rounded-2xl p-4 space-y-3 text-xs animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="flex items-center justify-between font-bold text-indigo-950 dark:text-indigo-300 border-b dark:border-neutral-700 pb-2">
                 <span className="flex items-center gap-1.5">
-                  <SlidersHorizontal className="h-4 w-4 text-indigo-600" /> Tùy chỉnh thiết kế tem
+                  <SlidersHorizontal className="h-4 w-4 text-indigo-600 dark:text-indigo-400" /> Tùy chỉnh thiết kế tem
                 </span>
                 <button
                   type="button"
                   onClick={resetConfig}
-                  className="text-[11px] text-slate-500 hover:text-indigo-600 flex items-center gap-1 font-medium"
+                  className="text-[11px] text-slate-500 dark:text-neutral-400 hover:text-indigo-600 dark:hover:text-indigo-300 flex items-center gap-1 font-medium"
                 >
                   <RotateCcw className="h-3 w-3" /> Mặc định
                 </button>
@@ -447,7 +447,7 @@ export function ProductTagPrintModal({ product, isOpen, onClose, onPrinted }: Pr
 
               {/* Tag Dimensions */}
               <div className="space-y-1.5">
-                <label className="font-semibold text-slate-700 block">Kích thước tem in (cm):</label>
+                <label className="font-bold text-slate-700 dark:text-neutral-200 block">Kích thước tem in (cm):</label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {[
                     { w: 3.5, h: 6.0, label: "3.5 x 6.0 cm (May mặc)" },
@@ -465,7 +465,7 @@ export function ProductTagPrintModal({ product, isOpen, onClose, onPrinted }: Pr
                       className={`p-1.5 rounded-lg border text-[11px] font-medium transition-all text-center ${
                         config.widthCm === preset.w && config.heightCm === preset.h
                           ? "bg-indigo-600 text-white border-indigo-600 font-bold shadow-xs"
-                          : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+                          : "bg-white dark:bg-[#242428] text-slate-700 dark:text-neutral-200 border-slate-200 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-800"
                       }`}
                     >
                       {preset.w} x {preset.h} cm
@@ -475,7 +475,7 @@ export function ProductTagPrintModal({ product, isOpen, onClose, onPrinted }: Pr
 
                 <div className="flex items-center gap-3 pt-1">
                   <div className="flex items-center gap-1.5 flex-1">
-                    <span className="text-slate-500">Rộng:</span>
+                    <span className="text-slate-500 dark:text-neutral-400 font-medium">Rộng:</span>
                     <input
                       type="number"
                       step={0.1}
@@ -483,12 +483,12 @@ export function ProductTagPrintModal({ product, isOpen, onClose, onPrinted }: Pr
                       max={15}
                       value={config.widthCm}
                       onChange={(e) => updateConfig("widthCm", parseFloat(e.target.value) || 3.5)}
-                      className="w-16 h-7 px-2 border rounded-md text-center font-bold bg-white"
+                      className="w-16 h-7 px-2 border border-slate-200 dark:border-neutral-600 rounded-md text-center font-bold bg-white dark:bg-[#18181B] dark:text-white"
                     />
-                    <span className="text-slate-500">cm</span>
+                    <span className="text-slate-500 dark:text-neutral-400">cm</span>
                   </div>
                   <div className="flex items-center gap-1.5 flex-1">
-                    <span className="text-slate-500">Cao:</span>
+                    <span className="text-slate-500 dark:text-neutral-400 font-medium">Cao:</span>
                     <input
                       type="number"
                       step={0.1}
@@ -496,16 +496,16 @@ export function ProductTagPrintModal({ product, isOpen, onClose, onPrinted }: Pr
                       max={20}
                       value={config.heightCm}
                       onChange={(e) => updateConfig("heightCm", parseFloat(e.target.value) || 6.0)}
-                      className="w-16 h-7 px-2 border rounded-md text-center font-bold bg-white"
+                      className="w-16 h-7 px-2 border border-slate-200 dark:border-neutral-600 rounded-md text-center font-bold bg-white dark:bg-[#18181B] dark:text-white"
                     />
-                    <span className="text-slate-500">cm</span>
+                    <span className="text-slate-500 dark:text-neutral-400">cm</span>
                   </div>
                 </div>
               </div>
 
               {/* Elements Toggle Grid */}
-              <div className="space-y-1.5 pt-2 border-t">
-                <label className="font-semibold text-slate-700 block">Ẩn / Hiện các phần trên tem:</label>
+              <div className="space-y-1.5 pt-2 border-t dark:border-neutral-700">
+                <label className="font-bold text-slate-700 dark:text-neutral-200 block">Ẩn / Hiện các phần trên tem:</label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
                   {toggleItems.map((item) => {
                     const isChecked = !!config[item.key];
@@ -516,13 +516,13 @@ export function ProductTagPrintModal({ product, isOpen, onClose, onPrinted }: Pr
                         onClick={() => updateConfig(item.key, !isChecked)}
                         className={`flex items-center gap-1.5 p-1.5 rounded-lg border text-left text-[11px] font-medium transition-all ${
                           isChecked
-                            ? "bg-indigo-50 border-indigo-200 text-indigo-900 font-bold"
-                            : "bg-white border-slate-200 text-slate-400 line-through"
+                            ? "bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800/60 text-indigo-900 dark:text-indigo-300 font-bold"
+                            : "bg-white dark:bg-[#242428] border-slate-200 dark:border-neutral-700 text-slate-400 dark:text-neutral-500 line-through"
                         }`}
                       >
                         <div
                           className={`w-3.5 h-3.5 rounded flex items-center justify-center border shrink-0 ${
-                            isChecked ? "bg-indigo-600 border-indigo-600 text-white" : "border-slate-300 bg-white"
+                            isChecked ? "bg-indigo-600 border-indigo-600 text-white" : "border-slate-300 dark:border-neutral-600 bg-white dark:bg-[#18181B]"
                           }`}
                         >
                           {isChecked && <Check className="h-2.5 w-2.5 stroke-[3]" />}
@@ -537,8 +537,8 @@ export function ProductTagPrintModal({ product, isOpen, onClose, onPrinted }: Pr
           )}
 
           {/* Number of Labels */}
-          <div className="flex items-center justify-between bg-slate-50 p-3 rounded-xl border text-xs">
-            <label className="font-semibold text-slate-700">Số lượng tem cần in:</label>
+          <div className="flex items-center justify-between bg-slate-50 dark:bg-[#202024] p-3 rounded-xl border border-slate-200 dark:border-neutral-700 text-xs">
+            <label className="font-bold text-slate-700 dark:text-neutral-200">Số lượng tem cần in:</label>
             <div className="flex items-center gap-2">
               <input
                 type="number"
@@ -546,23 +546,23 @@ export function ProductTagPrintModal({ product, isOpen, onClose, onPrinted }: Pr
                 max={100}
                 value={quantity}
                 onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                className="w-16 h-8 px-2 border rounded-lg text-center font-bold text-indigo-600 bg-white"
+                className="w-16 h-8 px-2 border border-slate-200 dark:border-neutral-600 rounded-lg text-center font-bold text-indigo-600 dark:text-indigo-400 bg-white dark:bg-[#18181B]"
               />
-              <span className="text-slate-500">tem</span>
+              <span className="text-slate-500 dark:text-neutral-400 font-medium">tem</span>
             </div>
           </div>
 
           {/* Tag Preview Box */}
-          <div className="flex flex-col items-center justify-center p-4 bg-slate-100/80 rounded-2xl border border-dashed border-slate-300">
-            <div className="text-[11px] text-slate-400 mb-2 font-mono">
+          <div className="flex flex-col items-center justify-center p-4 bg-slate-100/80 dark:bg-[#121212] rounded-2xl border border-dashed border-slate-300 dark:border-neutral-700">
+            <div className="text-[11px] text-slate-400 dark:text-neutral-400 mb-2 font-mono">
               Xem trước tem ({config.widthCm} x {config.heightCm} cm):
             </div>
             {renderSingleTag()}
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-3 border-t pt-3">
-            <Button variant="ghost" onClick={onClose}>
+          <div className="flex items-center justify-end gap-3 border-t dark:border-neutral-800 pt-3">
+            <Button variant="ghost" onClick={onClose} className="dark:text-neutral-300 dark:hover:bg-neutral-800">
               Huỷ
             </Button>
 

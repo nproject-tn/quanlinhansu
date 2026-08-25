@@ -6,7 +6,7 @@ import { verifyCompanyAccess } from "@/lib/dal";
 import type { UserRole } from "@/generated/prisma/client";
 import { revalidatePath } from "next/cache";
 
-export async function inviteUserToCompany(companyId: string, email: string, role: UserRole) {
+export async function inviteUserToCompany(companyId: string, email: string, role: UserRole, companyRoleId?: string | null) {
   try {
     const access = await verifyCompanyAccess(companyId);
     if (!access || (access.role !== "ADMIN" && access.role !== "OWNER")) {
@@ -56,11 +56,13 @@ export async function inviteUserToCompany(companyId: string, email: string, role
         email,
         companyId,
         role,
+        companyRoleId: companyRoleId || null,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
       }
     });
 
     revalidatePath(`/app/${companyId}/nhan-vien`);
+    revalidatePath(`/app/${companyId}/cai-dat`);
     return { success: true };
   } catch (error) {
     console.error("Invite error:", error);

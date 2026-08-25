@@ -20,13 +20,16 @@ export async function requireAuth(
   const referer = reqHeaders.get("referer");
   let companyId = reqHeaders.get("x-company-id");
 
-  // If no explicit header, try to parse from referer (e.g., /app/[companyId]/...)
+  // If no explicit header, try to parse from referer (e.g., /app/[companyId]/... or ?companyId=...)
   if (referer && !companyId) {
     try {
       const url = new URL(referer);
       const match = url.pathname.match(/^\/app\/([^\/]+)/);
       if (match && match[1]) {
         companyId = match[1];
+      } else {
+        const queryCompanyId = url.searchParams.get("companyId");
+        if (queryCompanyId) companyId = queryCompanyId;
       }
     } catch (e) {
       // ignore
@@ -51,32 +54,32 @@ export async function requireAuth(
   // Inject the dynamically verified role for this company
   session.user.role = access.role;
 
-  let hasRoleAccess = false;
-  if (!allowedRoles || allowedRoles.includes(access.role) || (allowedRoles.includes("ADMIN") && access.role === "OWNER")) {
-    hasRoleAccess = true;
+  // Supreme Owner / SuperAdmin always passes
+  if (access.role === "OWNER" || access.isSuperAdmin) {
+    return { session, user: session.user, companyId: access.companyDbId, permissions: access.permissions };
   }
 
-  let hasPermissionAccess = false;
+  // If explicit permissions are required, check against effective permissions
   if (requiredPermissions) {
-    const permissions = access.permissions as any;
     const permsArray = Array.isArray(requiredPermissions) ? requiredPermissions : [requiredPermissions];
-    
-    for (const reqPerm of permsArray) {
-      if (hasPermission(access.role, permissions, reqPerm.module, reqPerm.action)) {
-        hasPermissionAccess = true;
-        break;
-      }
+    const canAccess = permsArray.some((reqPerm) =>
+      hasPermission(access.role, access.permissions, reqPerm.module, reqPerm.action)
+    );
+
+    if (!canAccess) {
+      return {
+        error: NextResponse.json({ error: "Không có quyền truy cập" }, { status: 403 }),
+      };
     }
-  } else {
-    // If no explicit permission is required, we do NOT grant permission access
-    hasPermissionAccess = false;
+  } else if (allowedRoles) {
+    // If no explicit permission is required, check base role
+    if (!allowedRoles.includes(access.role)) {
+      return {
+        error: NextResponse.json({ error: "Không có quyền truy cập" }, { status: 403 }),
+      };
+    }
   }
 
-  if (!hasRoleAccess && !hasPermissionAccess) {
-    return {
-      error: NextResponse.json({ error: "Không có quyền truy cập" }, { status: 403 }),
-    };
-  }
-
-  return { session, companyId, permissions: access.permissions };
+  return { session, user: session.user, companyId: access.companyDbId, permissions: access.permissions };
 }
+

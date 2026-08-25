@@ -1,5 +1,5 @@
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "../src/generated/prisma";
+import { PrismaClient } from "../src/generated/prisma/client";
 
 const connectionString = "postgresql://postgres:YOUR_STRONG_PASSWORD@140.245.105.160:5432/quanlinhansu?schema=public";
 const adapter = new PrismaPg({ connectionString });

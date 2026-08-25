@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/api-auth";
 
 export async function POST(request: Request) {
-  const { error, companyId } = await requireAuth(["OWNER"], { module: "stores", action: "EDIT" });
+  const { error, companyId } = await requireAuth(["OWNER"], { module: "store", action: "EDIT" });
   if (error) return error;
 
   try {

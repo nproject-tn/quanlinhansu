@@ -32,6 +32,9 @@ type DatePickerProps = {
   className?: string;
   disabled?: boolean;
   ariaLabel?: string;
+  customLabel?: string;
+  mode?: "day" | "week" | "month";
+  highlightRange?: { start: string; end: string };
 };
 
 type PanelPosition = {
@@ -70,6 +73,9 @@ export function DatePicker({
   className,
   disabled,
   ariaLabel = "Chọn ngày",
+  customLabel,
+  mode,
+  highlightRange,
 }: DatePickerProps) {
   const selectedDate = useMemo(() => parseDateValue(value), [value]);
   const [open, setOpen] = useState(false);
@@ -84,9 +90,29 @@ export function DatePicker({
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
 
+  const range = useMemo(() => {
+    if (highlightRange?.start && highlightRange?.end) {
+      const s = parseISO(highlightRange.start);
+      const e = parseISO(highlightRange.end);
+      return {
+        start: new Date(s.getFullYear(), s.getMonth(), s.getDate(), 0, 0, 0),
+        end: new Date(e.getFullYear(), e.getMonth(), e.getDate(), 23, 59, 59),
+      };
+    }
+    if (mode === "week") {
+      const s = startOfWeek(selectedDate, { weekStartsOn: 1 });
+      const e = endOfWeek(selectedDate, { weekStartsOn: 1 });
+      return {
+        start: new Date(s.getFullYear(), s.getMonth(), s.getDate(), 0, 0, 0),
+        end: new Date(e.getFullYear(), e.getMonth(), e.getDate(), 23, 59, 59),
+      };
+    }
+    return null;
+  }, [highlightRange, mode, selectedDate]);
+
   const label = useMemo(
-    () => format(selectedDate, "dd/MM/yyyy", { locale: vi }),
-    [selectedDate]
+    () => customLabel || format(selectedDate, "dd/MM/yyyy", { locale: vi }),
+    [selectedDate, customLabel]
   );
 
   const calendarDays = useMemo(() => {
@@ -188,19 +214,19 @@ export function DatePicker({
           setOpen((current) => !current);
         }}
         className={cn(
-          "glass-control flex h-10 min-w-[150px] items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-800 outline-none ring-slate-900 transition-[border-color,box-shadow] hover:border-slate-400 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-55",
+          "glass-control flex h-11 min-w-[200px] items-center justify-between gap-3 rounded-xl px-4 py-3 text-left text-sm text-slate-800 outline-none ring-slate-900 transition-[border-color,box-shadow] hover:border-slate-400 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-55 dark:text-slate-100 dark:ring-slate-100 dark:hover:border-slate-500",
           className
         )}
       >
         <span className="truncate">{label}</span>
-        <CalendarDays className="h-4 w-4 shrink-0 text-slate-500" />
+        <CalendarDays className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" />
       </button>
 
       {open && typeof document !== "undefined"
         ? createPortal(
             <div
               ref={panelRef}
-              className="month-picker-liquid month-picker-liquid-solid z-[120] rounded-[24px] border border-white/50 p-4 shadow-2xl"
+              className="z-[120] rounded-[24px] border border-slate-200 bg-white p-4 shadow-2xl dark:border-[#333333] dark:bg-[#252526]"
               style={{
                 position: "fixed",
                 width: panelPosition.width,
@@ -217,20 +243,20 @@ export function DatePicker({
                     onClick={() => setViewDate((current) => subMonths(current, 1))}
                     aria-label="Tháng trước"
                   >
-                    <ChevronLeft className="h-4 w-4" />
+                    <ChevronLeft className="h-4 w-4 dark:text-neutral-300" />
                   </CalendarButton>
-                  <div className="rounded-xl bg-white/65 px-4 py-2 text-sm font-semibold text-slate-800">
+                  <div className="rounded-xl bg-white/65 px-4 py-2 text-sm font-semibold text-slate-800 dark:bg-neutral-800/80 dark:text-neutral-100">
                     {format(viewDate, "MMMM yyyy", { locale: vi })}
                   </div>
                   <CalendarButton
                     onClick={() => setViewDate((current) => addMonths(current, 1))}
                     aria-label="Tháng sau"
                   >
-                    <ChevronRight className="h-4 w-4" />
+                    <ChevronRight className="h-4 w-4 dark:text-neutral-300" />
                   </CalendarButton>
                 </div>
 
-                <div className="mb-2 grid grid-cols-7 gap-1 text-center text-[11px] font-semibold uppercase text-slate-500">
+                <div className="mb-2 grid grid-cols-7 gap-1 text-center text-[11px] font-semibold uppercase text-slate-500 dark:text-neutral-400">
                   {WEEKDAY_LABELS.map((label) => (
                     <div key={label} className="py-1">
                       {label}
@@ -240,7 +266,9 @@ export function DatePicker({
 
                 <div className="grid grid-cols-7 gap-1">
                   {calendarDays.map((day) => {
-                    const active = isSameDay(day, selectedDate);
+                    const isSelected = isSameDay(day, selectedDate);
+                    const isInRange = range ? day >= range.start && day <= range.end : isSelected;
+                    const active = isInRange;
                     const today = isSameDay(day, new Date());
                     const muted = !isSameMonth(day, viewDate);
                     const weekend = [5, 6].includes((day.getDay() + 6) % 7);
@@ -253,13 +281,13 @@ export function DatePicker({
                         className={cn(
                           "relative flex h-10 items-center justify-center rounded-xl text-sm transition-colors",
                           active
-                            ? "bg-slate-900 font-semibold text-white shadow-[0_12px_26px_rgba(15,23,42,0.28)]"
+                            ? "bg-slate-900 font-semibold text-white shadow-[0_4px_16px_rgba(15,23,42,0.3)] dark:bg-neutral-100 dark:text-neutral-900 dark:shadow-[0_4px_16px_rgba(0,0,0,0.6)]"
                             : muted
-                              ? "text-slate-300 hover:bg-slate-900/10 hover:text-slate-900"
+                              ? "text-slate-300 dark:text-neutral-600 hover:bg-slate-900/10 dark:hover:bg-neutral-800/60 hover:text-slate-900 dark:hover:text-neutral-100"
                               : weekend
-                                ? "bg-white/35 text-slate-700 hover:bg-slate-900/10 hover:text-slate-900"
-                                : "text-slate-700 hover:bg-slate-900/10 hover:text-slate-900",
-                          today && !active ? "font-semibold text-slate-900" : ""
+                                ? "bg-white/35 dark:bg-neutral-800/40 text-slate-700 dark:text-neutral-300 hover:bg-slate-900/10 dark:hover:bg-neutral-800/60 hover:text-slate-900 dark:hover:text-neutral-100"
+                                : "text-slate-700 dark:text-neutral-300 hover:bg-slate-900/10 dark:hover:bg-neutral-800/60 hover:text-slate-900 dark:hover:text-neutral-100",
+                          today && !active ? "font-bold text-slate-900 dark:text-neutral-100" : ""
                         )}
                       >
                         {format(day, "d")}
@@ -268,18 +296,18 @@ export function DatePicker({
                   })}
                 </div>
 
-                <div className="mt-4 flex items-center justify-between border-t border-white/35 pt-3">
+                <div className="mt-4 flex items-center justify-between border-t border-white/35 dark:border-neutral-800/80 pt-3">
                   <button
                     type="button"
                     onClick={() => setOpen(false)}
-                    className="text-sm font-medium text-slate-600 hover:text-slate-900"
+                    className="text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-neutral-400 dark:hover:text-neutral-200"
                   >
                     Đóng
                   </button>
                   <button
                     type="button"
                     onClick={selectToday}
-                    className="text-sm font-medium text-slate-900 hover:text-slate-800"
+                    className="text-sm font-medium text-slate-900 hover:text-slate-800 dark:text-neutral-100 dark:hover:text-white"
                   >
                     Hôm nay
                   </button>

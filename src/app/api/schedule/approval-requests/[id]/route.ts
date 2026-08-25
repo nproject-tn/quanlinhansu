@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/api-auth";
+import { hasPermission } from "@/lib/permissions";
 import {
   moveAssignment,
   updateAssignment,
@@ -41,8 +42,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Yêu cầu này đã được xử lý" }, { status: 409 });
   }
 
-  const hasApprovePerm = typeof permissions === "object" && !!permissions?.schedule?.approve;
-  const isApprover = session!.user.role === "ADMIN" || session!.user.role === "OWNER" || hasApprovePerm;
+  const isApprover = session!.user.role === "OWNER" || hasPermission(session!.user.role, permissions, "schedule", "APPROVE");
   
   if (!isApprover) {
     return NextResponse.json({ error: "Không có quyền duyệt hoặc từ chối yêu cầu" }, { status: 403 });

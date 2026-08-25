@@ -55,7 +55,7 @@ const LOGO_ACCEPT = [...ACCEPTED_LOGO_TYPES, ...ACCEPTED_LOGO_EXTENSIONS].join("
 const MAX_LOGO_SIZE_MB = 10;
 
 function SortableStoreCard({
-  store, canEdit, editingNameFor, setEditingNameFor, editName, setEditName, handleSaveName, handleDelete, handleLogoChange, editingShiftsFor, setEditingShiftsFor, editShiftsPerDay, setEditShiftsPerDay, handleSaveShifts, LOGO_ACCEPT
+  store, canEdit, canDelete, editingNameFor, setEditingNameFor, editName, setEditName, handleSaveName, handleDelete, handleLogoChange, editingShiftsFor, setEditingShiftsFor, editShiftsPerDay, setEditShiftsPerDay, handleSaveShifts, LOGO_ACCEPT
 }: any) {
   const {
     attributes, listeners, setNodeRef, transform, transition, isDragging,
@@ -74,7 +74,7 @@ function SortableStoreCard({
         <CardHeader className="flex flex-row items-center justify-between">
         <div className="flex items-center gap-3">
           <label className="flex cursor-pointer items-center flex-col gap-1">
-            <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg border border-dashed border-slate-300 bg-slate-50 text-[11px] text-slate-500 hover:border-blue-400 transition-colors">
+            <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg border border-dashed border-slate-300 bg-slate-50 text-[11px] text-slate-500 hover:border-blue-400 transition-colors dark:border-[#3C3C3C] dark:bg-[#1E1E1E] dark:text-[#A0A0A0]">
               {store.logoUrl ? (
                 <img src={store.logoUrl} alt={store.name} className="h-full w-full object-cover" />
               ) : (
@@ -83,7 +83,7 @@ function SortableStoreCard({
             </span>
             {canEdit && (
               <>
-                <span className="text-[10px] font-medium text-blue-600">Đổi logo</span>
+                <span className="text-[10px] font-medium text-indigo-600 dark:text-indigo-400">Đổi logo</span>
                 <input
                   type="file"
                   accept={LOGO_ACCEPT}
@@ -123,7 +123,7 @@ function SortableStoreCard({
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-6 w-6 p-0 text-slate-400 hover:text-blue-600"
+                    className="h-6 w-6 p-0 text-slate-400 hover:text-blue-600 dark:text-[#888888] dark:hover:text-white"
                     onClick={(e) => {
                       e.preventDefault();
                       setEditingNameFor(store.id);
@@ -137,24 +137,28 @@ function SortableStoreCard({
             )}
           </div>
         </div>
-        {canEdit && (
+        {(canEdit || canDelete) && (
           <div className="flex items-center gap-2">
-            <div {...attributes} {...listeners} className="cursor-grab text-slate-400 hover:text-slate-600 p-1">
-              <GripVertical size={20} />
-            </div>
-            <Button size="sm" variant="destructive" onClick={() => handleDelete(store.id, store.name)}>
-              Xóa
-            </Button>
+            {canEdit && (
+              <div {...attributes} {...listeners} className="cursor-grab text-slate-400 hover:text-slate-600 dark:text-[#888888] dark:hover:text-white p-1">
+                <GripVertical size={20} />
+              </div>
+            )}
+            {canDelete && (
+              <Button size="sm" variant="destructive" onClick={() => handleDelete(store.id, store.name)}>
+                Xóa
+              </Button>
+            )}
           </div>
         )}
       </CardHeader>
-      <CardContent className="space-y-2 text-sm text-slate-600">
-        <p>{store.address || "Chưa có địa chỉ"}</p>
-        <p>{store._count?.employees ?? 0} nhân viên phụ trách</p>
-        <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100">
+      <CardContent className="space-y-2 text-sm text-slate-600 dark:text-[#CCCCCC]">
+        <p className="text-slate-600 dark:text-[#CCCCCC]">{store.address || "Chưa có địa chỉ"}</p>
+        <p className="text-slate-600 dark:text-[#A0A0A0]">{store._count?.employees ?? 0} nhân viên phụ trách</p>
+        <div className="flex flex-wrap items-center gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-[#333333]">
           {editingShiftsFor === store.id ? (
             <>
-              <span className="text-slate-600">Số ca/ngày:</span>
+              <span className="text-slate-600 dark:text-[#CCCCCC]">Số ca/ngày:</span>
               <Input
                 type="number"
                 min="1"
@@ -167,7 +171,7 @@ function SortableStoreCard({
             </>
           ) : (
             <>
-              <span>{store.shiftsPerDay ?? 3} ca/ngày · {store.shiftTemplates?.length ?? 0} ca đã cấu hình</span>
+              <span className="text-slate-600 dark:text-[#A0A0A0]">{store.shiftsPerDay ?? 3} ca/ngày · {store.shiftTemplates?.length ?? 0} ca đã cấu hình</span>
               {canEdit && (
                 <Button
                   size="sm"
@@ -220,7 +224,7 @@ function isSupportedLogoFile(file: File) {
   return ACCEPTED_LOGO_TYPES.includes(file.type) || hasAcceptedExtension || !file.type;
 }
 
-export default function StoresClient({ canEdit }: { canEdit?: boolean }) {
+export default function StoresClient({ canEdit, canDelete }: { canEdit?: boolean; canDelete?: boolean }) {
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
@@ -387,6 +391,10 @@ export default function StoresClient({ canEdit }: { canEdit?: boolean }) {
   }
 
   async function handleDelete(id: string, storeName: string) {
+    if (!canDelete) {
+      setMessage("Bạn không có quyền xoá cửa hàng");
+      return;
+    }
     const approved = await confirm({
       title: `Xóa cửa hàng "${storeName}"?`,
       description: "Cửa hàng này sẽ bị ẩn khỏi hệ thống và không còn dùng để xếp ca.",
@@ -464,7 +472,7 @@ export default function StoresClient({ canEdit }: { canEdit?: boolean }) {
               <Input placeholder="Tên cửa hàng" value={name} onChange={(e) => setName(e.target.value)} className="max-w-xs" disabled={!canEdit} />
               <Input placeholder="Địa chỉ" value={address} onChange={(e) => setAddress(e.target.value)} className="max-w-md" disabled={!canEdit} />
               <div className="flex items-center gap-3">
-                <label className="flex h-14 w-14 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed border-slate-300 bg-slate-50 text-xs text-slate-500">
+                <label className="flex h-14 w-14 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed border-slate-300 bg-slate-50 text-xs text-slate-500 dark:border-[#3C3C3C] dark:bg-[#1E1E1E] dark:text-[#A0A0A0]">
                   {logoUrl ? (
                     <img src={logoUrl} alt="Logo xem trước" className="h-full w-full object-cover" />
                   ) : (
@@ -487,7 +495,7 @@ export default function StoresClient({ canEdit }: { canEdit?: boolean }) {
                 </label>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-slate-600">Số ca/ngày:</span>
+                <span className="text-sm text-slate-600 dark:text-[#CCCCCC]">Số ca/ngày:</span>
                 <Input type="number" min="1" value={shiftsPerDay} onChange={(e) => setShiftsPerDay(e.target.value)} className="w-20" required disabled={!canEdit} />
               </div>
               <Button type="submit" disabled={!canEdit || isLoading}>Thêm</Button>
@@ -504,6 +512,7 @@ export default function StoresClient({ canEdit }: { canEdit?: boolean }) {
                 key={store.id}
                 store={store}
                 canEdit={canEdit}
+                canDelete={canDelete}
                 editingNameFor={editingNameFor}
                 setEditingNameFor={setEditingNameFor}
                 editName={editName}

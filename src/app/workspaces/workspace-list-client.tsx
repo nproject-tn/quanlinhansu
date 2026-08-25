@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Building2, Plus, CheckCircle2, Circle, Upload, Loader2, X } from "lucide-react";
+import { Building2, Plus, CheckCircle2, Circle, Upload, Loader2, X, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useNotifications } from "@/components/notifications/notification-center";
@@ -49,6 +49,8 @@ export function WorkspaceListClient({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isDisbanding, setIsDisbanding] = useState(false);
+  const [companyToLeave, setCompanyToLeave] = useState<Company | null>(null);
+  const [isLeavingCompany, setIsLeavingCompany] = useState(false);
   const [uploadingLogoId, setUploadingLogoId] = useState<string | null>(null);
 
   const toggleSelectMode = () => {
@@ -83,6 +85,28 @@ export function WorkspaceListClient({
       notify({ tone: "error", title: "Lỗi", body: e.message });
     } finally {
       setIsDisbanding(false);
+    }
+  };
+
+  const handleLeaveCompany = async () => {
+    if (!companyToLeave) return;
+    setIsLeavingCompany(true);
+    try {
+      const res = await fetch("/api/companies/leave", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ companyId: companyToLeave.id }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Lỗi rời doanh nghiệp");
+
+      notify({ tone: "success", title: "Thành công", body: `Bạn đã rời khỏi ${companyToLeave.name}` });
+      setCompanyToLeave(null);
+      router.refresh();
+    } catch (e: any) {
+      notify({ tone: "error", title: "Lỗi", body: e.message });
+    } finally {
+      setIsLeavingCompany(false);
     }
   };
 
@@ -135,8 +159,8 @@ export function WorkspaceListClient({
           }
         }}
         className={cn(
-          "group relative bg-white rounded-2xl p-6 shadow-sm border transition-all cursor-pointer",
-          isSelectMode && isOwned ? (isSelected ? "border-red-500 ring-2 ring-red-500/20" : "border-slate-200 hover:border-slate-300") : "border-slate-200 hover:shadow-md hover:border-indigo-200"
+          "group relative bg-white dark:bg-[#18181B] rounded-2xl p-6 shadow-sm border transition-all cursor-pointer",
+          isSelectMode && isOwned ? (isSelected ? "border-red-500 ring-2 ring-red-500/20" : "border-slate-200 dark:border-neutral-800 hover:border-slate-300") : "border-slate-200/80 dark:border-neutral-800 hover:shadow-md hover:border-slate-400 dark:hover:border-neutral-600"
         )}
       >
         {isSelectMode && isOwned && (
@@ -151,13 +175,13 @@ export function WorkspaceListClient({
         
         <div className="flex items-start justify-between mb-4">
           <div className="relative group/logo">
-            <div className="h-12 w-12 rounded-xl bg-indigo-50 border border-slate-100 flex items-center justify-center overflow-hidden">
+            <div className="h-12 w-12 rounded-xl bg-slate-100 dark:bg-neutral-800 border border-slate-200/80 dark:border-neutral-700 flex items-center justify-center overflow-hidden">
               {uploadingLogoId === membership.company.id ? (
-                <Loader2 className="h-5 w-5 text-indigo-500 animate-spin" />
+                <Loader2 className="h-5 w-5 text-slate-600 dark:text-neutral-300 animate-spin" />
               ) : membership.company.logo ? (
                 <img src={membership.company.logo} alt="Logo" className="w-full h-full object-cover" />
               ) : (
-                <span className={cn("font-bold text-xl uppercase", isOwned ? "text-indigo-600" : "text-slate-600")}>
+                <span className="font-bold text-xl uppercase text-slate-800 dark:text-neutral-100">
                   {membership.company.name.charAt(0)}
                 </span>
               )}
@@ -188,11 +212,27 @@ export function WorkspaceListClient({
               </>
             )}
           </div>
-          <span className="text-xs font-medium bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full">
-            {membership.role === "OWNER" ? "Chủ sở hữu" : membership.role === "ADMIN" ? "Quản trị viên" : membership.role === "SCHEDULER" ? "Quản lý lịch" : "Nhân viên"}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium bg-slate-100 dark:bg-neutral-800 text-slate-600 dark:text-neutral-300 px-2.5 py-1 rounded-full border border-slate-200/60 dark:border-neutral-700">
+              {membership.role === "OWNER" ? "Chủ sở hữu" : membership.role === "ADMIN" ? "Quản trị viên" : membership.role === "SCHEDULER" ? "Quản lý lịch" : "Nhân viên"}
+            </span>
+            {!isOwned && (
+              <button
+                type="button"
+                title="Rời doanh nghiệp"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setCompanyToLeave(membership.company);
+                }}
+                className="leave-company-btn p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 dark:hover:text-rose-400 transition-colors"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
         </div>
-        <h3 className={cn("text-lg font-semibold mb-1 transition-colors", isOwned && !isSelectMode ? "group-hover:text-indigo-600 text-slate-900" : "text-slate-900")}>
+        <h3 className="text-lg font-bold mb-1 text-slate-900 dark:text-white transition-colors">
           {membership.company.name}
         </h3>
         <div className="flex items-center gap-4 text-sm text-slate-500 mt-4">
@@ -222,8 +262,8 @@ export function WorkspaceListClient({
           {/* Doanh nghiệp của bạn */}
           <section>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-slate-900 flex items-center gap-2">
-                <Building2 className="h-5 w-5 text-indigo-500" />
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-slate-800 dark:text-neutral-200" />
                 Doanh nghiệp của bạn
               </h2>
               <div className="flex items-center gap-3">
@@ -251,7 +291,7 @@ export function WorkspaceListClient({
                 )}
                 {!isSelectMode && (
                   <Link href="/workspaces/create">
-                    <Button className="gap-2 bg-indigo-600 hover:bg-indigo-700 shadow-sm">
+                    <Button className="gap-2 bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-black dark:hover:bg-neutral-200 font-bold shadow-sm rounded-xl">
                       <Plus className="h-4 w-4" />
                       Tạo doanh nghiệp
                     </Button>
@@ -261,14 +301,14 @@ export function WorkspaceListClient({
             </div>
             
             {ownedCompanies.length === 0 ? (
-              <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-12 text-center">
-                <div className="mx-auto h-12 w-12 rounded-full bg-indigo-50 flex items-center justify-center mb-4">
-                  <Building2 className="h-6 w-6 text-indigo-600" />
+              <div className="bg-white dark:bg-[#18181B] border border-dashed border-slate-300 dark:border-neutral-800 rounded-2xl p-12 text-center">
+                <div className="mx-auto h-12 w-12 rounded-2xl bg-slate-100 dark:bg-neutral-800 flex items-center justify-center mb-4 border border-slate-200/80 dark:border-neutral-700">
+                  <Building2 className="h-6 w-6 text-slate-800 dark:text-neutral-200" />
                 </div>
-                <h3 className="text-lg font-medium text-slate-900 mb-2">Chưa có doanh nghiệp nào</h3>
-                <p className="text-slate-500 mb-6 max-w-sm mx-auto">Bạn có thể tạo doanh nghiệp mới để quản lý chuỗi cửa hàng và nhân viên của mình.</p>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Chưa có doanh nghiệp nào</h3>
+                <p className="text-slate-500 dark:text-neutral-400 mb-6 max-w-sm mx-auto">Bạn có thể tạo doanh nghiệp mới để quản lý chuỗi cửa hàng và nhân viên của mình.</p>
                 <Link href="/workspaces/create">
-                  <Button className="bg-indigo-600 hover:bg-indigo-700">Tạo doanh nghiệp đầu tiên</Button>
+                  <Button className="bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-black dark:hover:bg-neutral-200 font-bold rounded-xl shadow-md">Tạo doanh nghiệp đầu tiên</Button>
                 </Link>
               </div>
             ) : (
@@ -293,6 +333,7 @@ export function WorkspaceListClient({
         </div>
       </main>
 
+      {/* Dialog Giải tán Doanh nghiệp (Dành cho Chủ sở hữu) */}
       <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -311,6 +352,28 @@ export function WorkspaceListClient({
               className="bg-red-600 hover:bg-red-700"
             >
               {isDisbanding ? "Đang xử lý..." : "Đồng ý giải tán"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog Rời Doanh nghiệp (Dành cho Thành viên không phải Chủ sở hữu) */}
+      <AlertDialog open={!!companyToLeave} onOpenChange={(open) => !open && setCompanyToLeave(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-rose-600">Rời khỏi doanh nghiệp {companyToLeave?.name}?</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-700 dark:text-neutral-300">
+              Bạn sẽ mất toàn bộ quyền truy cập vào doanh nghiệp này và cần được Quản trị viên mời lại nếu muốn tham gia tiếp.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isLeavingCompany}>Hủy</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={(e) => { e.preventDefault(); handleLeaveCompany(); }} 
+              disabled={isLeavingCompany}
+              className="bg-rose-600 hover:bg-rose-700 text-white font-bold"
+            >
+              {isLeavingCompany ? "Đang rời..." : "Xác nhận rời"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

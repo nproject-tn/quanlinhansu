@@ -88,10 +88,13 @@ model Company {
   revenueRecords           RevenueRecord[]
   attendanceLogs           AttendanceLog[]
   companyInvitations       CompanyInvitation[]
+  ownershipTransfers       OwnershipTransfer[]
   manufacturers            Manufacturer[]
   categories               Category[]
   subcategories            Subcategory[]
   products                 Product[]
+  factoryOrders            FactoryOrder[]
+  factoryOrderItems        FactoryOrderItem[]
 }
 
 model User {
@@ -109,6 +112,8 @@ model User {
   sessions           Session[]
   companyMemberships CompanyMember[]
   subscription       Subscription?
+  transfersSent      OwnershipTransfer[]       @relation("TransfersSent")
+  transfersReceived  OwnershipTransfer[]       @relation("TransfersReceived")
 
   // Legacy fields for backward compatibility during migration
   companyId                  String?
@@ -155,21 +160,24 @@ model Subscription {
 }
 
 model CompanyInvitation {
-  id        String   @id @default(cuid())
-  email     String
-  companyId String
-  role      UserRole @default(EMPLOYEE)
-  token     String   @unique @default(cuid())
-  status    String   @default("PENDING") // PENDING, ACCEPTED, REJECTED
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String       @id @default(cuid())
+  email         String
+  companyId     String
+  role          UserRole     @default(EMPLOYEE)
+  companyRoleId String?
+  companyRole   CompanyRole? @relation(fields: [companyRoleId], references: [id], onDelete: SetNull)
+  token         String       @unique @default(cuid())
+  status        String       @default("PENDING") // PENDING, ACCEPTED, REJECTED
+  expiresAt     DateTime
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@unique([email, companyId])
   @@index([email])
   @@index([token])
+  @@index([companyRoleId])
 }
 
 model Account {
@@ -490,7 +498,8 @@ model CompanyRole {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  members CompanyMember[]
+  members     CompanyMember[]
+  invitations CompanyInvitation[]
 
   @@unique([companyId, name])
   @@index([companyId])
@@ -510,6 +519,7 @@ model Manufacturer {
   updatedAt DateTime  @updatedAt
 
   products Product[]
+  factoryOrders FactoryOrder[]
 
   @@unique([companyId, code])
   @@unique([companyId, name])
@@ -588,10 +598,102 @@ model Product {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
+  factoryOrders     FactoryOrder[]
+  factoryOrderItems FactoryOrderItem[]
+
   @@unique([companyId, sku])
   @@unique([companyId, barcode])
   @@index([companyId, isArchived, name])
   @@index([companyId, sku])
   @@index([companyId, barcode])
+}
+
+enum FactoryOrderStatus {
+  PENDING
+  IN_PRODUCTION
+  QC_INSPECTION
+  COMPLETED
+  PARTIAL_RETURN
+}
+
+model FactoryOrder {
+  id                 String             @id @default(cuid())
+  companyId          String
+  company            Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code               String             // PO Code e.g. "PO-2026-001"
+  batchCode          String             // Mã Lô Hàng e.g. "B01-F-F", "Y34"
+  manufacturerId     String?
+  manufacturer       Manufacturer?      @relation(fields: [manufacturerId], references: [id], onDelete: SetNull)
+  manufacturerName   String
+  
+  productId          String?
+  product            Product?           @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productName        String
+  sku                String?
+  colorName          String?
+  sizeName           String?
+  
+  orderQuantity      Int                @default(0)
+  qcPassedQuantity   Int                @default(0)
+  qcFailedQuantity   Int                @default(0)
+  orderDate          String             // YYYY-MM-DD
+  expectedDate       String             // YYYY-MM-DD
+  receivedDate       String?            // YYYY-MM-DD
+  qcNotes            String?            @db.Text
+  failReasonNotes    String?            @db.Text
+  status             FactoryOrderStatus @default(IN_PRODUCTION)
+  batchLabelsPrinted Boolean            @default(false)
+  
+  items              FactoryOrderItem[]
+  
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  @@unique([companyId, code])
+  @@index([companyId, status])
+  @@index([companyId, batchCode])
+}
+
+model FactoryOrderItem {
+  id                 String        @id @default(cuid())
+  companyId          String
+  company            Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  factoryOrderId     String
+  factoryOrder       FactoryOrder  @relation(fields: [factoryOrderId], references: [id], onDelete: Cascade)
+  
+  productId          String?
+  product            Product?      @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productName        String
+  sku                String
+  colorName          String?
+  sizeName           String?
+  
+  orderQuantity      Int           @default(0)
+  qcPassedQuantity   Int           @default(0)
+  qcFailedQuantity   Int           @default(0)
+  
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@index([companyId])
+  @@index([factoryOrderId])
+  @@index([productId])
+  @@index([sku])
+}
+
+model OwnershipTransfer {
+  id         String   @id @default(cuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  fromUserId String
+  fromUser   User     @relation("TransfersSent", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUserId   String
+  toUser     User     @relation("TransfersReceived", fields: [toUserId], references: [id], onDelete: Cascade)
+  status     String   @default("PENDING") // PENDING, ACCEPTED, REJECTED, CANCELLED
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([companyId, status])
+  @@index([toUserId, status])
 }
 

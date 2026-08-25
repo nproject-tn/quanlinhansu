@@ -294,20 +294,20 @@ export function BatchLabelPrintModal({ po, isOpen, onClose }: Props) {
         />
 
         {/* Modal Content Container */}
-        <div className="relative z-10 bg-white rounded-2xl shadow-2xl max-w-4xl w-full flex flex-col max-h-[92vh] overflow-hidden border border-slate-200">
+        <div className="relative z-10 bg-white dark:bg-[#18181B] dark:border dark:border-neutral-800 rounded-2xl shadow-2xl max-w-4xl w-full flex flex-col max-h-[92vh] overflow-hidden border border-slate-200">
           
           {/* Header Bar */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-white text-slate-900 shrink-0">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-neutral-800 bg-white dark:bg-[#202024] text-slate-900 dark:text-white shrink-0">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-slate-900 text-white shadow-md">
+              <div className="p-2.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-black shadow-md">
                 <Printer className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                   Xem trước bản in tem lô sản xuất ({po.batchCode})
                 </h3>
-                <p className="text-xs text-slate-500">
-                  Tổng <strong>{labelItems.length}</strong> mẫu SKU • <strong>{totalLabelsToPrint.toLocaleString()}</strong> tem cần in
+                <p className="text-xs text-slate-500 dark:text-neutral-400">
+                  Tổng <strong className="text-slate-900 dark:text-white">{labelItems.length}</strong> mẫu SKU • <strong className="text-slate-900 dark:text-white">{totalLabelsToPrint.toLocaleString()}</strong> tem cần in
                 </p>
               </div>
             </div>
@@ -316,21 +316,21 @@ export function BatchLabelPrintModal({ po, isOpen, onClose }: Props) {
               <Button
                 type="button"
                 onClick={handlePrint}
-                className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-5 text-xs h-9 shadow-md flex items-center gap-2"
+                className="bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 font-bold px-5 text-xs h-9 shadow-md flex items-center gap-2"
               >
                 <Printer className="h-4 w-4" /> In Phiếu ({totalLabelsToPrint.toLocaleString()} tem)
               </Button>
-              <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors">
+              <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-neutral-200 rounded-lg hover:bg-slate-100 dark:hover:bg-neutral-800 transition-colors">
                 <X className="h-5 w-5" />
               </button>
             </div>
           </div>
 
           {/* Controls & Custom Tag Size Bar */}
-          <div className="bg-slate-50/80 px-6 py-3 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-700">
+          <div className="bg-slate-50/80 dark:bg-[#1C1C20] px-6 py-3 border-b border-slate-200/80 dark:border-neutral-800 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-700 dark:text-neutral-200">
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2">
-                <span className="font-semibold text-slate-600">Kích thước tem:</span>
+                <span className="font-bold text-slate-600 dark:text-neutral-300">Kích thước tem:</span>
                 
                 {/* Presets */}
                 <button
@@ -338,8 +338,8 @@ export function BatchLabelPrintModal({ po, isOpen, onClose }: Props) {
                   onClick={() => setConfig((prev) => ({ ...prev, widthMm: 35, heightMm: 25 }))}
                   className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
                     config.widthMm === 35 && config.heightMm === 25
-                      ? "bg-slate-900 text-white shadow-xs"
-                      : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-100"
+                      ? "bg-slate-900 text-white dark:bg-white dark:text-black shadow-xs font-bold"
+                      : "bg-white dark:bg-[#242428] border border-slate-200 dark:border-neutral-700 text-slate-700 dark:text-neutral-200 hover:bg-slate-100 dark:hover:bg-neutral-800"
                   }`}
                 >
                   35×25mm (Mặc định)
@@ -350,8 +350,8 @@ export function BatchLabelPrintModal({ po, isOpen, onClose }: Props) {
                   onClick={() => setConfig((prev) => ({ ...prev, widthMm: 40, heightMm: 30 }))}
                   className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
                     config.widthMm === 40 && config.heightMm === 30
-                      ? "bg-slate-900 text-white shadow-xs"
-                      : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-100"
+                      ? "bg-slate-900 text-white dark:bg-white dark:text-black shadow-xs font-bold"
+                      : "bg-white dark:bg-[#242428] border border-slate-200 dark:border-neutral-700 text-slate-700 dark:text-neutral-200 hover:bg-slate-100 dark:hover:bg-neutral-800"
                   }`}
                 >
                   40×30mm
@@ -362,16 +362,16 @@ export function BatchLabelPrintModal({ po, isOpen, onClose }: Props) {
                   onClick={() => setConfig((prev) => ({ ...prev, widthMm: 50, heightMm: 30 }))}
                   className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
                     config.widthMm === 50 && config.heightMm === 30
-                      ? "bg-slate-900 text-white shadow-xs"
-                      : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-100"
+                      ? "bg-slate-900 text-white dark:bg-white dark:text-black shadow-xs font-bold"
+                      : "bg-white dark:bg-[#242428] border border-slate-200 dark:border-neutral-700 text-slate-700 dark:text-neutral-200 hover:bg-slate-100 dark:hover:bg-neutral-800"
                   }`}
                 >
                   50×30mm
                 </button>
 
                 {/* Custom Size Input Box */}
-                <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2.5 py-1 shadow-xs ml-1">
-                  <span className="text-[11px] text-slate-500 font-medium">Tùy chỉnh:</span>
+                <div className="flex items-center gap-1.5 bg-white dark:bg-[#242428] border border-slate-200 dark:border-neutral-700 rounded-lg px-2.5 py-1 shadow-xs ml-1">
+                  <span className="text-[11px] text-slate-500 dark:text-neutral-400 font-medium">Tùy chỉnh:</span>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -395,10 +395,10 @@ export function BatchLabelPrintModal({ po, isOpen, onClose }: Props) {
                         setConfig((prev) => ({ ...prev, widthMm: 35 }));
                       }
                     }}
-                    className="w-11 h-6 text-center font-mono font-bold text-xs border border-slate-200 rounded bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-900"
+                    className="w-11 h-6 text-center font-mono font-bold text-xs border border-slate-200 dark:border-neutral-600 rounded bg-slate-50 dark:bg-[#18181B] dark:text-white focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-900"
                     title="Chiều rộng (mm)"
                   />
-                  <span className="text-slate-400 font-mono text-xs">×</span>
+                  <span className="text-slate-400 dark:text-neutral-500 font-mono text-xs">×</span>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -422,10 +422,10 @@ export function BatchLabelPrintModal({ po, isOpen, onClose }: Props) {
                         setConfig((prev) => ({ ...prev, heightMm: 25 }));
                       }
                     }}
-                    className="w-11 h-6 text-center font-mono font-bold text-xs border border-slate-200 rounded bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-900"
+                    className="w-11 h-6 text-center font-mono font-bold text-xs border border-slate-200 dark:border-neutral-600 rounded bg-slate-50 dark:bg-[#18181B] dark:text-white focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-900"
                     title="Chiều cao (mm)"
                   />
-                  <span className="text-[11px] text-slate-400 font-mono">mm</span>
+                  <span className="text-[11px] text-slate-400 dark:text-neutral-500 font-mono">mm</span>
                 </div>
               </div>
             </div>
@@ -437,7 +437,7 @@ export function BatchLabelPrintModal({ po, isOpen, onClose }: Props) {
                   type="checkbox"
                   checked={config.showManufacturer}
                   onChange={(e) => setConfig((prev) => ({ ...prev, showManufacturer: e.target.checked }))}
-                  className="rounded text-slate-900 focus:ring-slate-900"
+                  className="rounded text-slate-900 focus:ring-slate-900 dark:bg-[#242428]"
                 />
                 <span>Hiện NSX</span>
               </label>
@@ -447,7 +447,7 @@ export function BatchLabelPrintModal({ po, isOpen, onClose }: Props) {
                   type="checkbox"
                   checked={config.showOrderDate}
                   onChange={(e) => setConfig((prev) => ({ ...prev, showOrderDate: e.target.checked }))}
-                  className="rounded text-slate-900 focus:ring-slate-900"
+                  className="rounded text-slate-900 focus:ring-slate-900 dark:bg-[#242428]"
                 />
                 <span>Hiện Ngày đặt (OD)</span>
               </label>
@@ -455,14 +455,14 @@ export function BatchLabelPrintModal({ po, isOpen, onClose }: Props) {
           </div>
 
           {/* Aggregated Preview Body */}
-          <div className="p-6 space-y-4 overflow-y-auto flex-1 bg-slate-50/50">
+          <div className="p-6 space-y-4 overflow-y-auto flex-1 bg-slate-50/50 dark:bg-[#121212]">
             {/* Smart Overcrowding Warning Banner */}
             {showOvercrowdingWarning && (
-              <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200/90 text-amber-900 text-xs flex items-start gap-3 shadow-xs animate-pulse">
-                <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200/90 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-3 shadow-xs animate-pulse">
+                <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                 <div className="space-y-0.5">
-                  <h5 className="font-bold text-amber-900">Cảnh báo: Kích thước tem quá nhỏ ({config.widthMm}×{config.heightMm}mm) cho nhiều thông tin phụ</h5>
-                  <p className="text-amber-800 text-[11px] leading-relaxed">
+                  <h5 className="font-bold text-amber-900 dark:text-amber-300">Cảnh báo: Kích thước tem quá nhỏ ({config.widthMm}×{config.heightMm}mm) cho nhiều thông tin phụ</h5>
+                  <p className="text-amber-800 dark:text-amber-200 text-[11px] leading-relaxed">
                     Bạn đang bật hiển thị thêm thông tin phụ (NSX, Ngày đặt...). Kích thước tem quá nhỏ có thể khiến mã vạch Barcode bị thu hẹp gây khó quét hoặc chèn dòng chữ. Vui lòng <strong>tăng kích thước tem</strong> hoặc <strong>tắt bớt thông tin phụ</strong> để tem in ra đẹp nhất!
                   </p>
                 </div>
@@ -477,23 +477,23 @@ export function BatchLabelPrintModal({ po, isOpen, onClose }: Props) {
                 return (
                   <div
                     key={item.id || idx}
-                    className="bg-white border border-slate-200/80 rounded-2xl p-4 flex flex-col justify-between space-y-4 hover:border-slate-300 transition-all shadow-sm"
+                    className="bg-white dark:bg-[#1C1C20] border border-slate-200/80 dark:border-neutral-700 rounded-2xl p-4 flex flex-col justify-between space-y-4 hover:border-slate-300 dark:hover:border-neutral-600 transition-all shadow-sm"
                   >
                     {/* Item Header Info */}
-                    <div className="flex items-start justify-between border-b border-slate-100 pb-3 gap-3">
+                    <div className="flex items-start justify-between border-b border-slate-100 dark:border-neutral-800 pb-3 gap-3">
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-900 font-mono text-xs font-bold border border-slate-200">
+                          <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-[#26262B] text-slate-900 dark:text-indigo-300 font-mono text-xs font-bold border border-slate-200 dark:border-neutral-700">
                             {fullBarcodeStr}
                           </span>
-                          <span className="text-xs text-slate-500 font-medium">({item.colorName || ""} {item.sizeName ? "• " + item.sizeName : ""})</span>
+                          <span className="text-xs text-slate-500 dark:text-neutral-400 font-medium">({item.colorName || ""} {item.sizeName ? "• " + item.sizeName : ""})</span>
                         </div>
-                        <h4 className="font-bold text-slate-900 text-sm mt-1.5">{item.productName}</h4>
+                        <h4 className="font-bold text-slate-900 dark:text-white text-sm mt-1.5">{item.productName}</h4>
                       </div>
 
                       {/* Highlighted & Editable Total Print Quantity Input Box */}
-                      <div className="bg-amber-50/90 border border-amber-200 text-amber-900 px-3 py-1.5 rounded-xl text-center shrink-0 shadow-xs flex flex-col items-center justify-center">
-                        <span className="text-[10px] text-amber-800 uppercase tracking-wider block font-bold">Số lượng in</span>
+                      <div className="bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 px-3 py-1.5 rounded-xl text-center shrink-0 shadow-xs flex flex-col items-center justify-center">
+                        <span className="text-[10px] text-amber-800 dark:text-amber-400 uppercase tracking-wider block font-bold">Số lượng in</span>
                         <div className="flex items-center justify-center gap-1 mt-0.5">
                           <input
                             type="text"
@@ -520,16 +520,16 @@ export function BatchLabelPrintModal({ po, isOpen, onClose }: Props) {
                                 setCustomQuantities((prev) => ({ ...prev, [item.id]: fallback }));
                               }
                             }}
-                            className="w-16 h-7 text-center font-mono font-black text-base text-amber-950 bg-white border border-amber-300/80 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-xs"
+                            className="w-16 h-7 text-center font-mono font-black text-base text-amber-950 dark:text-amber-200 bg-white dark:bg-[#18181B] border border-amber-300/80 dark:border-amber-700/80 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-xs"
                             title="Nhấp để thay đổi số lượng tem cần in"
                           />
-                          <span className="text-[11px] text-amber-800 font-bold">tem</span>
+                          <span className="text-[11px] text-amber-800 dark:text-amber-400 font-bold">tem</span>
                         </div>
                       </div>
                     </div>
 
                     {/* Physical Tag Card Visual Preview (Dynamic SVG Scaling) */}
-                    <div className="flex items-center justify-center bg-slate-100/70 p-4 rounded-xl border border-slate-200/60 overflow-hidden min-h-[110px]">
+                    <div className="flex items-center justify-center bg-slate-100/70 dark:bg-[#121212] p-4 rounded-xl border border-slate-200/60 dark:border-neutral-800 overflow-hidden min-h-[110px]">
                       {renderSingleTag(item, `preview-${idx}`)}
                     </div>
                   </div>
@@ -539,18 +539,18 @@ export function BatchLabelPrintModal({ po, isOpen, onClose }: Props) {
           </div>
 
           {/* Modal Footer */}
-          <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-white shrink-0">
-            <div className="text-xs text-slate-500 font-medium">
-              Kích thước tem: <strong>{config.widthMm}×{config.heightMm}mm</strong> • Lô hàng <strong>{po.batchCode}</strong> • Tổng <strong>{totalLabelsToPrint.toLocaleString()}</strong> tem cần in
+          <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 dark:border-neutral-800 bg-white dark:bg-[#202024] shrink-0">
+            <div className="text-xs text-slate-500 dark:text-neutral-400 font-medium">
+              Kích thước tem: <strong className="text-slate-900 dark:text-white">{config.widthMm}×{config.heightMm}mm</strong> • Lô hàng <strong className="text-slate-900 dark:text-white">{po.batchCode}</strong> • Tổng <strong className="text-slate-900 dark:text-white">{totalLabelsToPrint.toLocaleString()}</strong> tem cần in
             </div>
             <div className="flex items-center gap-3">
-              <Button type="button" variant="outline" onClick={onClose} className="border-slate-200 text-slate-700 hover:bg-slate-100">
+              <Button type="button" variant="outline" onClick={onClose} className="border-slate-200 dark:border-neutral-700 text-slate-700 dark:text-neutral-200 dark:bg-[#242428] hover:bg-slate-100 dark:hover:bg-neutral-800">
                 Đóng
               </Button>
               <Button
                 type="button"
                 onClick={handlePrint}
-                className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-6 shadow-md"
+                className="bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 font-bold px-6 shadow-md"
               >
                 <Printer className="h-4 w-4 mr-2" /> In Tất Cả ({totalLabelsToPrint.toLocaleString()} Tem)
               </Button>

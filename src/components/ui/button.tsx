@@ -7,12 +7,12 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const variants = {
-  default: "bg-slate-900 text-white hover:bg-slate-800",
-  secondary: "bg-slate-100 text-slate-900 hover:bg-slate-200",
-  outline: "border border-slate-300 bg-white hover:bg-slate-50 text-slate-900",
-  destructive: "bg-red-600 text-white hover:bg-red-700",
-  ghost: "hover:bg-slate-100 text-slate-900",
-  glass: "border border-slate-200/50 bg-white/60 text-slate-900 backdrop-blur-md hover:bg-white/80 supports-[backdrop-filter]:bg-white/40",
+  default: "bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200 shadow-xs",
+  secondary: "bg-slate-100 text-slate-900 hover:bg-slate-200 dark:bg-[#2D2D30] dark:text-[#E0E0E0] dark:hover:bg-[#37373D]",
+  outline: "border border-slate-300 bg-white hover:bg-slate-50 text-slate-900 dark:border-[#3C3C3C] dark:bg-[#252526] dark:hover:bg-[#2D2D30] dark:text-[#E0E0E0]",
+  destructive: "bg-red-600 text-white hover:bg-red-700 dark:bg-red-600 dark:text-white dark:hover:bg-red-700 shadow-xs",
+  ghost: "hover:bg-slate-100 text-slate-900 dark:hover:bg-[#2D2D30] dark:text-[#E0E0E0] dark:hover:text-white",
+  glass: "border border-slate-200/50 bg-white/60 text-slate-900 backdrop-blur-md hover:bg-white/80 dark:border-[#3C3C3C] dark:bg-[#252526] dark:text-[#E0E0E0] dark:hover:bg-[#2D2D30]",
 };
 
 const sizes = {

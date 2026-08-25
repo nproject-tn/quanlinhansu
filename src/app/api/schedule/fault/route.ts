@@ -27,6 +27,7 @@ export async function POST(request: Request) {
 
     const fault = await prisma.shiftFault.create({
       data: {
+        companyId,
         assignmentId,
         employeeId,
         note: note || null,

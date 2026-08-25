@@ -53,7 +53,9 @@ export async function POST(request: Request) {
       name,
       brandName,
       categoryName,
+      categoryCodeLetter,
       subcategoryName,
+      subcategoryCodeLetter,
       manufacturerId,
       colorName,
       sizeName,
@@ -84,7 +86,9 @@ export async function POST(request: Request) {
 
     if (!category) {
       const catCount = await prisma.category.count({ where: { companyId } });
-      const codeLetter = indexToLetter(catCount);
+      const codeLetter = categoryCodeLetter && String(categoryCodeLetter).trim()
+        ? String(categoryCodeLetter).trim().slice(0, 1).toUpperCase()
+        : indexToLetter(catCount);
       const codeNumeric = String((catCount % 9) + 1);
 
       category = await prisma.category.create({
@@ -104,7 +108,9 @@ export async function POST(request: Request) {
 
     if (!subcategory) {
       const subcatCount = await prisma.subcategory.count({ where: { categoryId: category.id } });
-      const codeLetter = indexToLetter(subcatCount);
+      const codeLetter = subcategoryCodeLetter && String(subcategoryCodeLetter).trim()
+        ? String(subcategoryCodeLetter).trim().slice(0, 1).toUpperCase()
+        : indexToLetter(subcatCount);
       const codeNumeric = String((subcatCount % 9) + 1);
 
       subcategory = await prisma.subcategory.create({
@@ -159,17 +165,7 @@ export async function POST(request: Request) {
         const colorCode = getColorCode(cName);
         const sizeCode = getSizeCode(sName);
 
-        let finalItemCode = itemCode;
-        let sku = generateSku(category.codeLetter, subcategory.codeLetter, finalItemCode, colorCode, sizeCode);
-
-        // Safety guarantee against any potential SKU duplication
-        let attempt = 0;
-        while (existingSkus.includes(sku) && attempt < 100) {
-          attempt++;
-          const nextVal = (parseInt(finalItemCode, 10) || 1) + 1;
-          finalItemCode = String(nextVal).padStart(4, "0");
-          sku = generateSku(category.codeLetter, subcategory.codeLetter, finalItemCode, colorCode, sizeCode);
-        }
+        const sku = generateSku(category.codeLetter, subcategory.codeLetter, itemCode, colorCode, sizeCode);
         existingSkus.push(sku);
 
         const barcode = generateEan8Barcode(manufacturerCode, productCode);

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api-auth";
 import { uploadToS3 } from "@/lib/s3-upload";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(request: Request) {
   const { error } = await requireAuth(["ADMIN", "SCHEDULER", "OWNER"]);
   if (error) return error;

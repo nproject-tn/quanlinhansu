@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { MonthPicker } from "@/components/ui/month-picker";
+import { MultiSelect } from "@/components/ui/multi-select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useConfirmDialog } from "@/components/confirm/confirm-dialog-provider";
@@ -109,6 +110,8 @@ async function readJsonSafely<T>(response: Response, fallback: T): Promise<T> {
 
 export function EmployeePageClient({ userRole, userPermissions, companyId }: { userRole: UserRole; userPermissions?: any; companyId: string }) {
   const [filterType, setFilterType] = useState<"ACTIVE" | "RESIGNED" | "ALL">("ACTIVE");
+  const [selectedStoreIds, setSelectedStoreIds] = useState<string[]>([]);
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
 
   const fetcher = async () => {
     const [empRes, storeRes, shiftRes] = await Promise.all([
@@ -130,31 +133,105 @@ export function EmployeePageClient({ userRole, userPermissions, companyId }: { u
 
   const { data: pageData, mutate: load } = useSWR(`employees_page_data_${companyId}`, fetcher);
   const allEmployees = pageData?.employees ?? [];
-  const employeesFiltered = useMemo(() => {
-    switch (filterType) {
-      case "ACTIVE": return allEmployees.filter(e => !e.deletedAt);
-      case "RESIGNED": return allEmployees.filter(e => e.deletedAt != null);
-      case "ALL": return allEmployees;
-      default: return allEmployees;
-    }
-  }, [allEmployees, filterType]);
-  
-  const employees = employeesFiltered;
   const stores = pageData?.stores ?? [];
   const avgShiftHours = pageData?.avgShiftHours ?? DEFAULT_SHIFT_HOURS;
 
-  const [monthlyHours, setMonthlyHours] = useState<EmployeeMonthlyHours[]>([]);
-  const filteredMonthlyHours = useMemo(() => {
+  const statusFilteredEmployees = useMemo(() => {
     switch (filterType) {
       case "ACTIVE":
-        return monthlyHours.filter((mh) => !mh.deletedAt && !mh.isArchived && mh.isActive !== false);
+        return allEmployees.filter((e) => !e.deletedAt);
       case "RESIGNED":
-        return monthlyHours.filter((mh) => mh.deletedAt != null || mh.isArchived || mh.isActive === false);
+        return allEmployees.filter((e) => e.deletedAt != null);
       case "ALL":
       default:
-        return monthlyHours;
+        return allEmployees;
     }
-  }, [monthlyHours, filterType]);
+  }, [allEmployees, filterType]);
+
+  const baseStores = useMemo(() => {
+    if (filterType === "ALL") {
+      return stores;
+    }
+
+    const assignedStoreIds = new Set<string>();
+    statusFilteredEmployees.forEach((emp) => {
+      emp.stores.forEach((s) => assignedStoreIds.add(s.store.id));
+    });
+
+    return stores.filter((s) => assignedStoreIds.has(s.id));
+  }, [stores, statusFilteredEmployees, filterType]);
+
+  // Bidirectional Store Filter Options:
+  // If specific employees are selected, only show the stores that those selected employees belong to.
+  // Otherwise, show all baseStores for the current filterType.
+  const availableStoreOptions = useMemo(() => {
+    let candidateStores = baseStores;
+
+    if (selectedEmployeeIds.length > 0) {
+      const selectedEmps = statusFilteredEmployees.filter((e) => selectedEmployeeIds.includes(e.id));
+      const storesOfSelectedEmps = new Set<string>();
+      selectedEmps.forEach((emp) => {
+        emp.stores.forEach((s) => storesOfSelectedEmps.add(s.store.id));
+      });
+      candidateStores = baseStores.filter((s) => storesOfSelectedEmps.has(s.id));
+    }
+
+    return candidateStores.map((s) => ({ value: s.id, label: s.name }));
+  }, [baseStores, statusFilteredEmployees, selectedEmployeeIds]);
+
+  // Bidirectional Employee Filter Options:
+  // If specific stores are selected, only show the employees assigned to any of those selected stores.
+  // Otherwise, show all statusFilteredEmployees.
+  const availableEmployeeOptions = useMemo(() => {
+    let candidateEmployees = statusFilteredEmployees;
+
+    if (selectedStoreIds.length > 0) {
+      candidateEmployees = statusFilteredEmployees.filter((e) =>
+        e.stores.some((s) => selectedStoreIds.includes(s.store.id))
+      );
+    }
+
+    return candidateEmployees.map((e) => ({
+      value: e.id,
+      label: e.name,
+      subLabel: e.position || undefined,
+      badge: e.deletedAt ? "Đã nghỉ" : undefined,
+    }));
+  }, [statusFilteredEmployees, selectedStoreIds]);
+
+  const employeesFiltered = useMemo(() => {
+    return statusFilteredEmployees.filter((e) => {
+      // 1. Store filter
+      if (selectedStoreIds.length > 0) {
+        const isInSelectedStore = e.stores.some((s) => selectedStoreIds.includes(s.store.id));
+        if (!isInSelectedStore) return false;
+      }
+
+      // 2. Employee filter
+      if (selectedEmployeeIds.length > 0) {
+        if (!selectedEmployeeIds.includes(e.id)) return false;
+      }
+
+      return true;
+    });
+  }, [statusFilteredEmployees, selectedStoreIds, selectedEmployeeIds]);
+  
+  const employees = employeesFiltered;
+
+  const [monthlyHours, setMonthlyHours] = useState<EmployeeMonthlyHours[]>([]);
+  const filteredMonthlyHours = useMemo(() => {
+    return monthlyHours.filter((mh) => {
+      // 1. Status filter
+      if (filterType === "ACTIVE" && (mh.deletedAt || mh.isArchived || mh.isActive === false)) return false;
+      if (filterType === "RESIGNED" && (!mh.deletedAt && !mh.isArchived && mh.isActive !== false)) return false;
+
+      // 2. Employee filter (ensure client-side consistency)
+      if (selectedEmployeeIds.length > 0 && !selectedEmployeeIds.includes(mh.id)) return false;
+
+      return true;
+    });
+  }, [monthlyHours, filterType, selectedEmployeeIds]);
+
   const [selectedFaultsEmployee, setSelectedFaultsEmployee] = useState<EmployeeMonthlyHours | null>(null);
 
   const [form, setForm] = useState<FormState>(emptyForm);
@@ -173,27 +250,67 @@ export function EmployeePageClient({ userRole, userPermissions, companyId }: { u
   useEffect(() => {
     const month = sessionStorage.getItem("employee_hoursMonth");
     if (month) setHoursMonth(month);
+
+    const savedStores = sessionStorage.getItem("employee_selectedStoreIds");
+    if (savedStores) {
+      try { setSelectedStoreIds(JSON.parse(savedStores)); } catch {}
+    }
+
+    const savedEmployees = sessionStorage.getItem("employee_selectedEmployeeIds");
+    if (savedEmployees) {
+      try { setSelectedEmployeeIds(JSON.parse(savedEmployees)); } catch {}
+    }
+
+    const savedFilter = sessionStorage.getItem("employee_filterType");
+    if (savedFilter && ["ACTIVE", "RESIGNED", "ALL"].includes(savedFilter)) {
+      setFilterType(savedFilter as "ACTIVE" | "RESIGNED" | "ALL");
+    }
+
     setIsInitialized(true);
   }, []);
+
+  // Prune any selected store / employee IDs that are no longer present in the available options when filterType changes
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    const validStoreIds = new Set(availableStoreOptions.map((o) => o.value));
+    setSelectedStoreIds((prev) => {
+      const next = prev.filter((id) => validStoreIds.has(id));
+      return next.length === prev.length ? prev : next;
+    });
+
+    const validEmpIds = new Set(availableEmployeeOptions.map((o) => o.value));
+    setSelectedEmployeeIds((prev) => {
+      const next = prev.filter((id) => validEmpIds.has(id));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [availableStoreOptions, availableEmployeeOptions, isInitialized]);
+
   const { notify } = useNotifications();
   const { confirm } = useConfirmDialog();
   const canManageEmployees = currentRole === "OWNER" || hasPermission(currentRole ?? "", userPermissions, "employees", "EDIT");
   const canDeleteEmployees = currentRole === "OWNER" || hasPermission(currentRole ?? "", userPermissions, "employees", "DELETE");
   const canViewHours = currentRole === "OWNER" || hasPermission(currentRole ?? "", userPermissions, "employees", "VIEW_HOURS");
-  async function loadMonthlyHours(month: string) {
-    const res = await fetch(`/api/employees/monthly-hours?month=${month}`);
+
+  async function loadMonthlyHours(month: string, storeIds: string[] = selectedStoreIds, empIds: string[] = selectedEmployeeIds) {
+    const params = new URLSearchParams();
+    params.set("month", month);
+    if (storeIds.length > 0) params.set("storeIds", storeIds.join(","));
+    if (empIds.length > 0) params.set("employeeIds", empIds.join(","));
+
+    const res = await fetch(`/api/employees/monthly-hours?${params.toString()}`);
     const data = await readJsonSafely<EmployeeMonthlyHours[]>(res, []);
     setMonthlyHours(data);
   }
 
-
   useEffect(() => {
     if (isInitialized && typeof window !== "undefined") {
       sessionStorage.setItem("employee_hoursMonth", hoursMonth);
+      sessionStorage.setItem("employee_selectedStoreIds", JSON.stringify(selectedStoreIds));
+      sessionStorage.setItem("employee_selectedEmployeeIds", JSON.stringify(selectedEmployeeIds));
+      sessionStorage.setItem("employee_filterType", filterType);
     }
-  }, [hoursMonth, isInitialized]);
-
-
+  }, [hoursMonth, selectedStoreIds, selectedEmployeeIds, filterType, isInitialized]);
 
   useEffect(() => {
     if (canManageEmployees) return;
@@ -203,8 +320,8 @@ export function EmployeePageClient({ userRole, userPermissions, companyId }: { u
 
   useEffect(() => {
     if (!isInitialized) return;
-    void loadMonthlyHours(hoursMonth);
-  }, [hoursMonth, isInitialized]);
+    void loadMonthlyHours(hoursMonth, selectedStoreIds, selectedEmployeeIds);
+  }, [hoursMonth, selectedStoreIds, selectedEmployeeIds, isInitialized]);
 
   useEffect(() => {
     if (!message) return;
@@ -217,6 +334,7 @@ export function EmployeePageClient({ userRole, userPermissions, companyId }: { u
     });
     setMessage(null);
   }, [message, notify]);
+
 
   function updateShifts(value: string) {
     setLastEdited("shifts");
@@ -477,17 +595,39 @@ export function EmployeePageClient({ userRole, userPermissions, companyId }: { u
       )}
 
       <Card>
-        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <CardHeader className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
           <CardTitle>Danh sách nhân viên ({employees.length})</CardTitle>
-          <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:items-center gap-2.5 w-full xl:w-auto">
+            <MultiSelect
+              options={availableStoreOptions}
+              selectedValues={selectedStoreIds}
+              onChange={setSelectedStoreIds}
+              allLabel="Tất cả cửa hàng"
+              placeholder="Chọn cửa hàng..."
+              entityName="cửa hàng"
+              searchPlaceholder="Tìm cửa hàng..."
+              className="w-full lg:w-[190px]"
+            />
+
+            <MultiSelect
+              options={availableEmployeeOptions}
+              selectedValues={selectedEmployeeIds}
+              onChange={setSelectedEmployeeIds}
+              allLabel="Tất cả nhân viên"
+              placeholder="Chọn nhân viên..."
+              entityName="nhân viên"
+              searchPlaceholder="Tìm nhân viên..."
+              className="w-full lg:w-[200px]"
+            />
+
             <Select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value as "ACTIVE" | "RESIGNED" | "ALL")}
-              className="w-48 glass-control bg-white/60"
+              className="w-full lg:w-[170px] glass-control bg-white/60"
             >
-              <option value="ALL">Tất cả nhân viên</option>
-              <option value="ACTIVE">Nhân viên đang làm</option>
-              <option value="RESIGNED">Nhân viên đã nghỉ</option>
+              <option value="ACTIVE">Đang làm việc</option>
+              <option value="RESIGNED">Đã nghỉ việc</option>
+              <option value="ALL">Tất cả trạng thái</option>
             </Select>
 
             {canManageEmployees && (
@@ -499,7 +639,7 @@ export function EmployeePageClient({ userRole, userPermissions, companyId }: { u
                   setLastEdited(null);
                   setShowForm((current) => !current);
                 }}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
+                className="font-semibold shrink-0"
               >
                 <Plus className="mr-1.5 h-4 w-4" />
                 {showForm ? "Ẩn form" : "Thêm nhân viên"}
@@ -512,37 +652,37 @@ export function EmployeePageClient({ userRole, userPermissions, companyId }: { u
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b text-left text-slate-500">
-                  <th className="pb-2 pr-4">Tên</th>
-                  <th className="pb-2 pr-4">Chức vụ</th>
-                  <th className="pb-2 pr-4">Loại</th>
-                  <th className="pb-2 pr-4">Ca/tháng</th>
-                  <th className="pb-2 pr-4">Giờ/tháng</th>
-                  <th className="pb-2 pr-4">Cửa hàng</th>
-                  {canManageEmployees && <th className="pb-2">Thao tác</th>}
+                <tr className="border-b text-left text-slate-500 dark:border-[#333333] dark:text-[#E0E0E0]">
+                  <th className="pb-2 pr-4 font-semibold">Tên</th>
+                  <th className="pb-2 pr-4 font-semibold">Chức vụ</th>
+                  <th className="pb-2 pr-4 font-semibold">Loại</th>
+                  <th className="pb-2 pr-4 font-semibold">Ca/tháng</th>
+                  <th className="pb-2 pr-4 font-semibold">Giờ/tháng</th>
+                  <th className="pb-2 pr-4 font-semibold">Cửa hàng</th>
+                  {canManageEmployees && <th className="pb-2 font-semibold">Thao tác</th>}
                 </tr>
               </thead>
               <tbody>
                 {employees.map((emp) => (
                   <Fragment key={emp.id}>
-                    <tr className="border-b border-slate-100">
-                      <td className="py-3 pr-4 font-medium">{emp.name}</td>
-                      <td className="py-3 pr-4">{emp.position}</td>
+                    <tr className="border-b border-slate-100 dark:border-[#333333] dark:hover:bg-[#2D2D30]/40">
+                      <td className="py-3 pr-4 font-medium text-slate-900 dark:text-[#E0E0E0]">{emp.name}</td>
+                      <td className="py-3 pr-4 text-slate-600 dark:text-[#CCCCCC]">{emp.position}</td>
                       <td className="py-3 pr-4">
                         <Badge>{EMPLOYMENT_TYPE_LABELS[emp.employmentType]}</Badge>
                       </td>
-                      <td className="py-3 pr-4">{emp.maxShiftsPerMonth}</td>
-                      <td className="py-3 pr-4">{emp.maxHoursPerMonth}h</td>
-                      <td className="py-3 pr-4">{emp.stores.map((s) => s.store.name).join(", ")}</td>
+                      <td className="py-3 pr-4 text-slate-700 dark:text-[#CCCCCC]">{emp.maxShiftsPerMonth}</td>
+                      <td className="py-3 pr-4 text-slate-700 dark:text-[#CCCCCC]">{emp.maxHoursPerMonth}h</td>
+                      <td className="py-3 pr-4 text-slate-600 dark:text-[#CCCCCC]">{emp.stores.map((s) => s.store.name).join(", ")}</td>
                       {(canManageEmployees || canDeleteEmployees) && (
                         <td className="py-3 px-4 flex gap-2">
                           {!emp.deletedAt ? (
                             <>
                               {canManageEmployees && (
-                                <Button variant="outline" size="sm" onClick={() => startEdit(emp)} className="text-slate-600 border-slate-200 hover:bg-slate-100">Sửa</Button>
+                                <Button variant="outline" size="sm" onClick={() => startEdit(emp)} className="text-slate-600 border-slate-200 hover:bg-slate-100 dark:border-[#3C3C3C] dark:bg-[#252526] dark:text-[#E0E0E0] dark:hover:bg-[#2D2D30]">Sửa</Button>
                               )}
                               {canDeleteEmployees && (
-                                <Button variant="outline" size="sm" onClick={() => handleDelete(emp.id, emp.name, false)} className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700">Xóa</Button>
+                                <Button variant="outline" size="sm" onClick={() => handleDelete(emp.id, emp.name, false)} className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 dark:border-red-900/40 dark:bg-[#252526] dark:text-red-400">Xóa</Button>
                               )}
                             </>
                           ) : (
@@ -590,11 +730,18 @@ export function EmployeePageClient({ userRole, userPermissions, companyId }: { u
 
       {canViewHours && (
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <TimerReset className="h-5 w-5" />
-            Giờ làm thực tế trong tháng
-          </CardTitle>
+        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <CardTitle className="flex items-center gap-2">
+              <TimerReset className="h-5 w-5" />
+              Giờ làm thực tế trong tháng ({filteredMonthlyHours.length})
+            </CardTitle>
+            {(selectedStoreIds.length > 0 || selectedEmployeeIds.length > 0) && (
+              <p className="text-xs text-slate-500 dark:text-neutral-400">
+                Đang lọc theo: {selectedStoreIds.length > 0 && `${selectedStoreIds.length} cửa hàng`}{selectedStoreIds.length > 0 && selectedEmployeeIds.length > 0 && ", "}{selectedEmployeeIds.length > 0 && `${selectedEmployeeIds.length} nhân viên`}
+              </p>
+            )}
+          </div>
           <MonthPicker
             value={hoursMonth}
             onChange={setHoursMonth}
@@ -606,23 +753,23 @@ export function EmployeePageClient({ userRole, userPermissions, companyId }: { u
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b text-left text-slate-500">
-                  <th className="pb-2 pr-4">Tên</th>
-                  <th className="pb-2 pr-4">Chức vụ</th>
-                  <th className="pb-2 pr-4">Giờ làm chính</th>
-                  <th className="pb-2 pr-4">Giờ làm thêm</th>
-                  <th className="pb-2 pr-4">Tổng giờ thực tế</th>
-                  <th className="pb-2 pr-4">Ca thực tế</th>
-                  <th className="pb-2 pr-4">Giờ tối đa</th>
-                  <th className="pb-2 pr-4">Chênh lệch giờ</th>
-                  <th className="pb-2 pr-4">Chênh lệch ca</th>
-                  <th className="pb-2">Số lỗi</th>
+                <tr className="border-b text-left text-slate-500 dark:border-[#333333] dark:text-[#E0E0E0]">
+                  <th className="pb-2 pr-4 font-semibold">Tên</th>
+                  <th className="pb-2 pr-4 font-semibold">Chức vụ</th>
+                  <th className="pb-2 pr-4 font-semibold">Giờ làm chính</th>
+                  <th className="pb-2 pr-4 font-semibold">Giờ làm thêm</th>
+                  <th className="pb-2 pr-4 font-semibold">Tổng giờ thực tế</th>
+                  <th className="pb-2 pr-4 font-semibold">Ca thực tế</th>
+                  <th className="pb-2 pr-4 font-semibold">Giờ tối đa</th>
+                  <th className="pb-2 pr-4 font-semibold">Chênh lệch giờ</th>
+                  <th className="pb-2 pr-4 font-semibold">Chênh lệch ca</th>
+                  <th className="pb-2 font-semibold">Số lỗi</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredMonthlyHours.map((emp) => (
-                  <tr key={`${emp.id}-${emp.month}`} className="border-b border-slate-100">
-                    <td className="py-3 pr-4 font-medium">
+                  <tr key={`${emp.id}-${emp.month}`} className="border-b border-slate-100 dark:border-[#333333] dark:hover:bg-[#2D2D30]/40">
+                    <td className="py-3 pr-4 font-medium text-slate-900 dark:text-[#E0E0E0]">
                       <div className="flex items-center gap-1.5">
                         <span>{emp.name}</span>
                         {(emp.deletedAt || emp.isArchived || emp.isActive === false) && (

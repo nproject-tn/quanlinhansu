@@ -113,13 +113,15 @@ export async function DELETE(request: Request, { params }: Params) {
       return NextResponse.json({ error: "Không tìm thấy sản phẩm" }, { status: 404 });
     }
 
-    // Soft delete / archive product
-    await prisma.product.update({
-      where: { id, companyId },
-      data: { isArchived: true },
+    await prisma.factoryOrderItem.deleteMany({
+      where: { companyId, productId: id },
     });
 
-    return NextResponse.json({ success: true, message: "Đã lưu trữ sản phẩm" });
+    await prisma.product.delete({
+      where: { id, companyId },
+    });
+
+    return NextResponse.json({ success: true, message: "Đã xóa biến thể sản phẩm thành công" });
   } catch (err: any) {
     return NextResponse.json({ error: "Lỗi xoá sản phẩm: " + err.message }, { status: 500 });
   }

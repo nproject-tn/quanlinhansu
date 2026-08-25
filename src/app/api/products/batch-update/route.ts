@@ -16,6 +16,7 @@ export async function PUT(request: Request) {
       categoryId,
       subcategoryId,
       itemCode,
+      colorCode,
       name,
       brandName,
       manufacturerId,
@@ -56,14 +57,19 @@ export async function PUT(request: Request) {
       updateData.manufacturerId = manufacturerId || null;
     }
 
-    // 1. Update all existing variants in the line
+    const targetWhere: any = {
+      companyId,
+      categoryId,
+      subcategoryId,
+      itemCode,
+    };
+    if (colorCode) {
+      targetWhere.colorCode = colorCode;
+    }
+
+    // 1. Update existing variants
     const updateResult = await prisma.product.updateMany({
-      where: {
-        companyId,
-        categoryId,
-        subcategoryId,
-        itemCode,
-      },
+      where: targetWhere,
       data: updateData,
     });
 
@@ -180,5 +186,50 @@ export async function PUT(request: Request) {
     });
   } catch (err: any) {
     return NextResponse.json({ error: "Lỗi cập nhật dòng sản phẩm: " + err.message }, { status: 500 });
+  }
+}
+
+// DELETE: Delete an entire product line or a specific color cluster
+export async function DELETE(request: Request) {
+  const { error, companyId } = await requireAuth(["OWNER", "ADMIN"], { module: "products", action: "DELETE" });
+  if (error || !companyId) return error;
+
+  try {
+    const body = await request.json();
+    const { categoryId, subcategoryId, itemCode, colorCode } = body;
+
+    if (!categoryId || !subcategoryId || !itemCode) {
+      return NextResponse.json({ error: "Thiếu thông tin định danh nhóm sản phẩm" }, { status: 400 });
+    }
+
+    const whereClause: any = { companyId, categoryId, subcategoryId, itemCode };
+    if (colorCode) {
+      whereClause.colorCode = colorCode;
+    }
+
+    // Unlink or delete factory order items if any
+    const productsToDelete = await prisma.product.findMany({
+      where: whereClause,
+      select: { id: true },
+    });
+    const productIds = productsToDelete.map((p) => p.id);
+
+    if (productIds.length > 0) {
+      await prisma.factoryOrderItem.deleteMany({
+        where: { companyId, productId: { in: productIds } },
+      });
+    }
+
+    const deleted = await prisma.product.deleteMany({
+      where: whereClause,
+    });
+
+    return NextResponse.json({
+      success: true,
+      deletedCount: deleted.count,
+      message: `Đã xóa ${deleted.count} biến thể sản phẩm`,
+    });
+  } catch (err: any) {
+    return NextResponse.json({ error: "Lỗi xóa dòng sản phẩm: " + err.message }, { status: 500 });
   }
 }

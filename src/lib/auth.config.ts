@@ -28,17 +28,16 @@ export const authConfig = {
     authorized({ auth, request }) {
       const isLoggedIn = !!auth?.user;
       const path = request.nextUrl.pathname;
-      const isPublicPage = path === "/" || path === "/home-apexflow" || path.startsWith("/dang-nhap") || path.startsWith("/register");
+      const isPublicPage =
+        path === "/" ||
+        path === "/home-apexflow" ||
+        path.startsWith("/dang-nhap") ||
+        path.startsWith("/register") ||
+        path.startsWith("/api/auth");
 
       if (!isLoggedIn && !isPublicPage) return false;
-      
-      // Redirect logged-in users away from auth pages to their workspaces
-      if (isLoggedIn && (path === "/" || path === "/home-apexflow" || path.startsWith("/dang-nhap") || path.startsWith("/register"))) {
-        return Response.redirect(new URL("/workspaces", request.nextUrl));
-      }
 
-      // We will handle specific company route protection in the app/[companyId] layout/middleware
-      // For now, allow logged in users to proceed
+      // Allow logged-in and guest users to freely access public pages or proceed to protected routes
       return true;
     },
   },

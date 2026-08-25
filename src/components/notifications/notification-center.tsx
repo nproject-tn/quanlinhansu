@@ -46,15 +46,15 @@ function iconForTone(tone: NotificationTone) {
 }
 
 function toneClassName(tone: NotificationTone) {
-  if (tone === "success") return "border-emerald-200/70 text-emerald-950";
-  if (tone === "error") return "border-rose-200/70 text-rose-950";
-  return "border-amber-200/70 text-amber-950";
+  if (tone === "success") return "border-emerald-200/70 text-emerald-950 dark:border-emerald-700/60 dark:text-emerald-300 dark:bg-[#1C1C20]";
+  if (tone === "error") return "border-rose-200/70 text-rose-950 dark:border-rose-700/60 dark:text-rose-300 dark:bg-[#1C1C20]";
+  return "border-amber-200/70 text-amber-950 dark:border-amber-700/60 dark:text-amber-300 dark:bg-[#1C1C20]";
 }
 
 function toneIconClassName(tone: NotificationTone) {
-  if (tone === "success") return "text-emerald-500";
-  if (tone === "error") return "text-rose-500";
-  return "text-amber-500";
+  if (tone === "success") return "text-emerald-500 dark:text-emerald-400";
+  if (tone === "error") return "text-rose-500 dark:text-rose-400";
+  return "text-amber-500 dark:text-amber-400";
 }
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
@@ -169,7 +169,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       {shouldShowBell && (
         <div
           ref={shellRef}
-          className="pointer-events-none fixed top-4 right-4 z-50 flex w-[min(360px,calc(100vw-2rem))] flex-col items-end gap-3"
+          className="pointer-events-none fixed top-4 right-4 z-40 flex w-[min(360px,calc(100vw-2rem))] flex-col items-end gap-3"
         >
           <div className="pointer-events-auto relative">
             <button
@@ -186,7 +186,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
                 setShowNotificationCenter((current) => !current);
                 setNotifications((current) => current.map((item) => ({ ...item, read: true })));
               }}
-              className="toast-liquid flex h-12 w-12 items-center justify-center rounded-2xl border-slate-200/70 text-slate-700 transition-transform hover:scale-[1.02]"
+              className="toast-liquid flex h-12 w-12 items-center justify-center rounded-2xl border-slate-200/70 text-slate-700 dark:text-neutral-200 dark:border-neutral-700 dark:bg-[#1C1C20] transition-transform hover:scale-[1.02]"
               aria-label="Mở thông báo"
             >
               <Bell className="h-5 w-5" />
@@ -212,9 +212,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
                   >
                     <div className="flex items-start gap-3">
                       <Icon className={cn("mt-0.5 h-5 w-5 shrink-0", toneIconClassName(toast.tone))} />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium">{toast.title}</p>
-                        <p className="mt-1 text-sm opacity-85">{toast.body}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-slate-900 dark:text-white">{toast.title}</p>
+                        <p className="mt-1 text-xs sm:text-sm text-slate-700 dark:text-neutral-200 leading-relaxed">{toast.body}</p>
                       </div>
                     </div>
                   </div>
@@ -224,27 +224,27 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
           ) : null}
 
           {showNotificationCenter && (
-            <div className="toast-liquid toast-enter pointer-events-auto w-full border-slate-200/70 text-slate-900">
-              <div className="mb-3 flex items-center justify-between gap-3 border-b border-white/45 pb-3">
+            <div className="toast-liquid toast-enter pointer-events-auto w-full border-slate-200/70 text-slate-900 dark:border-neutral-700/80 dark:bg-[#18181B] dark:text-neutral-100 shadow-2xl">
+              <div className="mb-3 flex items-center justify-between gap-3 border-b border-slate-100 dark:border-neutral-800 pb-3">
                 <div>
-                  <p className="text-sm font-semibold">Thông báo</p>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">Thông báo</p>
                 </div>
               </div>
-              <div className="hover-scrollbars max-h-[34rem] space-y-3 overflow-y-auto pr-1">
+              <div className="hover-scrollbars max-h-[34rem] space-y-2.5 overflow-y-auto pr-1">
                 {sortedNotifications.length === 0 ? (
-                  <p className="py-6 text-center text-sm text-slate-500">Chưa có thông báo nào.</p>
+                  <p className="py-6 text-center text-sm text-slate-500 dark:text-neutral-400">Chưa có thông báo nào.</p>
                 ) : null}
                 {sortedNotifications.map((notification) => {
                   const Icon = iconForTone(notification.tone);
                   return (
                     <div
                       key={notification.id}
-                      className="flex items-start gap-3 rounded-2xl border border-white/35 bg-white/28 px-3 py-3"
+                      className="flex items-start gap-3 rounded-xl border border-slate-200/80 bg-white/70 dark:border-neutral-700/70 dark:bg-[#242428] px-3.5 py-3 shadow-xs"
                     >
                       <Icon className={cn("mt-0.5 h-5 w-5 shrink-0", toneIconClassName(notification.tone))} />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium">{notification.title}</p>
-                        <p className="mt-1 text-sm text-slate-700/80">{notification.body}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">{notification.title}</p>
+                        <p className="mt-0.5 text-xs text-slate-600 dark:text-neutral-300 leading-relaxed">{notification.body}</p>
                       </div>
                     </div>
                   );

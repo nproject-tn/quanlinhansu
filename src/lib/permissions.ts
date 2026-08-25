@@ -6,11 +6,17 @@ export function hasPermission(
 ): boolean {
   if (role === "OWNER") return true;
 
-  if (permissions !== null && permissions !== undefined && typeof permissions === "object") {
+  const hasCustomPermissions = permissions !== null && permissions !== undefined && typeof permissions === "object";
+
+  if (hasCustomPermissions) {
     let perm = permissions[module];
+
+    // If perm is undefined for this module in a custom permissions configuration, access is DENIED
+    if (!perm) return false;
 
     // Auto-migrate legacy string permissions to new Object structure
     if (typeof perm === "string") {
+      if (perm === "NONE") return false;
       if (module === "schedule") {
         if (perm === "APPROVER") perm = { view: true, edit: true, editFree: true, approve: true };
         else if (perm === "EDIT_FREE" || perm === "EDIT") perm = { view: true, edit: true, editFree: true, approve: false };
@@ -26,8 +32,8 @@ export function hasPermission(
 
     if (perm && typeof perm === "object") {
       if (module === "schedule") {
-        if (action === "VIEW") return perm.view === true || perm.edit === true;
-        if (action === "EDIT") return perm.edit === true;
+        if (action === "VIEW") return perm.view === true || perm.edit === true || perm.editFree === true || perm.approve === true;
+        if (action === "EDIT") return perm.edit === true || perm.editFree === true || perm.approve === true;
         if (action === "EDIT_FREE") return perm.editFree === true;
         if (action === "APPROVE") return perm.approve === true;
         if (action === "REQUEST") return perm.edit === true;
@@ -35,17 +41,17 @@ export function hasPermission(
       }
       
       if (module === "employees") {
-        if (action === "VIEW") return perm.viewList === true || perm.viewHours === true || perm.edit === true;
-        if (action === "VIEW_LIST") return perm.viewList === true || perm.edit === true;
-        if (action === "VIEW_HOURS") return perm.viewHours === true || perm.edit === true;
-        if (action === "EDIT") return perm.edit === true;
+        if (action === "VIEW") return perm.viewList === true || perm.viewHours === true || perm.edit === true || perm.delete === true;
+        if (action === "VIEW_LIST") return perm.viewList === true || perm.edit === true || perm.delete === true;
+        if (action === "VIEW_HOURS") return perm.viewHours === true || perm.edit === true || perm.delete === true;
+        if (action === "EDIT") return perm.edit === true || perm.delete === true;
         if (action === "DELETE") return perm.delete === true;
         return false;
       }
 
-      // Generic logic for store, shift_config, settings, etc.
-      if (action === "VIEW") return perm.view === true || perm.edit === true;
-      if (action === "EDIT") return perm.edit === true;
+      // Generic logic for store, shift_config, settings, products, etc.
+      if (action === "VIEW") return perm.view === true || perm.edit === true || perm.delete === true;
+      if (action === "EDIT") return perm.edit === true || perm.delete === true;
       if (action === "DELETE") return perm.delete === true;
       return false;
     }
@@ -53,10 +59,11 @@ export function hasPermission(
     return false;
   }
 
-  // Fallback for legacy records that don't have the permissions JSON
+  // Fallback for default base roles when NO custom permissions have been configured (permissions is null or undefined)
   if (role === "ADMIN") return true;
   if (role === "SCHEDULER" && (module === "schedule" || module === "shift_config")) return true;
-  if (action === "VIEW" && (module === "schedule" || module === "store")) return true;
+  if (role === "EMPLOYEE" && module === "schedule" && action === "VIEW") return true;
 
   return false;
 }
+

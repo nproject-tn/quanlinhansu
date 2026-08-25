@@ -22,17 +22,47 @@ type SelectOption = {
   disabled?: boolean;
   label: string;
   value: string;
+  group?: string;
+  icon?: ReactNode;
 };
 
-function normalizeChildren(children: SelectHTMLAttributes<HTMLSelectElement>["children"]) {
-  return Children.toArray(children)
-    .filter(isValidElement)
-    .map((child) => child as ReactElement<{ value?: string | number; disabled?: boolean; children?: ReactNode }>)
-    .map((child) => ({
-      value: String(child.props.value ?? ""),
-      label: Children.toArray(child.props.children).join(""),
-      disabled: child.props.disabled,
-    }));
+function extractLabel(children: ReactNode): string {
+  if (typeof children === "string" || typeof children === "number") {
+    return String(children);
+  }
+  if (Array.isArray(children)) {
+    return children.map(extractLabel).join("");
+  }
+  if (isValidElement(children)) {
+    return extractLabel((children.props as any).children);
+  }
+  return "";
+}
+
+function normalizeChildren(children: SelectHTMLAttributes<HTMLSelectElement>["children"]): SelectOption[] {
+  const result: SelectOption[] = [];
+
+  const processNode = (node: ReactNode, groupName?: string) => {
+    Children.forEach(node, (child) => {
+      if (!isValidElement(child)) return;
+
+      const props = child.props as any;
+      if (child.type === "optgroup" || (props.label !== undefined && props.children && typeof props.children === "object")) {
+        processNode(props.children, props.label);
+      } else if (child.type === "option" || props.value !== undefined) {
+        result.push({
+          value: String(props.value ?? ""),
+          label: extractLabel(props.children) || String(props.value ?? ""),
+          disabled: props.disabled,
+          group: groupName,
+          icon: props.icon,
+        });
+      }
+    });
+  };
+
+  processNode(children);
+  return result;
 }
 
 export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement>>(
@@ -184,14 +214,17 @@ export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSel
             setOpen((current) => !current);
           }}
           className={cn(
-            "glass-control flex h-10 w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm text-slate-800 outline-none ring-slate-900 transition-[border-color,box-shadow,transform] focus:ring-2 disabled:cursor-not-allowed disabled:opacity-55",
+            "glass-control flex h-10 w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm text-slate-800 dark:text-white dark:bg-[#202024] dark:border-neutral-700/80 outline-none ring-slate-900 transition-[border-color,box-shadow,transform] focus:ring-2 disabled:cursor-not-allowed disabled:opacity-55",
             className
           )}
         >
-          <span className="min-w-0 truncate">{selectedOption?.label ?? ""}</span>
+          <span className="min-w-0 truncate flex items-center gap-2">
+            {selectedOption?.icon}
+            <span className="truncate">{selectedOption?.label ?? ""}</span>
+          </span>
           <ChevronDown
             className={cn(
-              "h-4 w-4 shrink-0 text-slate-500 transition-transform",
+              "h-4 w-4 shrink-0 text-slate-500 dark:text-neutral-300 transition-transform",
               open ? "rotate-180" : ""
             )}
           />
@@ -201,7 +234,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSel
           ? createPortal(
               <div
                 ref={menuRef}
-                className="month-picker-liquid month-picker-liquid-solid z-[120] min-w-[180px] overflow-hidden rounded-[20px] border border-white/50 p-2 shadow-2xl"
+                className="z-[120] min-w-[180px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl dark:border-[#333333] dark:bg-[#252526] dark:text-[#E0E0E0]"
                 style={{
                   position: "fixed",
                   width: menuPosition.width,
@@ -213,29 +246,41 @@ export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSel
                   className="hover-scrollbars relative z-10 overflow-y-auto"
                   style={{ maxHeight: menuPosition.maxHeight }}
                 >
-                  {options.map((option) => {
+                  {options.map((option, idx) => {
                     const isActive = option.value === selectedValue;
+                    const prevOption = options[idx - 1];
+                    const isNewGroup = option.group && (!prevOption || prevOption.group !== option.group);
+
                     return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        disabled={option.disabled}
-                        onClick={() => {
-                          if (option.disabled) return;
-                          emitChange(option.value);
-                          setOpen(false);
-                        }}
-                        className={cn(
-                          "flex w-full items-center rounded-2xl px-3 py-2.5 text-left text-sm transition-colors",
-                          option.disabled
-                            ? "cursor-not-allowed text-slate-400"
-                            : isActive
-                              ? "bg-slate-900 text-white shadow-[0_12px_28px_rgba(15,23,42,0.24)]"
-                              : "text-slate-700 hover:bg-slate-900/10 hover:text-slate-900"
+                      <div key={`opt-${idx}-${option.value}`}>
+                        {isNewGroup && (
+                          <div className="px-3 pt-2 pb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-neutral-400 select-none">
+                            {option.group}
+                          </div>
                         )}
-                      >
-                        <span className="truncate">{option.label}</span>
-                      </button>
+                        <button
+                          type="button"
+                          disabled={option.disabled}
+                          onClick={() => {
+                            if (option.disabled) return;
+                            emitChange(option.value);
+                            setOpen(false);
+                          }}
+                          className={cn(
+                            "flex w-full items-center rounded-xl px-3 py-2 text-left text-sm transition-colors",
+                            option.disabled
+                              ? "cursor-not-allowed text-slate-400 dark:text-[#6E6E6E]"
+                              : isActive
+                                ? "bg-slate-900 text-white shadow-xs dark:bg-[#37373D] dark:text-white dark:font-semibold"
+                                : "text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:text-[#CCCCCC] dark:hover:bg-[#2D2D30] dark:hover:text-white font-medium"
+                          )}
+                        >
+                          <span className="truncate flex items-center gap-2">
+                            {option.icon}
+                            <span className="truncate">{option.label}</span>
+                          </span>
+                        </button>
+                      </div>
                     );
                   })}
                 </div>

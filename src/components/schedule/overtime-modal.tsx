@@ -51,7 +51,7 @@ export function OvertimeModal({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
       onClick={handleBackdropClick}
     >
       <Card className="w-full max-w-sm max-h-[90vh] flex flex-col shadow-lg animate-in fade-in-0 zoom-in-95">

@@ -18,6 +18,42 @@ export function formatDateOnly(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+/** Format YYYY-MM-DD or date string to DD/MM/YYYY */
+export function formatDateVN(dateStr?: string | null): string {
+  if (!dateStr) return "";
+  const parts = String(dateStr).trim().split("-");
+  if (parts.length === 3) {
+    const [y, m, d] = parts;
+    return `${d}/${m}/${y}`;
+  }
+  return String(dateStr);
+}
+
+/** Format week range label: e.g. "20-26/07/2026" or "29/06 - 05/07/2026" */
+export function formatWeekRangeLabel(startDateStr?: string | null, endDateStr?: string | null): string {
+  if (!startDateStr || !endDateStr) return "";
+  const parts1 = String(startDateStr).trim().split("-");
+  const parts2 = String(endDateStr).trim().split("-");
+  if (parts1.length !== 3 || parts2.length !== 3) {
+    return `${startDateStr} - ${endDateStr}`;
+  }
+  const [y1, m1, d1] = parts1;
+  const [y2, m2, d2] = parts2;
+
+  // Case 1: Same month & same year: "20-26/07/2026"
+  if (y1 === y2 && m1 === m2) {
+    return `${d1}-${d2}/${m1}/${y1}`;
+  }
+
+  // Case 2: Different month, same year: "29/06 - 05/07/2026"
+  if (y1 === y2) {
+    return `${d1}/${m1} - ${d2}/${m2}/${y1}`;
+  }
+
+  // Case 3: Different year: "28/12/2026 - 03/01/2027"
+  return `${d1}/${m1}/${y1} - ${d2}/${m2}/${y2}`;
+}
+
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("vi-VN", {
     style: "currency",
