@@ -112,6 +112,7 @@ export function EmployeePageClient({ userRole, userPermissions, companyId }: { u
   const [filterType, setFilterType] = useState<"ACTIVE" | "RESIGNED" | "ALL">("ACTIVE");
   const [selectedStoreIds, setSelectedStoreIds] = useState<string[]>([]);
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
+  const [isEmployeeTableCollapsed, setIsEmployeeTableCollapsed] = useState(false);
 
   const fetcher = async () => {
     const [empRes, storeRes, shiftRes] = await Promise.all([
@@ -596,7 +597,30 @@ export function EmployeePageClient({ userRole, userPermissions, companyId }: { u
 
       <Card>
         <CardHeader className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
-          <CardTitle>Danh sách nhân viên ({employees.length})</CardTitle>
+          <div className="flex items-center gap-3">
+            <CardTitle>Danh sách nhân viên ({employees.length})</CardTitle>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsEmployeeTableCollapsed((prev) => !prev)}
+              className="h-8 gap-1.5 px-3 text-xs font-semibold rounded-xl border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-[#3A3A3A] dark:text-neutral-200 dark:hover:bg-[#2A2A2A] shadow-2xs"
+              title={isEmployeeTableCollapsed ? "Mở rộng bảng danh sách nhân viên" : "Thu gọn bảng danh sách nhân viên"}
+            >
+              {isEmployeeTableCollapsed ? (
+                <>
+                  <ChevronDown className="h-3.5 w-3.5" />
+                  <span>Mở rộng bảng</span>
+                </>
+              ) : (
+                <>
+                  <ChevronUp className="h-3.5 w-3.5" />
+                  <span>Thu gọn bảng</span>
+                </>
+              )}
+            </Button>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:items-center gap-2.5 w-full xl:w-auto">
             <MultiSelect
               options={availableStoreOptions}
@@ -638,6 +662,9 @@ export function EmployeePageClient({ userRole, userPermissions, companyId }: { u
                   setForm(emptyForm);
                   setLastEdited(null);
                   setShowForm((current) => !current);
+                  if (isEmployeeTableCollapsed) {
+                    setIsEmployeeTableCollapsed(false);
+                  }
                 }}
                 className="font-semibold shrink-0"
               >
@@ -648,84 +675,110 @@ export function EmployeePageClient({ userRole, userPermissions, companyId }: { u
             )}
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-slate-500 dark:border-[#333333] dark:text-[#E0E0E0]">
-                  <th className="pb-2 pr-4 font-semibold">Tên</th>
-                  <th className="pb-2 pr-4 font-semibold">Chức vụ</th>
-                  <th className="pb-2 pr-4 font-semibold">Loại</th>
-                  <th className="pb-2 pr-4 font-semibold">Ca/tháng</th>
-                  <th className="pb-2 pr-4 font-semibold">Giờ/tháng</th>
-                  <th className="pb-2 pr-4 font-semibold">Cửa hàng</th>
-                  {canManageEmployees && <th className="pb-2 font-semibold">Thao tác</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {employees.map((emp) => (
-                  <Fragment key={emp.id}>
-                    <tr className="border-b border-slate-100 dark:border-[#333333] dark:hover:bg-[#2D2D30]/40">
-                      <td className="py-3 pr-4 font-medium text-slate-900 dark:text-[#E0E0E0]">{emp.name}</td>
-                      <td className="py-3 pr-4 text-slate-600 dark:text-[#CCCCCC]">{emp.position}</td>
-                      <td className="py-3 pr-4">
-                        <Badge>{EMPLOYMENT_TYPE_LABELS[emp.employmentType]}</Badge>
-                      </td>
-                      <td className="py-3 pr-4 text-slate-700 dark:text-[#CCCCCC]">{emp.maxShiftsPerMonth}</td>
-                      <td className="py-3 pr-4 text-slate-700 dark:text-[#CCCCCC]">{emp.maxHoursPerMonth}h</td>
-                      <td className="py-3 pr-4 text-slate-600 dark:text-[#CCCCCC]">{emp.stores.map((s) => s.store.name).join(", ")}</td>
-                      {(canManageEmployees || canDeleteEmployees) && (
-                        <td className="py-3 px-4 flex gap-2">
-                          {!emp.deletedAt ? (
-                            <>
-                              {canManageEmployees && (
-                                <Button variant="outline" size="sm" onClick={() => startEdit(emp)} className="text-slate-600 border-slate-200 hover:bg-slate-100 dark:border-[#3C3C3C] dark:bg-[#252526] dark:text-[#E0E0E0] dark:hover:bg-[#2D2D30]">Sửa</Button>
-                              )}
-                              {canDeleteEmployees && (
-                                <Button variant="outline" size="sm" onClick={() => handleDelete(emp.id, emp.name, false)} className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 dark:border-red-900/40 dark:bg-[#252526] dark:text-red-400">Xóa</Button>
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              <Button size="sm" variant="outline" onClick={() => handleRestore(emp.id, emp.name)}>Khôi phục</Button>
-                              <Button size="sm" variant="destructive" onClick={() => handleDelete(emp.id, emp.name, true)}>Xóa vĩnh viễn</Button>
-                            </>
-                          )}
-                        </td>
-                      )}
-                    </tr>
-                    {canManageEmployees && editingId === emp.id && (
-                      <tr className="border-b border-slate-100 bg-slate-50/70">
-                        <td className="px-4 py-4" colSpan={7}>
-                          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                            <div className="mb-4 flex items-center justify-between">
-                              <h3 className="text-base font-semibold text-slate-900">
-                                Sửa nhân viên: {emp.name}
-                              </h3>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setEditingId(null);
-                                  setForm(emptyForm);
-                                  setLastEdited(null);
-                                }}
-                              >
-                                Đóng
-                              </Button>
-                            </div>
-                            {renderEmployeeForm("Cập nhật")}
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
-                ))}
-              </tbody>
-            </table>
+
+        {isEmployeeTableCollapsed ? (
+          <div className="px-6 py-3 border-t border-slate-100 dark:border-[#2C2C2C] flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-neutral-400 bg-slate-50/50 dark:bg-[#1E1E1E]/50">
+            <span>
+              Bảng danh sách nhân viên đang được thu gọn. Bộ lọc bên trên vẫn áp dụng cho bảng giờ làm thực tế bên dưới.
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsEmployeeTableCollapsed(false)}
+              className="font-semibold text-slate-900 dark:text-white underline underline-offset-2 hover:opacity-80"
+            >
+              Hiển thị lại bảng ({employees.length} nhân viên)
+            </button>
           </div>
-        </CardContent>
+        ) : (
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-slate-500 dark:border-[#333333] dark:text-[#E0E0E0]">
+                    <th className="pb-2 pr-4 font-semibold">Tên</th>
+                    <th className="pb-2 pr-4 font-semibold">Chức vụ</th>
+                    <th className="pb-2 pr-4 font-semibold">Loại</th>
+                    <th className="pb-2 pr-4 font-semibold">Ca/tháng</th>
+                    <th className="pb-2 pr-4 font-semibold">Giờ/tháng</th>
+                    <th className="pb-2 pr-4 font-semibold">Cửa hàng</th>
+                    {canManageEmployees && <th className="pb-2 font-semibold">Thao tác</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {employees.map((emp) => (
+                    <Fragment key={emp.id}>
+                      <tr className="border-b border-slate-100 dark:border-[#333333] dark:hover:bg-[#2D2D30]/40">
+                        <td className="py-3 pr-4 font-medium text-slate-900 dark:text-[#E0E0E0]">{emp.name}</td>
+                        <td className="py-3 pr-4 text-slate-600 dark:text-[#CCCCCC]">{emp.position}</td>
+                        <td className="py-3 pr-4">
+                          <Badge>{EMPLOYMENT_TYPE_LABELS[emp.employmentType]}</Badge>
+                        </td>
+                        <td className="py-3 pr-4 text-slate-700 dark:text-[#CCCCCC]">{emp.maxShiftsPerMonth}</td>
+                        <td className="py-3 pr-4 text-slate-700 dark:text-[#CCCCCC]">{emp.maxHoursPerMonth}h</td>
+                        <td className="py-3 pr-4 text-slate-600 dark:text-[#CCCCCC]">{emp.stores.map((s) => s.store.name).join(", ")}</td>
+                        {(canManageEmployees || canDeleteEmployees) && (
+                          <td className="py-3 px-4 flex gap-2">
+                            {!emp.deletedAt ? (
+                              <>
+                                {canManageEmployees && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setIsEmployeeTableCollapsed(false);
+                                      startEdit(emp);
+                                    }}
+                                    className="text-slate-600 border-slate-200 hover:bg-slate-100 dark:border-[#3C3C3C] dark:bg-[#252526] dark:text-[#E0E0E0] dark:hover:bg-[#2D2D30]"
+                                  >
+                                    Sửa
+                                  </Button>
+                                )}
+                                {canDeleteEmployees && (
+                                  <Button variant="outline" size="sm" onClick={() => handleDelete(emp.id, emp.name, false)} className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 dark:border-red-900/40 dark:bg-[#252526] dark:text-red-400">Xóa</Button>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <Button size="sm" variant="outline" onClick={() => handleRestore(emp.id, emp.name)}>Khôi phục</Button>
+                                <Button size="sm" variant="destructive" onClick={() => handleDelete(emp.id, emp.name, true)}>Xóa vĩnh viễn</Button>
+                              </>
+                            )}
+                          </td>
+                        )}
+                      </tr>
+                      {canManageEmployees && editingId === emp.id && (
+                        <tr className="border-b border-slate-100 bg-slate-50/70">
+                          <td className="px-4 py-4" colSpan={7}>
+                            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                              <div className="mb-4 flex items-center justify-between">
+                                <h3 className="text-base font-semibold text-slate-900">
+                                  Sửa nhân viên: {emp.name}
+                                </h3>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setEditingId(null);
+                                    setForm(emptyForm);
+                                    setLastEdited(null);
+                                  }}
+                                >
+                                  Đóng
+                                </Button>
+                              </div>
+                              {renderEmployeeForm("Cập nhật")}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        )}
       </Card>
 
       {canViewHours && (

@@ -1,9 +1,10 @@
 "use client";
 
-import { X, Save, Trash2, Shield, Settings2, Users, Building2, CalendarDays, LayoutDashboard, Package, RotateCcw, Crown, AlertTriangle } from "lucide-react";
+import { X, Save, Trash2, Shield, Settings2, Users, Building2, CalendarDays, LayoutDashboard, Package, RotateCcw, Crown, AlertTriangle, TrendingUp, ShoppingBag, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 
@@ -40,15 +41,18 @@ type Props = {
   canEdit?: boolean;
   currentUserRole?: string;
   activePendingTransfer?: PendingTransferData | null;
+  allMembers?: UserMember[];
 };
 
 const MODULES = [
   { id: "schedule", label: "Lịch xếp ca", icon: CalendarDays },
   { id: "store", label: "Cửa hàng", icon: Building2 },
   { id: "products", label: "Hàng hoá", icon: Package },
+  { id: "revenue", label: "Đơn hàng & Bán hàng", icon: ShoppingBag },
   { id: "employees", label: "Nhân sự", icon: Users },
   { id: "shift_config", label: "Cấu hình ca", icon: Settings2 },
   { id: "settings", label: "Cài đặt & Phân quyền", icon: Shield },
+  { id: "audit_log", label: "Lịch sử thao tác", icon: History },
 ];
 
 export function MemberPermissionsSheet({ 
@@ -63,12 +67,18 @@ export function MemberPermissionsSheet({
   canEdit = true,
   currentUserRole = "EMPLOYEE",
   activePendingTransfer = null,
+  allMembers = [],
 }: Props) {
   const [role, setRole] = useState<string>("EMPLOYEE");
   const [companyRoleId, setCompanyRoleId] = useState<string | null>(null);
   const [permissions, setPermissions] = useState<Record<string, any>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const getDefaultPermissionsForRole = (targetRole: string, targetCompanyRoleId: string | null) => {
     if (targetCompanyRoleId) {
@@ -80,6 +90,7 @@ export function MemberPermissionsSheet({
       MODULES.forEach((m) => {
         if (m.id === "employees") allEdit[m.id] = { viewList: true, viewHours: true, edit: true, delete: true };
         else if (m.id === "schedule") allEdit[m.id] = { view: true, edit: true, editFree: true, approve: true };
+        else if (m.id === "audit_log") allEdit[m.id] = { scope: "ALL", view: true };
         else allEdit[m.id] = { view: true, edit: true, delete: true };
       });
       return allEdit;
@@ -164,7 +175,7 @@ export function MemberPermissionsSheet({
   };
 
 
-  if (!isOpen || !member) return null;
+  if (!isOpen || !member || !mounted) return null;
 
   const isTargetOwner = member.role === "OWNER";
   const isCallerOwner = currentUserRole === "OWNER";
@@ -206,15 +217,15 @@ export function MemberPermissionsSheet({
     }
   };
 
-  return (
+  return createPortal(
     <>
       <div 
-        className="fixed inset-0 z-[100] h-[100dvh] w-[100vw] bg-slate-900/20 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 z-[120] h-[100dvh] w-[100vw] bg-slate-950/50 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
         onClick={onClose}
       />
       
       <div className={cn(
-        "fixed inset-y-0 right-0 z-[110] w-full max-w-md bg-white dark:bg-[#18181B] dark:border-l dark:border-neutral-800 shadow-2xl transition-transform duration-300 transform",
+        "fixed inset-y-0 right-0 z-[130] w-full max-w-md bg-white dark:bg-[#18181B] dark:border-l dark:border-neutral-800 shadow-2xl transition-transform duration-300 transform",
         isOpen ? "translate-x-0" : "translate-x-full"
       )}>
         <div className="flex h-full flex-col">
@@ -395,11 +406,12 @@ export function MemberPermissionsSheet({
                         }
                       }
 
-                      const isModuleEnabled = Object.keys(perm).length > 0 && Object.values(perm).some(v => v === true);
+                      const isModuleEnabled = Object.keys(perm).length > 0 && Object.values(perm).some(v => v === true || typeof v === "string" || typeof v === "object");
 
                       const toggleModule = (enabled: boolean) => {
                         if (enabled) {
                           if (mod.id === "employees") updatePermission(mod.id, { viewList: true, viewHours: true });
+                          else if (mod.id === "audit_log") updatePermission(mod.id, { scope: "SELF", view: true });
                           else updatePermission(mod.id, { view: true });
                         } else {
                           updatePermission(mod.id, "NONE");
@@ -486,7 +498,7 @@ export function MemberPermissionsSheet({
                           <div className={cn("grid transition-all duration-300 ease-in-out", isModuleEnabled ? "grid-rows-[1fr] opacity-100 mt-4" : "grid-rows-[0fr] opacity-0 mt-0 pointer-events-none")}>
                             <div className="overflow-hidden">
                               <div className="pl-14 pr-2 space-y-4 pb-1">
-                                  {mod.id === "employees" ? (
+                                {mod.id === "employees" ? (
                                   <>
                                     <div className="space-y-3">
                                       <div className="flex items-center justify-between">
@@ -570,7 +582,116 @@ export function MemberPermissionsSheet({
                                       </div>
                                     </div>
                                   </>
-                                ) : (
+                                ) : mod.id === "audit_log" ? (() => {
+                                  const currentScope: "SELF" | "CUSTOM" | "ALL" = 
+                                    perm?.scope === "ALL" ? "ALL" : perm?.scope === "CUSTOM" ? "CUSTOM" : "SELF";
+
+                                  return (
+                                    <div className="space-y-3">
+                                      <div className="text-xs font-bold uppercase tracking-wide text-slate-600 dark:text-neutral-400">
+                                        Phạm vi xem lịch sử thao tác
+                                      </div>
+
+                                      <div className="space-y-2">
+                                        {/* Option 1: SELF */}
+                                        <label className="flex items-start gap-2.5 p-2.5 rounded-xl border border-slate-200 dark:border-neutral-700/70 hover:bg-slate-50 dark:hover:bg-neutral-800/50 cursor-pointer transition-colors">
+                                          <input
+                                            type="radio"
+                                            name={`audit_scope_${member.id}`}
+                                            value="SELF"
+                                            checked={currentScope === "SELF"}
+                                            disabled={!canEdit}
+                                            onChange={() => updatePermission("audit_log", { scope: "SELF", view: true })}
+                                            className="mt-0.5"
+                                          />
+                                          <div className="text-xs">
+                                            <span className="font-bold text-slate-900 dark:text-white block">Chỉ xem của chính mình</span>
+                                            <span className="text-slate-500 dark:text-neutral-400">Chỉ xem các thao tác do chính tài khoản này thực hiện</span>
+                                          </div>
+                                        </label>
+
+                                        {/* Option 2: CUSTOM */}
+                                        <label className="flex items-start gap-2.5 p-2.5 rounded-xl border border-slate-200 dark:border-neutral-700/70 hover:bg-slate-50 dark:hover:bg-neutral-800/50 cursor-pointer transition-colors">
+                                          <input
+                                            type="radio"
+                                            name={`audit_scope_${member.id}`}
+                                            value="CUSTOM"
+                                            checked={currentScope === "CUSTOM"}
+                                            disabled={!canEdit}
+                                            onChange={() => updatePermission("audit_log", { scope: "CUSTOM", view: true, allowedUserIds: perm?.allowedUserIds || [] })}
+                                            className="mt-0.5"
+                                          />
+                                          <div className="text-xs flex-1">
+                                            <span className="font-bold text-slate-900 dark:text-white block">Xem của nhân viên/email cụ thể</span>
+                                            <span className="text-slate-500 dark:text-neutral-400">Chỉ định các tài khoản nhân sự được phép xem lịch sử</span>
+                                          </div>
+                                        </label>
+
+                                        {/* If CUSTOM is selected, show list of members to pick */}
+                                        {currentScope === "CUSTOM" && (
+                                          <div className="pl-3 pr-1 py-2 space-y-2 border-l-2 border-slate-300 dark:border-neutral-600 bg-slate-50/80 dark:bg-[#222226] rounded-r-xl">
+                                            <span className="text-[11px] font-semibold text-slate-600 dark:text-neutral-300 block">
+                                              Chọn các nhân viên được phép xem:
+                                            </span>
+                                            <div className="max-h-44 overflow-y-auto space-y-1.5 pr-1">
+                                              {allMembers && allMembers.length > 0 ? (
+                                                allMembers.filter((m) => m.user.id !== member.user.id).map((m) => {
+                                                  const isChecked = Boolean((perm?.allowedUserIds || []).includes(m.user.id));
+                                                  const toggleUser = (checked: boolean) => {
+                                                    const current = perm?.allowedUserIds || [];
+                                                    const updated = checked
+                                                      ? [...current, m.user.id]
+                                                      : current.filter((id: string) => id !== m.user.id);
+                                                    updatePermission("audit_log", { ...perm, scope: "CUSTOM", view: true, allowedUserIds: updated });
+                                                  };
+                                                  return (
+                                                    <label key={m.id} className="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-[#1A1A1E] border border-slate-200/80 dark:border-neutral-700/80 text-xs cursor-pointer shadow-2xs">
+                                                      <div className="min-w-0 pr-2">
+                                                        <span className="font-bold text-slate-900 dark:text-white block truncate">{m.user.name || m.user.email}</span>
+                                                        <span className="text-[10px] text-slate-400 font-mono block truncate">{m.user.email}</span>
+                                                      </div>
+                                                      <Switch
+                                                        checked={isChecked}
+                                                        disabled={!canEdit}
+                                                        onCheckedChange={toggleUser}
+                                                        className="scale-75 shrink-0"
+                                                      />
+                                                    </label>
+                                                  );
+                                                })
+                                              ) : (
+                                                <p className="text-[11px] text-slate-400">Không có thành viên khác để chọn</p>
+                                              )}
+                                            </div>
+                                          </div>
+                                        )}
+
+                                        {/* Option 3: ALL */}
+                                        <label className="flex items-start gap-2.5 p-2.5 rounded-xl border border-slate-200 dark:border-neutral-700/70 hover:bg-slate-50 dark:hover:bg-neutral-800/50 cursor-pointer transition-colors">
+                                          <input
+                                            type="radio"
+                                            name={`audit_scope_${member.id}`}
+                                            value="ALL"
+                                            checked={currentScope === "ALL"}
+                                            disabled={!canEdit}
+                                            onChange={() => updatePermission("audit_log", { scope: "ALL", view: true })}
+                                            className="mt-0.5"
+                                          />
+                                          <div className="text-xs">
+                                            <span className="font-bold text-slate-900 dark:text-white block">Xem toàn bộ lịch sử hệ thống</span>
+                                            <span className="text-slate-500 dark:text-neutral-400">Xem mọi thao tác của tất cả thành viên trong doanh nghiệp</span>
+                                          </div>
+                                        </label>
+                                      </div>
+
+                                      {/* Immutability Notice */}
+                                      <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-neutral-800/60 text-[11px] text-slate-500 dark:text-neutral-400 flex items-center gap-2 border border-slate-200/60 dark:border-neutral-700/60">
+                                        <Shield className="h-4 w-4 text-slate-400 shrink-0" />
+                                        <span>Lịch sử thao tác là dữ liệu kiểm toán hệ thống và không thể xoá hay chỉnh sửa.</span>
+                                      </div>
+                                    </div>
+                                  );
+                                })() : (
                                   <>
                                     <div className="flex items-center justify-between">
                                       <span className="text-xs font-bold uppercase tracking-wide text-slate-600 dark:text-neutral-400">Chỉ xem</span>
@@ -596,24 +717,24 @@ export function MemberPermissionsSheet({
             </div>
           </div>
 
-          {/* Footer actions */}
-          <div className="border-t border-slate-200/80 dark:border-neutral-800 bg-slate-50/70 dark:bg-[#202024] p-4 sm:p-5 flex items-center justify-between gap-3">
-            {canEdit && (!isTargetOwner || isCallerOwner) ? (
+          {/* Footer Actions */}
+          <div className="border-t border-slate-200/80 dark:border-neutral-800 p-4 bg-slate-50/70 dark:bg-[#202024] flex items-center justify-between gap-3 shrink-0">
+            {canEdit ? (
               <>
-                {!isTargetOwner && !isTransferMode ? (
-                  <Button
-                    variant="outline"
-                    className="text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700 dark:bg-rose-950/40 dark:border-rose-800/60 dark:text-rose-300 dark:hover:bg-rose-900/60 text-xs h-10 px-3"
-                    onClick={handleDelete}
-                    disabled={isDeleting}
-                  >
-                    <Trash2 className="mr-1.5 h-4 w-4" />
-                    {isDeleting ? "Đang xoá..." : "Xoá"}
-                  </Button>
-                ) : (
-                  <div />
-                )}
-                
+                <div>
+                  {!isTargetOwner && (
+                    <Button 
+                      variant="ghost" 
+                      onClick={handleDelete}
+                      disabled={isDeleting}
+                      className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs h-10 px-3"
+                    >
+                      <Trash2 className="h-4 w-4 mr-1.5" />
+                      {isDeleting ? "Đang xoá..." : "Xoá"}
+                    </Button>
+                  )}
+                </div>
+
                 <div className="flex items-center gap-2">
                   <Button 
                     variant="outline" 
@@ -653,6 +774,7 @@ export function MemberPermissionsSheet({
           </div>
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 }

@@ -73,6 +73,12 @@
 * **Hộp thoại Xác nhận**: Sử dụng `useConfirmDialog` (hỗ trợ `title`, `description`, `confirmLabel`, `tone: "destructive"`).
 * **Dữ liệu Thời gian thực**: Tích hợp **SWR** (`useSWR`) tự động fetch, cache và mutate tức thì khi thao tác dữ liệu.
 
+### 1.4. Bố cục Toàn màn hình & Tối ưu Màn hình lớn (Fluid Full-Width Responsive Canvas)
+* **Khung chứa Động (Fluid Main Content Container)**:
+  * Loại bỏ hoàn toàn giới hạn chiều rộng cứng (`max-w-7xl` / `max-w-6xl`) ở khung `main` của `DashboardLayout`.
+  * Nội dung các phân hệ (Lịch xếp ca, Hàng hoá, Đơn hàng, Nhân sự, Cửa hàng, Cài đặt) luôn trải rộng tối đa (`w-full`) theo độ phân giải màn hình của người dùng (Full HD 1080p, 2K 1440p, 4K Ultrawide).
+  * Padding viền cân đối (`p-4 md:p-6`) tạo khoảng thở thẩm mỹ, không để thừa khoảng trống lãng phí ở hai bên bảng dữ liệu.
+
 ---
 
 ## 2. KIẾN TRÚC HẠ TẦNG & CƠ SỞ DỮ LIỆU (INFRASTRUCTURE & MULTI-TENANT DB)
@@ -133,6 +139,10 @@
 27. **Product**: Dòng sản phẩm & Biến thể SKU (id, companyId, name, sku, barcode, brandName, categoryId, subcategoryId, manufacturerId, colorName, sizeName, unit, costPrice, sellingPrice, stockQuantity, minStock, imageUrl, description, barcodeNeedsReprint).
 28. **FactoryOrder**: Đơn đặt hàng sản xuất / Phiếu đặt xưởng PO (id, companyId, poNumber, manufacturerId, orderDate, expectedDeliveryDate, actualReceivedDate, status, note, totalCost).
 29. **FactoryOrderItem**: Chi tiết mặt hàng trong đơn đặt xưởng & Lô hàng (id, companyId, factoryOrderId, productId, batchCode, orderQuantity, qcPassedQuantity, qcDefectQuantity, status, note).
+30. **Customer**: Khách hàng & CRM (id, companyId, name, phone, email, address, totalOrders, totalSpent).
+31. **Order**: Đơn hàng đa kênh (id, companyId, code, orderDate, channel, storeId, employeeId, customerId, customerName, customerPhone, customerAddress, totalAmount, discountAmount, shippingFee, finalAmount, paymentStatus, paymentMethod, orderStatus, externalOrderId, externalTrackingCode, note).
+32. **OrderItem**: Chi tiết mặt hàng trong đơn (id, companyId, orderId, productId, sku, productName, unitPrice, costPrice, quantity, discount, totalPrice).
+33. **EcommerceConnection**: Cấu hình liên kết sàn TMĐT (id, companyId, platform, shopId, shopName, accessToken, refreshToken, expiresAt, isActive, autoSyncStock, autoSyncOrders).
 
 ---
 
@@ -217,6 +227,10 @@
       * **Khi chọn Cửa hàng cụ thể trước**: Danh sách trong **Bộ lọc Nhân viên** tự động thu hẹp để chỉ hiển thị những nhân viên thuộc các cửa hàng được chọn.
       * **Tự động mở rộng & Đồng bộ**: Khi xoá lựa chọn ở một bên, danh sách tuỳ chọn ở bên còn lại tự động mở rộng trở lại theo phạm vi ứng viên của trạng thái hiện hành mà không cần tải lại trang.
     * Đồng bộ trạng thái bộ lọc vào `sessionStorage` để duy trì khi chuyển đổi giữa các tab chức năng.
+  * **Tính năng Thu gọn / Mở rộng Bảng Nhân viên (Collapsible Employee Table)**:
+    * Cho phép người dùng bấm nút **Thu gọn bảng** / **Mở rộng bảng** ngay trên thanh tiêu đề Card.
+    * Khi thu gọn, bảng dữ liệu nhân sự sẽ ẩn đi giúp tiết kiệm không gian màn hình, trong khi **thanh bộ lọc (Cửa hàng, Nhân viên, Trạng thái)** vẫn giữ nguyên trên đầu để người dùng lọc và đối soát nhanh bảng *Giờ làm thực tế trong tháng* bên dưới mà không cần phải cuộn chuột dài.
+    * Hiển thị thanh thông báo trạng thái thu gọn kèm nút kích hoạt nhanh để mở lại bảng khi cần sửa/xem thông tin nhân sự.
 * **Báo cáo Giờ làm Hàng tháng (`monthly-hours`)**:
   * **Đồng bộ lọc dữ liệu 2 chiều**: Khi áp dụng bộ lọc theo Cửa hàng hoặc Nhân viên ở bảng danh sách trên, bảng *Giờ làm thực tế trong tháng* bên dưới sẽ tự động cập nhật đồng bộ:
     * **Lọc theo nhân viên**: Chỉ hiển thị đúng các nhân viên được chọn.
@@ -390,6 +404,104 @@
     * Cấu hình phân quyền chi tiết của thành viên có độ ưu tiên cao nhất, áp dụng ngay lập tức trên cả Giao diện (Sidebar, các trang chức năng, các nút thao tác) và toàn bộ các API Backend thông qua `requireAuth` và `hasPermission`.
 * **Quản lý Gói cước (Subscription)**: Hiển thị gói dịch vụ (Free, Pro, Enterprise), giới hạn số lượng cửa hàng, nhân viên, dung lượng lưu trữ.
 * **Vùng Nguy hiểm (Danger Zone)**: Giải thể doanh nghiệp (`/api/companies/disband`) - Xóa toàn bộ dữ liệu công ty và quan hệ cascade an toàn.
+
+---
+
+### 7.8. Phân hệ 8: Đơn hàng & Bán hàng Đa kênh (Multi-Channel Orders, POS & E-commerce Revenue)
+* **Tổng quan Kiến trúc**:
+  * Ghi nhận và đối soát toàn bộ đơn hàng từ mọi kênh bán hàng:
+    * **Sàn TMĐT (E-commerce)**: Shopee (Shopee Open Platform), TikTok Shop (TikTok Shop Partner API), Lazada.
+    * **Bán lẻ tại quầy (POS In-store)**: Bán trực tiếp tại từng cửa hàng, đứng quầy theo ca trực nhân viên.
+    * **Mạng xã hội & Giao hàng (Social & Shipping)**: Facebook, Zalo, Instagram (lên đơn COD, tính phí ship và địa chỉ giao hàng).
+    * **Website**: Đơn hàng trực tuyến từ ApexFlow Web.
+* **Cơ chế Đồng bộ Tồn kho & Đơn hàng Tự động 2 chiều (Bidirectional Real-Time Sync)**:
+  * **Trừ tồn kho tức thì (`Real-time Stock Deduction`)**:
+    * Khi lên đơn tại POS hoặc khi đơn từ Sàn TMĐT đổ về, hệ thống tự động trừ trực tiếp số lượng tồn kho `stockQuantity` của từng biến thể SKU sản phẩm trong bảng `Product`.
+    * Khi đơn hàng bị huỷ (`CANCELLED`), hệ thống tự động hoàn trả lại số lượng tồn kho và cập nhật lại chỉ số khách hàng trong transaction nguyên tử.
+  * **Cơ chế Lấy đơn từ Sàn TMĐT**:
+    * **Webhook Push API**: Các sàn TMĐT (Shopee, TikTok Shop) gửi dữ liệu đơn hàng thời gian thực tới webhook endpoint của ApexFlow khi khách đặt hàng. Hệ thống tự động tạo đơn và trừ tồn kho ngay lập tức.
+    * **Polling / Quét định kỳ**: Tự động quét API mỗi 10-15 phút để đảm bảo không sót đơn hàng.
+  * **Cập nhật Tồn kho ngược lên sàn (Outbound Sync)**:
+    * Khi bán hàng tại quầy hoặc khi nhập thêm hàng từ xưởng may (`FactoryOrder`), hệ thống tự động gọi API cập nhật tồn kho của sàn theo mã SKU đã liên kết.
+* **Giao diện Tab "Đơn hàng" (`/app/[companyId]/don-hang`)**:
+  * **Thanh điều hướng Sidebar**:
+    * Hiển thị mục **"Đơn hàng"** (`ShoppingBag` icon).
+    * Không đặt tab Bán hàng riêng biệt trên sidebar nhằm giữ sự tinh giản tuyệt đối cho menu.
+  * **Nút bấm [🛒 Lên đơn Bán hàng (POS)]**:
+    * Nút hành động nổi bật trên thanh công cụ của tab Đơn hàng.
+    * Khi click sẽ mở trực tiếp màn hình Bán hàng (POS) ở **tab mới độc lập (`target="_blank" rel="noopener noreferrer"`)** tại địa chỉ `/pos/[companyId]`.
+  * **Báo cáo Doanh thu Thu gọn [Chi tiết doanh thu] (Collapsible KPI & Revenue Analytics)**:
+    * Mặc định thu gọn nhằm tiết kiệm không gian hiển thị cho bảng quản lý đơn hàng.
+    * Nút bấm **"Chi tiết doanh thu"** hiển thị nhanh tổng thực thu (kèm icon `TrendingUp` và mũi tên đóng/mở).
+    * Khi click bung ra:
+      * **Bộ thẻ KPI Tài chính**: Doanh thu thực thu, Lợi nhuận gộp & Tỷ suất lợi nhuận %, Tổng số đơn hàng & Giá trị trung bình đơn (AOV), Kênh bán hàng hiệu quả nhất.
+      * **Thanh tỷ trọng Phân bổ Doanh thu Đa kênh**: Thanh progress phân tầng màu (Shopee, TikTok Shop, POS, Facebook, Website) kèm các thẻ kênh bán để lọc nhanh.
+  * **Bộ lọc Đa chiều Thời gian thực**:
+    * Bộ lọc thời gian nhanh: Hôm nay, 7 ngày qua, Tháng này, Tháng trước, Toàn thời gian.
+    * Lọc theo Kênh bán (`channel`), Cửa hàng (`storeId`), Trạng thái đơn (`orderStatus`), Trạng thái thanh toán (`paymentStatus`).
+    * Thanh tìm kiếm nhanh theo Mã đơn, Tên khách hàng, SĐT, Mã vận đơn hoặc SKU sản phẩm.
+  * **Bảng Quản lý Đơn hàng & Modal Chi tiết Hoá đơn**:
+    * Xem đầy đủ danh sách mặt hàng trong đơn, giá bán, giá vốn, chiết khấu, khách hàng, nhân viên phụ trách.
+    * Nút In hoá đơn (`window.print()`).
+    * Nút Huỷ đơn hàng & Hoàn tồn kho an toàn có xác nhận.
+    * Nút Xuất Excel / CSV báo cáo đơn hàng.
+* **Giao diện Màn hình "Bán hàng (POS)" Độc lập (`/pos/[companyId]`) - Fullscreen Dedicated POS**:
+  * **Không chứa Sidebar Dashboard**: Màn hình thiết kế chuyên biệt toàn màn hình cho thu ngân / nhân viên bán lẻ đứng quầy.
+  * **Thanh Header Độc lập**:
+    * Logo thương hiệu ApexFlow POS + Huy hiệu *Thu ngân & Bán hàng*.
+    * Đồng hồ thời gian thực và chọn nhanh Chi nhánh / Nhân viên thu ngân đứng ca.
+    * Chuyển đổi Theme Sáng/Tối.
+    * Nút **[Trang Quản Lý]**: Click để quay lại tab Đơn hàng (`/app/[companyId]/don-hang`).
+  * **Cột trái (Danh mục Sản phẩm & Tìm kiếm/Barcode)**:
+    * Thanh tìm kiếm tức thì theo Tên, SKU hoặc Quét mã vạch Barcode EAN-8.
+    * Thanh chuyển đổi danh mục sản phẩm nhanh.
+    * Lưới thẻ sản phẩm hiển thị ảnh, tên, SKU, màu sắc, kích thước, giá bán và huy hiệu cảnh báo tồn kho thời gian thực.
+    * Thao tác 1-click để đưa sản phẩm vào giỏ hàng.
+  * **Cột phải (Giỏ hàng & Thanh toán Đa kênh)**:
+    * Chọn Kênh bán hàng (Tại quầy POS hoặc Lên đơn Mạng xã hội / COD).
+    * Nhập thông tin Khách hàng (Tự động cập nhật CRM khách hàng thân thiết).
+    * Điều chỉnh số lượng (+ / -) và xoá dòng sản phẩm.
+    * Chọn Hình thức thanh toán: Tiền mặt, Chuyển khoản QR, Quẹt thẻ, Thu hộ COD.
+    * Máy tính tiền thối thông minh cho Tiền mặt với các nút chọn nhanh mệnh giá (50k, 100k, 200k, 500k, Đủ tiền).
+    * Nút bấm lớn **"Thanh toán & Trừ Tồn Kho"**: Tự động lưu đơn, trừ tồn kho tức thì và hiển thị hộp thoại in hoá đơn bán hàng.
+* **Ma trận Phân quyền Module `revenue`**:
+  * `VIEW`: Xem danh sách đơn hàng và báo cáo doanh thu tài chính.
+  * `EDIT`: Nhân viên được phép truy cập giao diện Bán hàng (POS) để lên đơn, sửa thông tin đơn hàng.
+  * `DELETE`: Huỷ đơn hàng và hoàn trả lại tồn kho (chỉ Quản trị viên và Chủ sở hữu).
+
+---
+
+### 7.9. Phân hệ Thông báo Cá nhân & Lịch sử Thao tác (Notification Center & Audit Trail)
+
+* **Vị trí & Cơ chế Kích hoạt trên Sidebar**:
+  * Icon chiếc chuông thông báo (`Bell`) được tích hợp trực tiếp vào thanh Sidebar, nằm **ngay phía trên icon chuyển đổi giao diện Theme (`ThemeToggle`)** ở cả chế độ Sidebar mở rộng lẫn thu nhỏ (collapsed icon-only mode).
+  * **Hiệu ứng Chuông rung lắc & Chấm đỏ (Unread Alert)**:
+    * Khi có thông báo chưa đọc (`unreadCount > 0`), icon chiếc chuông sẽ tự động lắc (animation `@keyframes bell-ring`) kèm chấm đỏ thông báo nổi bật.
+    * Khi người dùng click vào mở bảng thông báo, chấm đỏ sẽ tự động biến mất (được đánh dấu đã đọc `read: true` qua API `/api/user-notifications/mark-read`).
+* **Tab 1: "Thông báo" Cá nhân (User-Scoped Notification Widget)**:
+  * **Cách ly dữ liệu cá nhân**: Mỗi người dùng / nhân viên chỉ có thể xem được thông báo của riêng tài khoản mình trong công ty.
+  * **Định dạng thời gian xuất hiện (Relative Time Ago)**: Mỗi thông báo hiển thị khoảng thời gian xuất hiện trực quan (vd: *"Vừa xong"*, *"6 phút trước"*, *"2 giờ trước"*, *"Hôm qua"*, *"28/08"*) theo phong cách widget thông báo Dynamic Island / iOS.
+  * Phân loại cấp độ thông báo (`success`, `warning`, `error`, `info`) kèm icon màu sắc tương ứng.
+  * Nút "Xoá tất cả" để người dùng dọn sạch hộp thư thông báo.
+* **Tab 2: "Lịch sử thao tác" Hệ thống (System Audit Trail)**:
+  * **Cơ chế Phân quyền 4 Cấp độ (4-Tier Permission Matrix)**:
+    * `NONE` (Không có quyền): Ẩn hoàn toàn tab "Lịch sử thao tác" trong Notification Popover và API `/api/activity-logs` trả về `403 Forbidden`. Áp dụng mặc định cho các tài khoản nhân viên thường chưa được cấp quyền.
+    * `SELF` (Chỉ xem của chính mình): Chỉ hiển thị và cho phép xem các thao tác do chính tài khoản của nhân viên đó thực hiện (`userId === session.user.id` hoặc `userEmail === session.user.email`).
+    * `CUSTOM` (Xem của nhân viên/email cụ thể): Cho phép quản trị viên chỉ định danh sách các tài khoản nhân sự cụ thể (`allowedUserIds`) mà nhân viên này được phép xem lịch sử thao tác.
+    * `ALL` (Xem toàn bộ): Cho phép xem toàn bộ lịch sử thao tác của mọi thành viên trong toàn doanh nghiệp. Mặc định áp dụng cho `OWNER` và `ADMIN`.
+  * **Tính Bất biến của Lịch sử Thao tác (Immutable Audit Trail)**:
+    * Lịch sử thao tác là dữ liệu kiểm toán hệ thống bất biến, **tuyệt đối không thể chỉnh sửa hay xoá bỏ** dưới bất kỳ hình thức nào.
+  * **Ghi nhận tự động các hành động có tính ảnh hưởng**:
+    * Ghi lại tất cả thao tác tạo mới, chỉnh sửa, xoá, phê duyệt, từ chối, huỷ đơn, nhập xuất dữ liệu (`CREATE`, `UPDATE`, `DELETE`, `CANCEL`, `APPROVE`, `REJECT`, `IMPORT`, `EXPORT`) trên toàn bộ các phân hệ (Nhân sự, Cửa hàng, Cấu hình ca, Lịch xếp ca, Hàng hoá, Đơn hàng, Phân quyền cài đặt).
+    * **Phân quyền & Vai trò**: Khi cập nhật vai trò / phân quyền thành viên hoặc vai trò tùy chỉnh, hệ thống tự động bóc tách và tóm tắt chi tiết toàn bộ danh sách các quyền được cấp trên từng phân hệ theo tiếng Việt rõ ràng (vd: *Cửa hàng: Xem & Sửa | Nhân sự: Xem danh sách, Xem giờ làm, Chỉnh sửa | Lịch xếp ca: Toàn quyền xếp ca | Lịch sử thao tác: Xem nhân sự chỉ định*).
+    * **Cấu hình ca & Định biên nhân sự**: Khi điều chỉnh số lượng nhân viên trong 1 ca (theo thứ trong tuần hoặc theo ngày cụ thể / sao chép tuần / sao chép ngày), hệ thống tự động ghi nhật ký chi tiết gồm tên ca, khung giờ ca, thứ / ngày áp dụng, tên cửa hàng và định biên nhân sự mới.
+    * Bỏ qua các hành động xem hoặc chuyển tab của nhân viên để tối ưu dung lượng và hiệu năng.
+  * **Thanh tìm kiếm & Lọc phân hệ tức thì**: Tìm kiếm theo tên nhân viên thực hiện, email, đối tượng tác động hoặc lọc theo từng phân hệ cụ thể kết hợp với phạm vi phân quyền đã cấp.
+  * **Hộp thoại Xem chi tiết Thao tác (Audit Detail Modal)**:
+    * Thời gian thao tác chính xác (ngày, giờ, phút, giây).
+    * Thông tin nhân viên thực hiện: Họ tên, Email, Chức vụ.
+    * Phân hệ & Loại đối tượng tác động (Target Module & Type).
+    * Khối dữ liệu chi tiết có cấu trúc (Payload / Changes) hiển thị các thẻ quyền hạn (badges) và bảng chi tiết tiếng Việt trực quan, đã được giải mã mã CUID sang tên tiếng Việt thực tế.
 
 ---
 

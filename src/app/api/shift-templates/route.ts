@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/api-auth";
 import { shiftTemplateSchema } from "@/lib/validations";
 import { calcDurationHours } from "@/lib/shift-utils";
+import { logActivity } from "@/lib/activity-logger";
 
 export async function GET(request: Request) {
   const { error, companyId } = await requireAuth(["OWNER"], [
@@ -41,7 +42,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const { error, companyId } = await requireAuth(["OWNER"], { module: "shift_config", action: "EDIT" });
+  const { error, companyId, user } = await requireAuth(["OWNER"], { module: "shift_config", action: "EDIT" });
   if (error) return error;
 
   const body = await request.json();
@@ -76,11 +77,33 @@ export async function POST(request: Request) {
   const { syncStoreShifts } = await import("@/lib/api-shift-utils");
   await syncStoreShifts(parsed.data.storeId);
 
+  if (user) {
+    await logActivity({
+      companyId,
+      userId: user.id,
+      userName: user.name,
+      userEmail: user.email,
+      userRole: user.role,
+      action: "CREATE",
+      module: "shift_config",
+      targetType: "ShiftTemplate",
+      targetId: template.id,
+      targetName: template.name,
+      description: `Đã tạo ca làm việc mới: ${template.name} (${template.startTime} - ${template.endTime})`,
+      details: {
+        name: template.name,
+        startTime: template.startTime,
+        endTime: template.endTime,
+        durationHours: template.durationHours,
+      },
+    });
+  }
+
   return NextResponse.json(template, { status: 201 });
 }
 
 export async function PUT(request: Request) {
-  const { error, companyId } = await requireAuth(["OWNER"], { module: "shift_config", action: "EDIT" });
+  const { error, companyId, user } = await requireAuth(["OWNER"], { module: "shift_config", action: "EDIT" });
   if (error) return error;
 
   const body = await request.json();
@@ -117,6 +140,28 @@ export async function PUT(request: Request) {
   // Đồng bộ thứ tự ca
   const { syncStoreShifts } = await import("@/lib/api-shift-utils");
   await syncStoreShifts(parsed.data.storeId);
+
+  if (user) {
+    await logActivity({
+      companyId,
+      userId: user.id,
+      userName: user.name,
+      userEmail: user.email,
+      userRole: user.role,
+      action: "UPDATE",
+      module: "shift_config",
+      targetType: "ShiftTemplate",
+      targetId: template.id,
+      targetName: template.name,
+      description: `Đã cập nhật ca làm việc: ${template.name} (${template.startTime} - ${template.endTime})`,
+      details: {
+        name: template.name,
+        startTime: template.startTime,
+        endTime: template.endTime,
+        durationHours: template.durationHours,
+      },
+    });
+  }
 
   return NextResponse.json(template);
 }

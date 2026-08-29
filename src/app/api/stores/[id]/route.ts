@@ -3,13 +3,15 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/api-auth";
 import { retryStoreMutationWithoutLogo } from "@/lib/store-logo-fallback";
 import { storeSchema } from "@/lib/validations";
+import { logActivity } from "@/lib/activity-logger";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function PUT(request: Request, { params }: Params) {
-  const { error, companyId } = await requireAuth(["OWNER"], { module: "store", action: "EDIT" });
-  if (error) return error;
+  const authCheck = await requireAuth(["OWNER"], { module: "store", action: "EDIT" });
+  if (authCheck.error || !authCheck.companyId) return authCheck.error;
 
+  const { companyId, user } = authCheck;
   const { id } = await params;
   const body = await request.json();
   const parsed = storeSchema.safeParse(body);
@@ -33,6 +35,26 @@ export async function PUT(request: Request, { params }: Params) {
         })
     );
 
+    if (user) {
+      await logActivity({
+        companyId,
+        userId: user.id,
+        userName: user.name,
+        userEmail: user.email,
+        userRole: user.role,
+        action: "UPDATE",
+        module: "store",
+        targetType: "Store",
+        targetId: store.id,
+        targetName: store.name,
+        description: `Đã cập nhật thông tin cửa hàng: ${store.name}`,
+        details: {
+          name: store.name,
+          address: store.address,
+        },
+      });
+    }
+
     return NextResponse.json({ ...store, logoPendingMigration });
   } catch (updateError) {
     console.error("PUT /api/stores/[id] failed", updateError);
@@ -41,10 +63,16 @@ export async function PUT(request: Request, { params }: Params) {
 }
 
 export async function DELETE(_request: Request, { params }: Params) {
-  const { error, companyId } = await requireAuth(["OWNER"], { module: "store", action: "DELETE" });
-  if (error) return error;
+  const authCheck = await requireAuth(["OWNER"], { module: "store", action: "DELETE" });
+  if (authCheck.error || !authCheck.companyId) return authCheck.error;
 
+  const { companyId, user } = authCheck;
   const { id } = await params;
+
+  const existingStore = await prisma.store.findUnique({
+    where: { id, companyId },
+    select: { name: true }
+  });
 
   const assignmentCount = await prisma.shiftAssignment.count({
     where: { storeId: id, companyId },
@@ -55,6 +83,27 @@ export async function DELETE(_request: Request, { params }: Params) {
       where: { id, companyId },
       data: { isActive: false },
     });
+
+    if (user) {
+      await logActivity({
+        companyId,
+        userId: user.id,
+        userName: user.name,
+        userEmail: user.email,
+        userRole: user.role,
+        action: "DELETE",
+        module: "store",
+        targetType: "Store",
+        targetId: id,
+        targetName: existingStore?.name || "Cửa hàng",
+        description: `Đã ẩn/ngừng hoạt động cửa hàng: ${existingStore?.name || id} (Đã có lịch làm việc)`,
+        details: {
+          name: existingStore?.name,
+          softDeleted: true,
+        },
+      });
+    }
+
     return NextResponse.json({
       success: true,
       message: "Cửa hàng đã có lịch xếp — đã ẩn thay vì xóa hẳn",
@@ -63,6 +112,25 @@ export async function DELETE(_request: Request, { params }: Params) {
   }
 
   await prisma.store.delete({ where: { id, companyId } });
+
+  if (user) {
+    await logActivity({
+      companyId,
+      userId: user.id,
+      userName: user.name,
+      userEmail: user.email,
+      userRole: user.role,
+      action: "DELETE",
+      module: "store",
+      targetType: "Store",
+      targetId: id,
+      targetName: existingStore?.name || "Cửa hàng",
+      description: `Đã xoá hoàn toàn cửa hàng: ${existingStore?.name || id}`,
+      details: {
+        name: existingStore?.name,
+      },
+    });
+  }
 
   return NextResponse.json({ success: true, message: "Đã xóa cửa hàng" });
 }

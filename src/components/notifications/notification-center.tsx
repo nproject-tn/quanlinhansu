@@ -35,6 +35,10 @@ type NotifyInput = {
 
 type NotificationContextValue = {
   notify: (input: NotifyInput) => void;
+  notifications: NotificationItem[];
+  unreadCount: number;
+  markAllAsRead: () => void;
+  clearAll: () => void;
 };
 
 const NotificationContext = createContext<NotificationContextValue | null>(null);
@@ -160,98 +164,53 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   }, [activeToastIds]);
 
   const unreadCount = notifications.filter((item) => !item.read).length;
-  const value = useMemo(() => ({ notify }), [notify]);
-  const shouldShowBell = pathname !== "/dang-nhap";
+
+  const markAllAsRead = useCallback(() => {
+    setNotifications((current) => current.map((item) => ({ ...item, read: true })));
+  }, []);
+
+  const clearAll = useCallback(() => {
+    setNotifications([]);
+  }, []);
+
+  const value = useMemo(
+    () => ({ notify, notifications, unreadCount, markAllAsRead, clearAll }),
+    [notify, notifications, unreadCount, markAllAsRead, clearAll]
+  );
 
   return (
     <NotificationContext.Provider value={value}>
       {children}
-      {shouldShowBell && (
+      {/* Real-time Toast Popups (Top Right) */}
+      {activeToasts.length > 0 && (
         <div
           ref={shellRef}
-          className="pointer-events-none fixed top-4 right-4 z-40 flex w-[min(360px,calc(100vw-2rem))] flex-col items-end gap-3"
+          className="pointer-events-none fixed top-4 right-4 z-50 flex w-[min(360px,calc(100vw-2rem))] flex-col items-end gap-3"
         >
-          <div className="pointer-events-auto relative">
-            <button
-              type="button"
-              onClick={() => {
-                if (activeToastIds.length > 0) {
-                  setActiveToastIds([]);
-                  setClosingToastIds([]);
-                  setShowNotificationCenter(false);
-                  setNotifications((current) => current.map((item) => ({ ...item, read: true })));
-                  return;
-                }
-
-                setShowNotificationCenter((current) => !current);
-                setNotifications((current) => current.map((item) => ({ ...item, read: true })));
-              }}
-              className="toast-liquid flex h-12 w-12 items-center justify-center rounded-2xl border-slate-200/70 text-slate-700 dark:text-neutral-200 dark:border-neutral-700 dark:bg-[#1C1C20] transition-transform hover:scale-[1.02]"
-              aria-label="Mở thông báo"
-            >
-              <Bell className="h-5 w-5" />
-              {unreadCount > 0 && activeToastIds.length > 0 && (
-                <span className="absolute top-2.5 right-2.5 h-2.5 w-2.5 rounded-full bg-rose-500 shadow-[0_0_0_3px_rgba(255,255,255,0.5)]" />
-              )}
-            </button>
-          </div>
-
-          {activeToasts.length > 0 ? (
-            <div className="flex w-full flex-col gap-3">
-              {activeToasts.map((toast) => {
-                const Icon = iconForTone(toast.tone);
-                const isClosing = closingToastIds.includes(toast.id);
-                return (
-                  <div
-                    key={`toast-${toast.id}`}
-                    className={cn(
-                      "toast-liquid pointer-events-auto w-full",
-                      isClosing ? "toast-exit" : "toast-enter",
-                      toneClassName(toast.tone)
-                    )}
-                  >
-                    <div className="flex items-start gap-3">
-                      <Icon className={cn("mt-0.5 h-5 w-5 shrink-0", toneIconClassName(toast.tone))} />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-bold text-slate-900 dark:text-white">{toast.title}</p>
-                        <p className="mt-1 text-xs sm:text-sm text-slate-700 dark:text-neutral-200 leading-relaxed">{toast.body}</p>
-                      </div>
+          <div className="flex w-full flex-col gap-3">
+            {activeToasts.map((toast) => {
+              const Icon = iconForTone(toast.tone);
+              const isClosing = closingToastIds.includes(toast.id);
+              return (
+                <div
+                  key={`toast-${toast.id}`}
+                  className={cn(
+                    "toast-liquid pointer-events-auto w-full",
+                    isClosing ? "toast-exit" : "toast-enter",
+                    toneClassName(toast.tone)
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <Icon className={cn("mt-0.5 h-5 w-5 shrink-0", toneIconClassName(toast.tone))} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-slate-900 dark:text-white">{toast.title}</p>
+                      <p className="mt-1 text-xs sm:text-sm text-slate-700 dark:text-neutral-200 leading-relaxed">{toast.body}</p>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          ) : null}
-
-          {showNotificationCenter && (
-            <div className="toast-liquid toast-enter pointer-events-auto w-full border-slate-200/70 text-slate-900 dark:border-neutral-700/80 dark:bg-[#18181B] dark:text-neutral-100 shadow-2xl">
-              <div className="mb-3 flex items-center justify-between gap-3 border-b border-slate-100 dark:border-neutral-800 pb-3">
-                <div>
-                  <p className="text-sm font-bold text-slate-900 dark:text-white">Thông báo</p>
                 </div>
-              </div>
-              <div className="hover-scrollbars max-h-[34rem] space-y-2.5 overflow-y-auto pr-1">
-                {sortedNotifications.length === 0 ? (
-                  <p className="py-6 text-center text-sm text-slate-500 dark:text-neutral-400">Chưa có thông báo nào.</p>
-                ) : null}
-                {sortedNotifications.map((notification) => {
-                  const Icon = iconForTone(notification.tone);
-                  return (
-                    <div
-                      key={notification.id}
-                      className="flex items-start gap-3 rounded-xl border border-slate-200/80 bg-white/70 dark:border-neutral-700/70 dark:bg-[#242428] px-3.5 py-3 shadow-xs"
-                    >
-                      <Icon className={cn("mt-0.5 h-5 w-5 shrink-0", toneIconClassName(notification.tone))} />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">{notification.title}</p>
-                        <p className="mt-0.5 text-xs text-slate-600 dark:text-neutral-300 leading-relaxed">{notification.body}</p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+              );
+            })}
+          </div>
         </div>
       )}
     </NotificationContext.Provider>

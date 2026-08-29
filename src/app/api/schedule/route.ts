@@ -14,6 +14,7 @@ import {
 import { formatDateOnly, parseDateOnly } from "@/lib/utils";
 import { isMissingStoreLogoColumn } from "@/lib/store-logo-fallback";
 import { scheduleGenerateSchema } from "@/lib/validations";
+import { logActivity } from "@/lib/activity-logger";
 
 export const dynamic = "force-dynamic";
 
@@ -284,7 +285,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { error, companyId } = await requireAuth(["OWNER"], { module: "schedule", action: "EDIT" });
+    const { session, user, error, companyId } = await requireAuth(["OWNER"], { module: "schedule", action: "EDIT" });
     if (error) return error;
 
     const body = await request.json();
@@ -558,6 +559,26 @@ export async function POST(request: Request) {
 
     const unfilled = findUnfilledShifts(targetSlots, stores, shifts);
 
+    if (session?.user) {
+      await logActivity({
+        companyId,
+        userId: session.user.id,
+        userName: session.user.name,
+        userEmail: session.user.email,
+        userRole: session.user.role,
+        action: "CREATE",
+        module: "schedule",
+        targetType: "ShiftAssignment",
+        description: `Đã chạy xếp ca tự động (${toCreate.length} ca đã xếp, ${unfilled.length} ca trống)`,
+        details: {
+          mode: parsed.data.mode,
+          referenceDate: parsed.data.referenceDate,
+          createdCount: toCreate.length,
+          unfilledCount: unfilled.length,
+        },
+      });
+    }
+
     return NextResponse.json({
       success: true,
       filled: targetSlots.filter((s) => s.employeeId).length,
@@ -583,7 +604,7 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const { error, companyId } = await requireAuth(["OWNER"], { module: "schedule", action: "EDIT" });
+    const { error, companyId, session } = await requireAuth(["OWNER"], { module: "schedule", action: "EDIT" });
     if (error) return error;
 
     const { searchParams } = new URL(request.url);
@@ -615,6 +636,25 @@ export async function DELETE(request: Request) {
         date: { gte: start, lte: end },
       },
     });
+
+    if (session?.user) {
+      await logActivity({
+        companyId,
+        userId: session.user.id,
+        userName: session.user.name,
+        userEmail: session.user.email,
+        userRole: session.user.role,
+        action: "DELETE",
+        module: "schedule",
+        targetType: "ShiftAssignment",
+        description: `Đã xoá lịch xếp ca (${count} ca)`,
+        details: {
+          mode,
+          referenceDate: formatDateOnly(referenceDate),
+          deletedCount: count,
+        },
+      });
+    }
 
     return NextResponse.json({ message: `Đã xoá thành công ${count} ca` });
   } catch (error: any) {

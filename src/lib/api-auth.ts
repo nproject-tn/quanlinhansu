@@ -24,7 +24,7 @@ export async function requireAuth(
   if (referer && !companyId) {
     try {
       const url = new URL(referer);
-      const match = url.pathname.match(/^\/app\/([^\/]+)/);
+      const match = url.pathname.match(/^\/(?:app|pos)\/([^\/]+)/);
       if (match && match[1]) {
         companyId = match[1];
       } else {

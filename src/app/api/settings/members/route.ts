@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/api-auth";
+import { logActivity } from "@/lib/activity-logger";
+import { summarizePermissionsInVietnamese } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -86,7 +88,7 @@ export async function PUT(request: Request) {
     // Verify member belongs to this company
     const member = await prisma.companyMember.findUnique({
       where: { id: memberId },
-      include: { user: { select: { email: true } } }
+      include: { user: { select: { name: true, email: true } } }
     });
 
     if (!member || member.companyId !== companyId) {
@@ -105,6 +107,37 @@ export async function PUT(request: Request) {
         role: role || member.role,
         companyRoleId: companyRoleId !== undefined ? companyRoleId : member.companyRoleId,
       }
+    });
+
+    let customRoleName: string | null = null;
+    if (updated.companyRoleId) {
+      const customRole = await prisma.companyRole.findUnique({
+        where: { id: updated.companyRoleId },
+        select: { name: true }
+      });
+      if (customRole) customRoleName = customRole.name;
+    }
+
+    const permSummary = summarizePermissionsInVietnamese(updated.permissions, updated.role, customRoleName);
+
+    await logActivity({
+      companyId,
+      userId: user.id,
+      userName: user.name,
+      userEmail: user.email,
+      userRole: user.role,
+      action: "UPDATE",
+      module: "settings",
+      targetType: "CompanyMember",
+      targetId: memberId,
+      targetName: member.user?.name || member.user?.email || "Thành viên",
+      description: `Đã cập nhật vai trò ${permSummary.roleTitle} cho ${member.user?.name || member.user?.email}: ${permSummary.moduleList.join(" • ")}`,
+      details: {
+        role: updated.role,
+        roleTitle: permSummary.roleTitle,
+        permissionsSummary: permSummary.moduleList,
+        permissions: updated.permissions,
+      },
     });
 
     return NextResponse.json({ success: true, member: updated });
@@ -131,7 +164,7 @@ export async function DELETE(request: Request) {
     // Verify member belongs to this company
     const member = await prisma.companyMember.findUnique({
       where: { id: memberId },
-      include: { user: { select: { email: true } } }
+      include: { user: { select: { name: true, email: true } } }
     });
 
     if (!member || member.companyId !== companyId) {
@@ -171,6 +204,20 @@ export async function DELETE(request: Request) {
         }
       });
     }
+
+    await logActivity({
+      companyId,
+      userId: user.id,
+      userName: user.name,
+      userEmail: user.email,
+      userRole: user.role,
+      action: "DELETE",
+      module: "settings",
+      targetType: "CompanyMember",
+      targetId: memberId,
+      targetName: member.user?.name || member.user?.email || "Thành viên",
+      description: `Đã xoá thành viên ${member.user?.name || member.user?.email} khỏi doanh nghiệp`,
+    });
 
     return NextResponse.json({ success: true, message: "Đã xoá thành viên khỏi doanh nghiệp" });
   } catch (err: any) {

@@ -2,9 +2,14 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/api-auth";
 import { employeeSchema } from "@/lib/validations";
+import { logActivity } from "@/lib/activity-logger";
 
 export async function GET() {
-  const { error, companyId } = await requireAuth(["OWNER"], { module: "employees", action: "VIEW" });
+  const { error, companyId } = await requireAuth(["OWNER", "ADMIN", "SCHEDULER", "EMPLOYEE"], [
+    { module: "employees", action: "VIEW" },
+    { module: "revenue", action: "VIEW" },
+    { module: "schedule", action: "VIEW" },
+  ]);
   if (error) return error;
 
   const employees = await prisma.employee.findMany({
@@ -81,6 +86,41 @@ export async function POST(request: Request) {
       },
     },
   });
+
+  const { session, user } = await requireAuth(["OWNER"], { module: "employees", action: "EDIT" });
+  if (user) {
+    const storeNames = employee.stores.map((s) => s.store.name);
+    const empTypeLabel = employee.employmentType === "FULL_TIME" 
+      ? "Toàn thời gian (Full-time)" 
+      : employee.employmentType === "PART_TIME" 
+      ? "Bán thời gian (Part-time)" 
+      : "Thời vụ";
+
+    const salTypeLabel = employee.salaryType === "HOURLY" 
+      ? "Theo giờ (Hourly)" 
+      : "Lương cố định (Fixed)";
+
+    await logActivity({
+      companyId,
+      userId: user.id,
+      userName: user.name,
+      userEmail: user.email,
+      userRole: user.role,
+      action: "CREATE",
+      module: "employees",
+      targetType: "Employee",
+      targetId: employee.id,
+      targetName: employee.name,
+      description: `Đã thêm nhân viên mới: ${employee.name} (${employee.position || "Nhân viên"}) tại ${storeNames.length > 0 ? storeNames.join(", ") : "chưa phân công cửa hàng"}`,
+      details: {
+        name: employee.name,
+        position: employee.position || "Nhân viên",
+        stores: storeNames.length > 0 ? storeNames.join(", ") : "Chưa phân công",
+        employmentType: empTypeLabel,
+        salaryType: salTypeLabel,
+      },
+    });
+  }
 
   return NextResponse.json(employee, { status: 201 });
 }

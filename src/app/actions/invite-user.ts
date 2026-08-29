@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { verifyCompanyAccess } from "@/lib/dal";
 import type { UserRole } from "@/generated/prisma/client";
 import { revalidatePath } from "next/cache";
+import { logActivity } from "@/lib/activity-logger";
 
 export async function inviteUserToCompany(companyId: string, email: string, role: UserRole, companyRoleId?: string | null) {
   try {
@@ -51,7 +52,7 @@ export async function inviteUserToCompany(companyId: string, email: string, role
       }
     }
 
-    await prisma.companyInvitation.create({
+    const invite = await prisma.companyInvitation.create({
       data: {
         email,
         companyId,
@@ -60,6 +61,27 @@ export async function inviteUserToCompany(companyId: string, email: string, role
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
       }
     });
+
+    const session = await auth();
+    if (session?.user) {
+      await logActivity({
+        companyId,
+        userId: session.user.id,
+        userName: session.user.name,
+        userEmail: session.user.email,
+        userRole: access.role,
+        action: "CREATE",
+        module: "settings",
+        targetType: "CompanyInvitation",
+        targetId: invite.id,
+        targetName: email,
+        description: `Đã gửi lời mời tham gia doanh nghiệp tới email ${email} (Vai trò: ${role})`,
+        details: {
+          email,
+          role,
+        },
+      });
+    }
 
     revalidatePath(`/app/${companyId}/nhan-vien`);
     revalidatePath(`/app/${companyId}/cai-dat`);

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/api-auth";
 import { z } from "zod";
+import { logActivity } from "@/lib/activity-logger";
+import { summarizePermissionsInVietnamese } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -13,8 +15,10 @@ const roleSchema = z.object({
 type Params = { params: Promise<{ id: string }> };
 
 export async function PUT(request: Request, { params }: Params) {
-  const { error, companyId } = await requireAuth(["OWNER"], { module: "settings", action: "EDIT" });
-  if (error) return error;
+  const authCheck = await requireAuth(["OWNER"], { module: "settings", action: "EDIT" });
+  if (authCheck.error || !authCheck.companyId) return authCheck.error;
+
+  const { companyId, user } = authCheck;
 
   try {
     const { id } = await params;
@@ -53,6 +57,29 @@ export async function PUT(request: Request, { params }: Params) {
       }
     });
 
+    if (user) {
+      const permSummary = summarizePermissionsInVietnamese(updated.permissions, undefined, updated.name);
+
+      await logActivity({
+        companyId,
+        userId: user.id,
+        userName: user.name,
+        userEmail: user.email,
+        userRole: user.role,
+        action: "UPDATE",
+        module: "settings",
+        targetType: "CompanyRole",
+        targetId: updated.id,
+        targetName: updated.name,
+        description: `Đã cập nhật vai trò ${updated.name}: ${permSummary.moduleList.join(" • ")}`,
+        details: {
+          roleName: updated.name,
+          permissionsSummary: permSummary.moduleList,
+          permissions: updated.permissions,
+        },
+      });
+    }
+
     return NextResponse.json({ success: true, role: updated });
   } catch (err: any) {
     console.error("PUT /api/settings/roles/[id] ERROR:", err);
@@ -61,8 +88,10 @@ export async function PUT(request: Request, { params }: Params) {
 }
 
 export async function DELETE(request: Request, { params }: Params) {
-  const { error, companyId } = await requireAuth(["OWNER"], { module: "settings", action: "EDIT" });
-  if (error) return error;
+  const authCheck = await requireAuth(["OWNER"], { module: "settings", action: "EDIT" });
+  if (authCheck.error || !authCheck.companyId) return authCheck.error;
+
+  const { companyId, user } = authCheck;
 
   try {
     const { id } = await params;
@@ -78,6 +107,25 @@ export async function DELETE(request: Request, { params }: Params) {
     await prisma.companyRole.delete({
       where: { id }
     });
+
+    if (user) {
+      await logActivity({
+        companyId,
+        userId: user.id,
+        userName: user.name,
+        userEmail: user.email,
+        userRole: user.role,
+        action: "DELETE",
+        module: "settings",
+        targetType: "CompanyRole",
+        targetId: id,
+        targetName: role.name,
+        description: `Đã xoá vai trò tùy chỉnh: ${role.name}`,
+        details: {
+          roleName: role.name,
+        },
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (err: any) {

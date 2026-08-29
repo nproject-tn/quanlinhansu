@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/api-auth";
 import { z } from "zod";
+import { logActivity } from "@/lib/activity-logger";
+import { summarizePermissionsInVietnamese } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +29,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const { error, companyId } = await requireAuth(["OWNER"], { module: "settings", action: "EDIT" });
+  const { error, companyId, user } = await requireAuth(["OWNER"], { module: "settings", action: "EDIT" });
   if (error) return error;
 
   try {
@@ -58,6 +60,29 @@ export async function POST(request: Request) {
         permissions: (parsed.data.permissions || {}) as any,
       }
     });
+
+    if (user) {
+      const permSummary = summarizePermissionsInVietnamese(role.permissions, undefined, role.name);
+
+      await logActivity({
+        companyId,
+        userId: user.id,
+        userName: user.name,
+        userEmail: user.email,
+        userRole: user.role,
+        action: "CREATE",
+        module: "settings",
+        targetType: "CompanyRole",
+        targetId: role.id,
+        targetName: role.name,
+        description: `Đã tạo vai trò / chức vụ mới: ${role.name} (${permSummary.moduleList.join(" • ")})`,
+        details: {
+          roleName: role.name,
+          permissionsSummary: permSummary.moduleList,
+          permissions: role.permissions,
+        },
+      });
+    }
 
     return NextResponse.json({ success: true, role });
   } catch (err: any) {

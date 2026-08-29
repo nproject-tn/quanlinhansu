@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/api-auth";
+import { logActivity } from "@/lib/activity-logger";
 
 export const dynamic = "force-dynamic";
 
 export async function DELETE(request: Request) {
   const authCheck = await requireAuth(["OWNER"], { module: "settings", action: "EDIT" });
-  if (authCheck.error) return authCheck.error;
+  if (authCheck.error || !authCheck.companyId) return authCheck.error;
 
-  const { companyId } = authCheck;
+  const { companyId, user } = authCheck;
 
   try {
     const url = new URL(request.url);
@@ -29,6 +30,26 @@ export async function DELETE(request: Request) {
     await prisma.companyInvitation.delete({
       where: { id: invitationId }
     });
+
+    if (user) {
+      await logActivity({
+        companyId,
+        userId: user.id,
+        userName: user.name,
+        userEmail: user.email,
+        userRole: user.role,
+        action: "DELETE",
+        module: "settings",
+        targetType: "CompanyInvitation",
+        targetId: invitationId,
+        targetName: invitation.email,
+        description: `Đã huỷ lời mời tham gia gửi tới ${invitation.email}`,
+        details: {
+          email: invitation.email,
+          role: invitation.role,
+        },
+      });
+    }
 
     return NextResponse.json({ 
       success: true, 

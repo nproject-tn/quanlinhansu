@@ -1596,7 +1596,7 @@ export function ProductsClient({
                   <p className="text-xs font-bold text-slate-500 dark:text-neutral-400 uppercase tracking-wider">Tổng đơn đặt NSX</p>
                   <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">{factoryOrders.length}</p>
                 </div>
-                <div className="h-10 w-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-300 flex items-center justify-center font-bold">
+                <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-[#2A2A2A] text-slate-800 dark:text-white flex items-center justify-center font-bold">
                   <Truck className="h-5 w-5" />
                 </div>
               </CardContent>
@@ -1663,7 +1663,7 @@ export function ProductsClient({
                   onClick={() => setShowMfrListModal(true)}
                   className="border-slate-200 text-slate-700 hover:bg-slate-50 dark:bg-[#222226] dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800 shrink-0 font-semibold shadow-sm"
                 >
-                  <Building2 className="h-4 w-4 mr-1.5 text-indigo-600 dark:text-indigo-400" /> Quản lý NSX ({manufacturers.length})
+                  <Building2 className="h-4 w-4 mr-1.5 text-slate-800 dark:text-slate-200" /> Quản lý NSX ({manufacturers.length})
                 </Button>
 
                 <Select

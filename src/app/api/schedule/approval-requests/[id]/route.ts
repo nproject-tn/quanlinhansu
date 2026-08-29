@@ -8,6 +8,7 @@ import {
   type MoveAssignmentInput,
   type UpdateAssignmentInput,
 } from "@/lib/assignment-service";
+import { logActivity } from "@/lib/activity-logger";
 
 type ApprovalPayload = {
   input?: UpdateAssignmentInput;
@@ -51,6 +52,23 @@ export async function PATCH(
   if (action === "REJECT") {
     await prisma.scheduleApprovalRequest.delete({
       where: { id },
+    });
+
+    await logActivity({
+      companyId,
+      userId: session!.user.id,
+      userName: session!.user.name,
+      userEmail: session!.user.email,
+      userRole: session!.user.role,
+      action: "REJECT",
+      module: "schedule",
+      targetType: "ScheduleApprovalRequest",
+      targetId: id,
+      description: `Đã từ chối yêu cầu xếp/đổi ca (${approvalRequest.actionType})`,
+      details: {
+        actionType: approvalRequest.actionType,
+        message: approvalRequest.message,
+      },
     });
 
     return NextResponse.json({ success: true, message: "Đã từ chối yêu cầu" });
@@ -140,6 +158,23 @@ export async function PATCH(
     // and to avoid foreign key constraints if the admin's session is stale.
     await prisma.scheduleApprovalRequest.delete({
       where: { id },
+    });
+
+    await logActivity({
+      companyId,
+      userId: session!.user.id,
+      userName: session!.user.name,
+      userEmail: session!.user.email,
+      userRole: session!.user.role,
+      action: "APPROVE",
+      module: "schedule",
+      targetType: "ScheduleApprovalRequest",
+      targetId: id,
+      description: `Đã phê duyệt yêu cầu xếp/đổi ca (${approvalRequest.actionType})`,
+      details: {
+        actionType: approvalRequest.actionType,
+        message: approvalRequest.message,
+      },
     });
 
     return NextResponse.json({

@@ -676,7 +676,13 @@ export function SettingsClient({
         </Card>
       )}
 
-      <RolesManagement companyId={companyId} roles={roles} mutate={mutate} canEdit={canEdit} />
+      <RolesManagement 
+        companyId={companyId} 
+        roles={roles} 
+        mutate={mutate} 
+        canEdit={canEdit} 
+        allMembers={members}
+      />
 
       {showInviteModal && (
         <InviteUserModal
@@ -701,6 +707,7 @@ export function SettingsClient({
         canEdit={canEdit}
         currentUserRole={userRole}
         activePendingTransfer={activePendingTransfer}
+        allMembers={members}
       />
 
       {/* Confirmation Modal for Leaving Company */}

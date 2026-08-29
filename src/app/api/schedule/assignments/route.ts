@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/api-auth";
 import { moveAssignment, updateAssignment, type MoveAssignmentInput } from "@/lib/assignment-service";
 import { createScheduleApprovalRequest } from "@/lib/schedule-approval";
 import { assignmentUpdateSchema } from "@/lib/validations";
 import type { Prisma } from "@/generated/prisma/client";
 import { hasPermission } from "@/lib/permissions";
+import { logActivity } from "@/lib/activity-logger";
 
 export async function PUT(request: Request) {
   const { session, permissions, error, companyId } = await requireAuth(["OWNER"], { module: "schedule", action: "EDIT" });
@@ -46,6 +48,52 @@ export async function PUT(request: Request) {
 
   if ("error" in result && !("success" in result)) {
     return NextResponse.json(result, { status: result.status });
+  }
+
+  if (result.success) {
+    let empName = "";
+    if (parsed.data.employeeId) {
+      const emp = await prisma.employee.findUnique({
+        where: { id: parsed.data.employeeId },
+        select: { name: true },
+      });
+      empName = emp?.name || "";
+    }
+
+    const shift = await prisma.shiftTemplate.findUnique({
+      where: { id: parsed.data.shiftTemplateId },
+      select: {
+        name: true,
+        startTime: true,
+        endTime: true,
+        store: { select: { name: true } },
+      },
+    });
+
+    const storeName = shift?.store?.name || "Cửa hàng";
+    const shiftDesc = shift ? `${shift.name} (${shift.startTime} - ${shift.endTime})` : "Ca làm việc";
+
+    await logActivity({
+      companyId,
+      userId: session!.user.id,
+      userName: session!.user.name,
+      userEmail: session!.user.email,
+      userRole: session!.user.role,
+      action: "UPDATE",
+      module: "schedule",
+      targetType: "ShiftAssignment",
+      targetName: empName || shiftDesc,
+      description: empName
+        ? `Đã xếp nhân viên ${empName} vào ${shiftDesc} tại ${storeName} ngày ${parsed.data.date}`
+        : `Đã làm trống / xoá nhân viên khỏi ${shiftDesc} tại ${storeName} ngày ${parsed.data.date}`,
+      details: {
+        "Nhân viên": empName || "Làm trống ca",
+        "Cửa hàng": storeName,
+        "Ca làm việc": shiftDesc,
+        "Ngày làm việc": parsed.data.date,
+        "Vị trí ca": `Vị trí ${parsed.data.slotIndex + 1}`,
+      },
+    });
   }
 
   return NextResponse.json(result);
@@ -102,6 +150,43 @@ export async function POST(request: Request) {
 
   if ("error" in result && !("success" in result)) {
     return NextResponse.json(result, { status: result.status });
+  }
+
+  if (result.success) {
+    const [sourceStore, targetStore, sourceShift, targetShift] = await Promise.all([
+      prisma.store.findUnique({ where: { id: input.sourceStoreId }, select: { name: true } }),
+      prisma.store.findUnique({ where: { id: input.targetStoreId }, select: { name: true } }),
+      prisma.shiftTemplate.findUnique({ where: { id: input.sourceShiftTemplateId }, select: { name: true, startTime: true, endTime: true } }),
+      prisma.shiftTemplate.findUnique({ where: { id: input.targetShiftTemplateId }, select: { name: true, startTime: true, endTime: true } }),
+    ]);
+
+    const srcStoreName = sourceStore?.name || "Cửa hàng nguồn";
+    const tgtStoreName = targetStore?.name || "Cửa hàng đích";
+    const srcShiftName = sourceShift ? `${sourceShift.name} (${sourceShift.startTime} - ${sourceShift.endTime})` : "Ca nguồn";
+    const tgtShiftName = targetShift ? `${targetShift.name} (${targetShift.startTime} - ${targetShift.endTime})` : "Ca đích";
+
+    await logActivity({
+      companyId,
+      userId: session!.user.id,
+      userName: session!.user.name,
+      userEmail: session!.user.email,
+      userRole: session!.user.role,
+      action: "UPDATE",
+      module: "schedule",
+      targetType: "ShiftAssignment",
+      targetName: `${srcShiftName} ➔ ${tgtShiftName}`,
+      description: `Đã đổi / chuyển ca từ ${srcShiftName} (${srcStoreName}, ${input.sourceDate}) sang ${tgtShiftName} (${tgtStoreName}, ${input.targetDate})`,
+      details: {
+        "Từ cửa hàng": srcStoreName,
+        "Từ ca": srcShiftName,
+        "Từ ngày": input.sourceDate,
+        "Từ vị trí": `Vị trí ${input.sourceSlotIndex + 1}`,
+        "Đến cửa hàng": tgtStoreName,
+        "Đến ca": tgtShiftName,
+        "Đến ngày": input.targetDate,
+        "Đến vị trí": `Vị trí ${input.targetSlotIndex + 1}`,
+      },
+    });
   }
 
   return NextResponse.json({

@@ -95,6 +95,12 @@ model Company {
   products                 Product[]
   factoryOrders            FactoryOrder[]
   factoryOrderItems        FactoryOrderItem[]
+  customers                Customer[]
+  orders                   Order[]
+  orderItems               OrderItem[]
+  ecommerceConnections     EcommerceConnection[]
+  userNotifications        UserNotification[]
+  activityLogs             ActivityLog[]
 }
 
 model User {
@@ -114,6 +120,8 @@ model User {
   subscription       Subscription?
   transfersSent      OwnershipTransfer[]       @relation("TransfersSent")
   transfersReceived  OwnershipTransfer[]       @relation("TransfersReceived")
+  userNotifications  UserNotification[]
+  activityLogs       ActivityLog[]
 
   // Legacy fields for backward compatibility during migration
   companyId                  String?
@@ -235,6 +243,7 @@ model Store {
   shiftOvertimes    ShiftOvertime[]
   revenueRecords    RevenueRecord[]
   attendanceLogs    AttendanceLog[]
+  orders            Order[]
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
 
@@ -266,6 +275,7 @@ model Employee {
   faults            ShiftFault[]
   revenueRecords    RevenueRecord[]
   attendanceLogs    AttendanceLog[]
+  orders            Order[]
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
   deletedAt         DateTime?
@@ -590,6 +600,8 @@ model Product {
   unit           String       @default("Cái") // Đơn vị tính
   costPrice      Float        @default(0)     // Giá nhập
   sellingPrice   Float        @default(0)     // Giá bán
+  stockQuantity  Int          @default(0)     // Tồn kho hiện tại
+  minStock       Int          @default(5)     // Cảnh báo tồn tối thiểu
   imageUrl       String?
   description    String?
   isArchived     Boolean      @default(false)
@@ -600,6 +612,7 @@ model Product {
 
   factoryOrders     FactoryOrder[]
   factoryOrderItems FactoryOrderItem[]
+  orderItems        OrderItem[]
 
   @@unique([companyId, sku])
   @@unique([companyId, barcode])
@@ -696,4 +709,201 @@ model OwnershipTransfer {
   @@index([companyId, status])
   @@index([toUserId, status])
 }
+
+enum OrderChannel {
+  POS_STORE
+  SHOPEE
+  TIKTOK_SHOP
+  LAZADA
+  WEBSITE
+  FACEBOOK
+  ZALO
+  MANUAL_OTHER
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  SHIPPING
+  DELIVERED
+  CANCELLED
+  RETURNED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  PARTIAL_PAID
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CREDIT_CARD
+  COD
+  E_WALLET
+}
+
+enum EcommercePlatform {
+  SHOPEE
+  TIKTOK_SHOP
+  LAZADA
+}
+
+model Customer {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  phone       String?
+  email       String?
+  address     String?
+  totalOrders Int      @default(0)
+  totalSpent  Float    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orders      Order[]
+
+  @@unique([companyId, phone])
+  @@index([companyId, name])
+  @@index([companyId, phone])
+}
+
+model Order {
+  id                   String        @id @default(cuid())
+  companyId            String
+  company              Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code                 String        // Mã đơn: e.g. "DH-2026-0001" hoặc mã sàn
+  orderDate            DateTime      @default(now())
+  channel              OrderChannel  @default(POS_STORE)
+  
+  storeId              String?
+  store                Store?        @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  
+  employeeId           String?
+  employee             Employee?     @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  
+  customerId           String?
+  customer             Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customerName         String?
+  customerPhone        String?
+  customerAddress      String?
+  
+  totalAmount          Float         @default(0) // Tổng tiền hàng
+  discountAmount       Float         @default(0) // Giảm giá
+  shippingFee          Float         @default(0) // Phí vận chuyển
+  finalAmount          Float         @default(0) // Tổng thực thu
+  
+  paymentStatus        PaymentStatus @default(UNPAID)
+  paymentMethod        PaymentMethod @default(CASH)
+  orderStatus          OrderStatus   @default(DELIVERED)
+  
+  externalOrderId      String?       // Mã đơn từ Shopee / TikTok Shop
+  externalTrackingCode String?       // Mã vận đơn giao hàng
+  note                 String?       @db.Text
+  
+  items                OrderItem[]
+  
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  @@unique([companyId, code])
+  @@index([companyId, orderDate])
+  @@index([companyId, channel])
+  @@index([companyId, orderStatus])
+  @@index([companyId, storeId])
+  @@index([companyId, employeeId])
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  productId   String?
+  product     Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  sku         String
+  productName String
+  unitPrice   Float    @default(0)
+  costPrice   Float    @default(0)
+  quantity    Int      @default(1)
+  discount    Float    @default(0)
+  totalPrice  Float    @default(0)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([orderId])
+  @@index([productId])
+  @@index([sku])
+}
+
+model EcommerceConnection {
+  id             String            @id @default(cuid())
+  companyId      String
+  company        Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  platform       EcommercePlatform
+  shopId         String
+  shopName       String
+  accessToken    String?           @db.Text
+  refreshToken   String?           @db.Text
+  expiresAt      DateTime?
+  isActive       Boolean           @default(true)
+  autoSyncStock  Boolean           @default(true)
+  autoSyncOrders Boolean           @default(true)
+  lastSyncedAt   DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@unique([companyId, platform, shopId])
+  @@index([companyId, platform])
+}
+
+model UserNotification {
+  id          String    @id @default(cuid())
+  companyId   String
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  body        String
+  tone        String    @default("info") // success, error, warning, info
+  link        String?
+  read        Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([companyId, userId])
+  @@index([userId, read])
+  @@index([createdAt])
+}
+
+model ActivityLog {
+  id          String    @id @default(cuid())
+  companyId   String
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userName    String
+  userEmail   String
+  userRole    String
+  action      String    // CREATE, UPDATE, DELETE, APPROVE, REJECT, CANCEL, EXPORT, IMPORT, LOGIN
+  module      String    // employees, schedule, store, shift_config, products, revenue, settings
+  targetType  String    // Employee, ShiftAssignment, Product, Order, Store, Role, Company, Rule
+  targetId    String?
+  targetName  String?
+  description String
+  details     Json?
+  createdAt   DateTime  @default(now())
+
+  @@index([companyId, createdAt])
+  @@index([companyId, module])
+  @@index([companyId, userId])
+}
+
 

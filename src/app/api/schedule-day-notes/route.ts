@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/api-auth";
 import { formatDateOnly, parseDateOnly } from "@/lib/utils";
 import { scheduleDayNoteSchema } from "@/lib/validations";
+import { logActivity } from "@/lib/activity-logger";
 
 export async function GET(request: Request) {
   try {
@@ -45,12 +46,13 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { error, companyId } = await requireAuth(["OWNER"], [
+    const authCheck = await requireAuth(["OWNER"], [
       { module: "schedule", action: "EDIT" },
       { module: "shift_config", action: "EDIT" }
     ]);
-    if (error || !companyId) return error;
+    if (authCheck.error || !authCheck.companyId) return authCheck.error;
 
+    const { companyId, user } = authCheck;
     const body = await request.json();
 
     if (Array.isArray(body)) {
@@ -81,6 +83,24 @@ export async function POST(request: Request) {
       }
 
       const results = operations.length > 0 ? await prisma.$transaction(operations) : [];
+
+      if (results.length > 0 && user) {
+        await logActivity({
+          companyId,
+          userId: user.id,
+          userName: user.name,
+          userEmail: user.email,
+          userRole: user.role,
+          action: "UPDATE",
+          module: "schedule",
+          targetType: "ScheduleDayNote",
+          targetId: "batch",
+          targetName: "Ghi chú ngày",
+          description: `Đã cập nhật ${results.length} ghi chú ngày`,
+          details: { count: results.length },
+        });
+      }
+
       return NextResponse.json(
         results.map((note) => ({
           ...note,
@@ -113,6 +133,26 @@ export async function POST(request: Request) {
       },
     });
 
+    if (user) {
+      await logActivity({
+        companyId,
+        userId: user.id,
+        userName: user.name,
+        userEmail: user.email,
+        userRole: user.role,
+        action: "UPDATE",
+        module: "schedule",
+        targetType: "ScheduleDayNote",
+        targetId: note.id,
+        targetName: parsed.data.date,
+        description: `Đã lưu ghi chú cho ngày ${parsed.data.date}: "${parsed.data.note}"`,
+        details: {
+          date: parsed.data.date,
+          note: parsed.data.note,
+        },
+      });
+    }
+
     return NextResponse.json({
       ...note,
       date: formatDateOnly(note.date),
@@ -125,12 +165,13 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const { error, companyId } = await requireAuth(["OWNER"], [
+    const authCheck = await requireAuth(["OWNER"], [
       { module: "schedule", action: "EDIT" },
       { module: "shift_config", action: "EDIT" }
     ]);
-    if (error || !companyId) return error;
+    if (authCheck.error || !authCheck.companyId) return authCheck.error;
 
+    const { companyId, user } = authCheck;
     const { searchParams } = new URL(request.url);
     const date = searchParams.get("date");
 
@@ -141,6 +182,23 @@ export async function DELETE(request: Request) {
     await prisma.scheduleDayNote.deleteMany({
       where: { companyId, date: parseDateOnly(date) },
     });
+
+    if (user) {
+      await logActivity({
+        companyId,
+        userId: user.id,
+        userName: user.name,
+        userEmail: user.email,
+        userRole: user.role,
+        action: "DELETE",
+        module: "schedule",
+        targetType: "ScheduleDayNote",
+        targetId: date,
+        targetName: date,
+        description: `Đã xoá ghi chú của ngày ${date}`,
+        details: { date },
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

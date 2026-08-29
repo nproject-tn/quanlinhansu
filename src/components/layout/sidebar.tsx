@@ -20,10 +20,12 @@ import {
   Layers,
   Boxes,
   Crown,
+  ShoppingBag,
 } from "lucide-react";
 import { SignOutButton } from "@/components/layout/sign-out-button";
 import { WorkspaceSwitcher } from "@/components/layout/workspace-switcher";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { NotificationBellTrigger } from "@/components/notifications/notification-bell-trigger";
 import { cn } from "@/lib/utils";
 import { ROLE_LABELS } from "@/lib/utils";
 import { hasPermission } from "@/lib/permissions";
@@ -60,6 +62,7 @@ const navItems: NavItem[] = [
       { href: "/app/hang-hoa?tab=inventory", label: "Tồn kho", tabKey: "inventory", icon: Boxes },
     ],
   },
+  { href: "/app/don-hang", label: "Đơn hàng", icon: ShoppingBag, roles: ["OWNER", "ADMIN", "SCHEDULER"], permissionKey: "revenue" },
   { href: "/app/nhan-vien", label: "Nhân viên", icon: Users, roles: ["OWNER", "ADMIN", "SCHEDULER"], permissionKey: "employees" },
   { href: "/app/cau-hinh-ca", label: "Cấu hình ca", icon: Settings2, roles: ["OWNER", "ADMIN"], permissionKey: "shift_config" },
   { href: "/app/lich-xep-ca", label: "Lịch xếp ca", icon: CalendarDays, roles: ["OWNER", "ADMIN", "SCHEDULER", "EMPLOYEE"], permissionKey: "schedule" },
@@ -136,7 +139,7 @@ function SidebarContent({ user, companyId }: SidebarProps) {
 
       <aside
         className={cn(
-          "glass-control flex h-[calc(100vh-2rem)] shrink-0 flex-col rounded-[28px] border border-white/65 bg-white/68 shadow-[0_18px_40px_rgba(15,23,42,0.08)] backdrop-blur-xl transition-[width,transform,opacity] duration-300 ease-in-out max-md:z-[90] md:z-30 dark:border-[#333333] dark:bg-[#181818]/95 dark:shadow-[0_12px_32px_rgba(0,0,0,0.35)]",
+          "glass-control flex h-[calc(100vh-2rem)] shrink-0 flex-col rounded-[28px] border border-white/65 bg-white/68 shadow-[0_18px_40px_rgba(15,23,42,0.08)] backdrop-blur-xl transition-[width,transform,opacity] duration-300 ease-in-out max-md:z-[90] md:z-40 dark:border-[#333333] dark:bg-[#181818]/95 dark:shadow-[0_12px_32px_rgba(0,0,0,0.35)]",
           "max-md:fixed max-md:top-4 max-md:left-4 md:sticky md:top-4",
           !isMobileOpen && "max-md:-translate-x-[150%] max-md:w-64 max-md:opacity-0", 
           isMobileOpen && "max-md:translate-x-0 max-md:w-[calc(100vw-2rem)] max-md:max-w-[18rem] max-md:opacity-100",
@@ -388,12 +391,14 @@ function SidebarContent({ user, companyId }: SidebarProps) {
             <SignOutButton isCollapsed={false} companyId={companyId} />
           </div>
           <div className="flex items-center gap-1 shrink-0">
+            <NotificationBellTrigger isCollapsed={false} companyId={companyId} userRole={user.role} permissions={user.permissions} />
             <ThemeToggle isCollapsed={false} align="center" side="top" />
             <WorkspaceSwitcher currentCompanyId={companyId} isCollapsed={false} />
           </div>
         </div>
         {isCollapsed && (
           <div className="hidden md:flex flex-col items-center gap-2.5 w-full pt-1">
+            <NotificationBellTrigger isCollapsed={true} companyId={companyId} userRole={user.role} permissions={user.permissions} />
             <ThemeToggle isCollapsed={true} align="end" side="right" />
             <WorkspaceSwitcher currentCompanyId={companyId} isCollapsed={true} />
             <SignOutButton isCollapsed={true} companyId={companyId} />

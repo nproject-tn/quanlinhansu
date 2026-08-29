@@ -8,6 +8,7 @@ import {
   getSizeCode,
   indexToLetter,
 } from "@/lib/sku-engine";
+import { logActivity } from "@/lib/activity-logger";
 
 export const dynamic = "force-dynamic";
 
@@ -44,8 +45,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { error, companyId } = await requireAuth(["OWNER", "ADMIN"], { module: "products", action: "EDIT" });
-  if (error || !companyId) return error;
+    const { error, companyId, user } = await requireAuth(["OWNER", "ADMIN"], { module: "products", action: "EDIT" });
+    if (error || !companyId) return error;
 
   try {
     const body = await request.json();
@@ -204,6 +205,28 @@ export async function POST(request: Request) {
 
         createdProducts.push(product);
       }
+    }
+
+    if (user && createdProducts.length > 0) {
+      await logActivity({
+        companyId,
+        userId: user.id,
+        userName: user.name,
+        userEmail: user.email,
+        userRole: user.role,
+        action: "CREATE",
+        module: "products",
+        targetType: "Product",
+        targetId: createdProducts[0].id,
+        targetName: createdProducts[0].name,
+        description: `Đã tạo ${createdProducts.length} biến thể sản phẩm: ${createdProducts[0].name}`,
+        details: {
+          count: createdProducts.length,
+          name: createdProducts[0].name,
+          category: categoryName,
+          brand: brandName,
+        },
+      });
     }
 
     return NextResponse.json({

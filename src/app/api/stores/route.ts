@@ -6,9 +6,14 @@ import {
   retryStoreMutationWithoutLogo,
 } from "@/lib/store-logo-fallback";
 import { storeSchema } from "@/lib/validations";
+import { logActivity } from "@/lib/activity-logger";
 
 export async function GET(request: Request) {
-  const { error, companyId } = await requireAuth(["OWNER"], { module: "store", action: "VIEW" });
+  const { error, companyId } = await requireAuth(["OWNER", "ADMIN", "SCHEDULER", "EMPLOYEE"], [
+    { module: "store", action: "VIEW" },
+    { module: "revenue", action: "VIEW" },
+    { module: "schedule", action: "VIEW" },
+  ]);
   if (error) return error;
 
   const { searchParams } = new URL(request.url);
@@ -77,7 +82,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const { error, companyId } = await requireAuth(["OWNER"], { module: "store", action: "EDIT" });
+  const { error, companyId, user } = await requireAuth(["OWNER"], { module: "store", action: "EDIT" });
   if (error) return error;
 
   const body = await request.json();
@@ -93,6 +98,26 @@ export async function POST(request: Request) {
       () => prisma.store.create({ data: { ...parsed.data, companyId } }),
       () => prisma.store.create({ data: { ...dataWithoutLogo, companyId } })
     );
+
+    if (user) {
+      await logActivity({
+        companyId,
+        userId: user.id,
+        userName: user.name,
+        userEmail: user.email,
+        userRole: user.role,
+        action: "CREATE",
+        module: "store",
+        targetType: "Store",
+        targetId: store.id,
+        targetName: store.name,
+        description: `Đã tạo cửa hàng mới: ${store.name}`,
+        details: {
+          name: store.name,
+          address: store.address,
+        },
+      });
+    }
 
     return NextResponse.json({ ...store, logoPendingMigration }, { status: 201 });
   } catch (createError) {

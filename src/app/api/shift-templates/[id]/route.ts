@@ -3,11 +3,12 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/api-auth";
 import { shiftTemplateSchema } from "@/lib/validations";
 import { calcDurationHours } from "@/lib/shift-utils";
+import { logActivity } from "@/lib/activity-logger";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function PUT(request: Request, { params }: Params) {
-  const { error, companyId } = await requireAuth(["OWNER"], { module: "shift_config", action: "EDIT" });
+  const { error, companyId, user } = await requireAuth(["OWNER"], { module: "shift_config", action: "EDIT" });
   if (error || !companyId) return error;
 
   const { id } = await params;
@@ -50,11 +51,33 @@ export async function PUT(request: Request, { params }: Params) {
   const { syncStoreShifts } = await import("@/lib/api-shift-utils");
   await syncStoreShifts(template.storeId);
 
+  if (user) {
+    await logActivity({
+      companyId,
+      userId: user.id,
+      userName: user.name,
+      userEmail: user.email,
+      userRole: user.role,
+      action: "UPDATE",
+      module: "shift_config",
+      targetType: "ShiftTemplate",
+      targetId: template.id,
+      targetName: template.name,
+      description: `Đã cập nhật ca làm việc: ${template.name} (${template.startTime} - ${template.endTime})`,
+      details: {
+        name: template.name,
+        startTime: template.startTime,
+        endTime: template.endTime,
+        durationHours: template.durationHours,
+      },
+    });
+  }
+
   return NextResponse.json(template);
 }
 
 export async function DELETE(_request: Request, { params }: Params) {
-  const { error, companyId } = await requireAuth(["OWNER"], { module: "shift_config", action: "EDIT" });
+  const { error, companyId, user } = await requireAuth(["OWNER"], { module: "shift_config", action: "EDIT" });
   if (error || !companyId) return error;
 
   const { id } = await params;
@@ -80,6 +103,22 @@ export async function DELETE(_request: Request, { params }: Params) {
     const { syncStoreShifts } = await import("@/lib/api-shift-utils");
     await syncStoreShifts(shiftTemplate.storeId);
 
+    if (user) {
+      await logActivity({
+        companyId,
+        userId: user.id,
+        userName: user.name,
+        userEmail: user.email,
+        userRole: user.role,
+        action: "DELETE",
+        module: "shift_config",
+        targetType: "ShiftTemplate",
+        targetId: shiftTemplate.id,
+        targetName: shiftTemplate.name,
+        description: `Đã ẩn ca làm việc ${shiftTemplate.name} (đã có lịch xếp)`,
+      });
+    }
+
     return NextResponse.json({
       success: true,
       message: "Ca đã có lịch xếp — đã ẩn thay vì xóa hẳn",
@@ -93,6 +132,22 @@ export async function DELETE(_request: Request, { params }: Params) {
 
   const { syncStoreShifts } = await import("@/lib/api-shift-utils");
   await syncStoreShifts(shiftTemplate.storeId);
+
+  if (user) {
+    await logActivity({
+      companyId,
+      userId: user.id,
+      userName: user.name,
+      userEmail: user.email,
+      userRole: user.role,
+      action: "DELETE",
+      module: "shift_config",
+      targetType: "ShiftTemplate",
+      targetId: shiftTemplate.id,
+      targetName: shiftTemplate.name,
+      description: `Đã xoá vĩnh viễn ca làm việc ${shiftTemplate.name}`,
+    });
+  }
 
   return NextResponse.json({ success: true, message: "Đã xóa ca" });
 }

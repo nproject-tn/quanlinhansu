@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/api-auth";
+import { logActivity } from "@/lib/activity-logger";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function PUT(request: Request, { params }: Params) {
-  const { error, companyId } = await requireAuth(["OWNER", "ADMIN"], { module: "products", action: "EDIT" });
+  const { error, companyId, user } = await requireAuth(["OWNER", "ADMIN"], { module: "products", action: "EDIT" });
   if (error || !companyId) return error;
 
   const { id } = await params;
@@ -60,17 +61,15 @@ export async function PUT(request: Request, { params }: Params) {
         const m = await prisma.manufacturer.findUnique({ where: { id: targetMfrId } });
         if (m) mCode = m.code;
       }
-      const pCode = existing.barcode.length >= 7 ? existing.barcode.slice(3, 7) : "0001";
-      newBarcode = generateEan8Barcode(mCode, pCode);
+      newBarcode = generateEan8Barcode(mCode, existing.itemCode);
       needsReprint = true;
     }
 
     const updated = await prisma.product.update({
       where: { id, companyId },
       data: {
-        name: name ? name.trim() : existing.name,
+        name: name !== undefined ? name.trim() : existing.name,
         brandName: brandName !== undefined ? (brandName ? brandName.trim() : null) : existing.brandName,
-        brandCode: brandName !== undefined ? (brandName ? (await import("@/lib/sku-engine")).generateBrandCode(brandName).brandCode : null) : existing.brandCode,
         manufacturerId: targetMfrId,
         colorName: newColorName,
         colorCode,
@@ -92,6 +91,28 @@ export async function PUT(request: Request, { params }: Params) {
       },
     });
 
+    if (user) {
+      await logActivity({
+        companyId,
+        userId: user.id,
+        userName: user.name,
+        userEmail: user.email,
+        userRole: user.role,
+        action: "UPDATE",
+        module: "products",
+        targetType: "Product",
+        targetId: updated.id,
+        targetName: updated.name,
+        description: `Đã cập nhật sản phẩm: ${updated.name} (SKU: ${updated.sku})`,
+        details: {
+          name: updated.name,
+          sku: updated.sku,
+          sellingPrice: updated.sellingPrice,
+          costPrice: updated.costPrice,
+        },
+      });
+    }
+
     return NextResponse.json(updated);
   } catch (err: any) {
     return NextResponse.json({ error: "Lỗi cập nhật sản phẩm: " + err.message }, { status: 500 });
@@ -99,7 +120,7 @@ export async function PUT(request: Request, { params }: Params) {
 }
 
 export async function DELETE(request: Request, { params }: Params) {
-  const { error, companyId } = await requireAuth(["OWNER", "ADMIN"], { module: "products", action: "DELETE" });
+  const { error, companyId, user } = await requireAuth(["OWNER", "ADMIN"], { module: "products", action: "DELETE" });
   if (error || !companyId) return error;
 
   const { id } = await params;
@@ -120,6 +141,22 @@ export async function DELETE(request: Request, { params }: Params) {
     await prisma.product.delete({
       where: { id, companyId },
     });
+
+    if (user) {
+      await logActivity({
+        companyId,
+        userId: user.id,
+        userName: user.name,
+        userEmail: user.email,
+        userRole: user.role,
+        action: "DELETE",
+        module: "products",
+        targetType: "Product",
+        targetId: existing.id,
+        targetName: existing.name,
+        description: `Đã xoá biến thể sản phẩm: ${existing.name} (SKU: ${existing.sku})`,
+      });
+    }
 
     return NextResponse.json({ success: true, message: "Đã xóa biến thể sản phẩm thành công" });
   } catch (err: any) {
