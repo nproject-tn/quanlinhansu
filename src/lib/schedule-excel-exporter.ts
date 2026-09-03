@@ -2,6 +2,7 @@ import ExcelJS from "exceljs";
 import { format, parseISO } from "date-fns";
 import { vi } from "date-fns/locale";
 import { formatDateVN } from "@/lib/utils";
+import { calculateTotalMonthlyHours } from "@/lib/schedule-engine";
 
 type Slot = {
   storeId: string;
@@ -419,13 +420,22 @@ export async function exportScheduleToExcel(data: ExportScheduleData) {
     );
     const shiftCount = empSlots.length;
 
-    let standardHours = 0;
-    empSlots.forEach((s) => {
-      const shift = shiftMap.get(s.shiftTemplateId);
-      if (shift) {
-        standardHours += shift.durationHours;
-      }
-    });
+    // Chuẩn hóa tính giờ theo bảng Giờ làm thực tế trong tháng: đếm giờ thực tế, tự động khử trùng lặp khoảng thời gian giao nhau
+    const empSlotsForHours = empSlots
+      .map((s) => {
+        const shift = shiftMap.get(s.shiftTemplateId);
+        if (!shift) return null;
+        return {
+          date: new Date(s.date.slice(0, 10) + "T00:00:00Z"),
+          shift: {
+            startTime: shift.startTime,
+            endTime: shift.endTime,
+          },
+        };
+      })
+      .filter((item): item is { date: Date; shift: { startTime: string; endTime: string } } => item !== null);
+
+    const standardHours = calculateTotalMonthlyHours(empSlotsForHours);
 
     // Overtime hours (respecting store filter if any)
     const empOvertimes = data.overtimes.filter(
@@ -468,11 +478,21 @@ export async function exportScheduleToExcel(data: ExportScheduleData) {
       const storeSlots = empSlots.filter((s) => s.storeId === st.id);
       const count = storeSlots.length;
 
-      let storeStdHours = 0;
-      storeSlots.forEach((s) => {
-        const shift = shiftMap.get(s.shiftTemplateId);
-        if (shift) storeStdHours += shift.durationHours;
-      });
+      const storeSlotsForHours = storeSlots
+        .map((s) => {
+          const shift = shiftMap.get(s.shiftTemplateId);
+          if (!shift) return null;
+          return {
+            date: new Date(s.date.slice(0, 10) + "T00:00:00Z"),
+            shift: {
+              startTime: shift.startTime,
+              endTime: shift.endTime,
+            },
+          };
+        })
+        .filter((item): item is { date: Date; shift: { startTime: string; endTime: string } } => item !== null);
+
+      const storeStdHours = calculateTotalMonthlyHours(storeSlotsForHours);
 
       const storeOts = empOvertimes.filter((ot) => ot.storeId === st.id);
       const storeOtHours = storeOts.reduce((sum, ot) => sum + ot.hours, 0);
@@ -716,15 +736,18 @@ export async function exportScheduleToExcel(data: ExportScheduleData) {
   const blob = new Blob([buffer], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  const fileName = `lich_xep_ca_${data.startDateStr}_${data.endDateStr}.xlsx`;
-  a.download = fileName;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  if (typeof window !== "undefined" && typeof document !== "undefined") {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const fileName = `lich_xep_ca_${data.startDateStr}_${data.endDateStr}.xlsx`;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+  return buffer;
 }
 
 // ----------------------------------------------------

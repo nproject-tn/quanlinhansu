@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/api-auth";
 import { shiftTemplateSchema } from "@/lib/validations";
-import { calcDurationHours } from "@/lib/shift-utils";
+import { calcDurationHours, getShiftContainmentError } from "@/lib/shift-utils";
 import { logActivity } from "@/lib/activity-logger";
 
 type Params = { params: Promise<{ id: string }> };
@@ -41,25 +41,25 @@ export async function PUT(request: Request, { params }: Params) {
     );
   }
 
-  // Kiểm tra khung giờ ca có bị trùng hệt với ca ĐANG HOẠT ĐỘNG khác trong cùng cửa hàng không
-  const duplicateTimeShift = await prisma.shiftTemplate.findFirst({
+  // Kiểm tra khung giờ ca có bị trùng hệt hoặc nằm lọt lòng trong ca ĐANG HOẠT ĐỘNG khác không
+  const activeStoreShifts = await prisma.shiftTemplate.findMany({
     where: {
       companyId,
       storeId: parsed.data.storeId,
-      startTime: parsed.data.startTime,
-      endTime: parsed.data.endTime,
       isActive: true,
       id: { not: id }, // Bỏ qua chính ca đang cập nhật
     },
+    select: { id: true, name: true, startTime: true, endTime: true },
   });
 
-  if (duplicateTimeShift) {
-    return NextResponse.json(
-      {
-        error: `Cửa hàng này đã có ca "${duplicateTimeShift.name}" với khung giờ ${duplicateTimeShift.startTime} - ${duplicateTimeShift.endTime}. Không thể tạo 2 ca có giờ làm giống hệt nhau.`,
-      },
-      { status: 400 }
+  for (const existing of activeStoreShifts) {
+    const errorMsg = getShiftContainmentError(
+      { startTime: parsed.data.startTime, endTime: parsed.data.endTime },
+      existing
     );
+    if (errorMsg) {
+      return NextResponse.json({ error: errorMsg }, { status: 400 });
+    }
   }
 
   const durationHours = calcDurationHours(parsed.data.startTime, parsed.data.endTime);

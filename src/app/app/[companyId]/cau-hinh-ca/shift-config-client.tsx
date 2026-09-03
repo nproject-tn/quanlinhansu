@@ -12,7 +12,7 @@ import { useConfirmDialog } from "@/components/confirm/confirm-dialog-provider";
 import { useNotifications } from "@/components/notifications/notification-center";
 import { getDayNoteColor, DAY_NOTE_COLORS } from "@/lib/day-note-colors";
 import { DAY_NAMES, formatDateOnly, parseDateOnly, cn } from "@/lib/utils";
-import { calcDurationHours } from "@/lib/shift-utils";
+import { calcDurationHours, getShiftContainmentError } from "@/lib/shift-utils";
 import { getDateRange, getDaysInRange } from "@/lib/schedule-engine";
 
 type Store = { id: string; name: string; logoUrl?: string; shiftsPerDay?: number };
@@ -608,12 +608,17 @@ export default function ShiftConfigClient({ canEdit }: { canEdit?: boolean }) {
   }
 
   async function saveEditShift(shift: ShiftTemplate) {
-    const duplicateTime = shifts.find(
-      (s) => s.id !== shift.id && s.isActive !== false && s.startTime === editForm.startTime && s.endTime === editForm.endTime
-    );
-    if (duplicateTime) {
-      setMessage(`Cửa hàng đã có "${duplicateTime.name}" với khung giờ ${duplicateTime.startTime} - ${duplicateTime.endTime}. Không thể tạo 2 ca có giờ làm giống hệt nhau.`);
-      return;
+    for (const s of shifts) {
+      if (s.id !== shift.id && s.isActive !== false) {
+        const errorMsg = getShiftContainmentError(
+          { startTime: editForm.startTime, endTime: editForm.endTime },
+          s
+        );
+        if (errorMsg) {
+          setMessage(errorMsg);
+          return;
+        }
+      }
     }
 
     const durationHours = calcDurationHours(editForm.startTime, editForm.endTime);
@@ -643,12 +648,17 @@ export default function ShiftConfigClient({ canEdit }: { canEdit?: boolean }) {
   }
 
   async function saveNewShift() {
-    const duplicateTime = shifts.find(
-      (s) => s.isActive !== false && s.startTime === newShiftForm.startTime && s.endTime === newShiftForm.endTime
-    );
-    if (duplicateTime) {
-      setMessage(`Cửa hàng đã có "${duplicateTime.name}" với khung giờ ${duplicateTime.startTime} - ${duplicateTime.endTime}. Không thể tạo 2 ca có giờ làm giống hệt nhau.`);
-      return;
+    for (const s of shifts) {
+      if (s.isActive !== false) {
+        const errorMsg = getShiftContainmentError(
+          { startTime: newShiftForm.startTime, endTime: newShiftForm.endTime },
+          s
+        );
+        if (errorMsg) {
+          setMessage(errorMsg);
+          return;
+        }
+      }
     }
 
     const durationHours = calcDurationHours(newShiftForm.startTime, newShiftForm.endTime);

@@ -48,3 +48,62 @@ export function getDefaultShiftTime(index: number) {
     endTime: `${pad(endHour)}:00`,
   };
 }
+
+/**
+ * Kiểm tra xem 2 ca làm việc có bị lọt lòng vào nhau hay không
+ * Trả về true nếu ca B lọt lòng trong ca A, HOẶC ca A lọt lòng trong ca B (bao gồm cả trùng hệt nhau).
+ * Các ca giao thoa gối đầu (ví dụ: 08:00 - 11:00 và 09:00 - 12:00) sẽ trả về false (hợp lệ).
+ */
+export function isShiftContained(
+  startA: string,
+  endA: string,
+  startB: string,
+  endB: string
+): boolean {
+  const [shA, smA] = startA.split(":").map(Number);
+  const [ehA, emA] = endA.split(":").map(Number);
+  const [shB, smB] = startB.split(":").map(Number);
+  const [ehB, emB] = endB.split(":").map(Number);
+
+  const sA = shA * 60 + smA;
+  let durA = (ehA * 60 + emA) - sA;
+  if (durA <= 0) durA += 24 * 60;
+
+  const sB = shB * 60 + smB;
+  let durB = (ehB * 60 + emB) - sB;
+  if (durB <= 0) durB += 24 * 60;
+
+  // Kiểm tra B có nằm lọt lòng hoàn toàn trong A không
+  const offsetStartB = (sB - sA + 24 * 60) % (24 * 60);
+  const offsetEndB = offsetStartB + durB;
+  if (offsetStartB >= 0 && offsetEndB <= durA) {
+    return true;
+  }
+
+  // Kiểm tra A có nằm lọt lòng hoàn toàn trong B không
+  const offsetStartA = (sA - sB + 24 * 60) % (24 * 60);
+  const offsetEndA = offsetStartA + durA;
+  if (offsetStartA >= 0 && offsetEndA <= durB) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Kiểm tra xung đột thời gian (trùng hệt hoặc lọt lòng) giữa ca mới và ca đã có
+ */
+export function getShiftContainmentError(
+  candidate: { startTime: string; endTime: string },
+  existing: { name: string; startTime: string; endTime: string }
+): string | null {
+  if (candidate.startTime === existing.startTime && candidate.endTime === existing.endTime) {
+    return `Cửa hàng này đã có ca "${existing.name}" với khung giờ ${existing.startTime} - ${existing.endTime}. Không thể tạo 2 ca có giờ làm giống hệt nhau.`;
+  }
+
+  if (isShiftContained(existing.startTime, existing.endTime, candidate.startTime, candidate.endTime)) {
+    return `Khung giờ ${candidate.startTime} - ${candidate.endTime} không hợp lệ vì bị lọt lòng hoặc bao trọn ca "${existing.name}" (${existing.startTime} - ${existing.endTime}) của cửa hàng.`;
+  }
+
+  return null;
+}
