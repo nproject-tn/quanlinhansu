@@ -9,9 +9,10 @@ import { MonthPicker } from "@/components/ui/month-picker";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { useConfirmDialog } from "@/components/confirm/confirm-dialog-provider";
 import { ChevronDown, ChevronUp, Plus, TimerReset, Ban } from "lucide-react";
-import { EMPLOYMENT_TYPE_LABELS } from "@/lib/utils";
+import { EMPLOYMENT_TYPE_LABELS, cn } from "@/lib/utils";
 import { useNotifications } from "@/components/notifications/notification-center";
 import {
   calcMaxHoursFromShifts,
@@ -83,6 +84,7 @@ type FormState = {
   maxHoursPerMonth: string;
   storeIds: string[];
   storeMaxHours: Record<string, string>;
+  storeModes: Record<string, "AUTO" | "CUSTOM">;
   isActive: boolean;
 };
 
@@ -99,6 +101,7 @@ const emptyForm: FormState = {
   maxHoursPerMonth: "160",
   storeIds: [],
   storeMaxHours: {},
+  storeModes: {},
   isActive: true,
 };
 
@@ -368,6 +371,43 @@ export function EmployeePageClient({ userRole, userPermissions, companyId }: { u
     });
   }
 
+  const effectiveStoreHours = useMemo(() => {
+    const totalHours = Number(form.maxHoursPerMonth) || 0;
+    const storeIds = form.storeIds;
+    const storeModes = form.storeModes;
+    const storeMaxHours = form.storeMaxHours;
+
+    const result: Record<string, number> = {};
+    if (storeIds.length === 0) return result;
+
+    const customStoreIds = storeIds.filter((id) => storeModes[id] === "CUSTOM");
+    const autoStoreIds = storeIds.filter((id) => storeModes[id] !== "CUSTOM");
+
+    let totalCustom = 0;
+    for (const id of customStoreIds) {
+      const val = Number(storeMaxHours[id]) || 0;
+      result[id] = val;
+      totalCustom += val;
+    }
+
+    const remaining = Math.max(0, totalHours - totalCustom);
+
+    if (autoStoreIds.length > 0) {
+      const perStore = Math.floor(remaining / autoStoreIds.length);
+      const remainder = remaining % autoStoreIds.length;
+
+      autoStoreIds.forEach((id, idx) => {
+        result[id] = idx === 0 ? perStore + remainder : perStore;
+      });
+    }
+
+    return result;
+  }, [form.maxHoursPerMonth, form.storeIds, form.storeModes, form.storeMaxHours]);
+
+  const totalAllocatedHours = useMemo(() => {
+    return form.storeIds.reduce((sum, id) => sum + (effectiveStoreHours[id] ?? 0), 0);
+  }, [form.storeIds, effectiveStoreHours]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!canManageEmployees) {
@@ -384,9 +424,9 @@ export function EmployeePageClient({ userRole, userPermissions, companyId }: { u
 
     const storeMaxHoursPayload: Record<string, number | null> = {};
     for (const storeId of form.storeIds) {
-      const val = form.storeMaxHours[storeId];
-      if (val && !isNaN(Number(val)) && Number(val) > 0) {
-        storeMaxHoursPayload[storeId] = Number(val);
+      const assignedHours = effectiveStoreHours[storeId];
+      if (assignedHours !== undefined && assignedHours !== null && assignedHours > 0) {
+        storeMaxHoursPayload[storeId] = assignedHours;
       } else {
         storeMaxHoursPayload[storeId] = null;
       }
@@ -505,9 +545,14 @@ export function EmployeePageClient({ userRole, userPermissions, companyId }: { u
     setEditingId(emp.id);
     setLastEdited(null);
     const storeHoursMap: Record<string, string> = {};
+    const modesMap: Record<string, "AUTO" | "CUSTOM"> = {};
+
     emp.stores.forEach((s) => {
       if (s.maxHoursPerMonth !== undefined && s.maxHoursPerMonth !== null) {
         storeHoursMap[s.store.id] = String(s.maxHoursPerMonth);
+        modesMap[s.store.id] = "CUSTOM";
+      } else {
+        modesMap[s.store.id] = "AUTO";
       }
     });
 
@@ -524,6 +569,7 @@ export function EmployeePageClient({ userRole, userPermissions, companyId }: { u
       maxHoursPerMonth: String(emp.maxHoursPerMonth),
       storeIds: emp.stores.map((s) => s.store.id),
       storeMaxHours: storeHoursMap,
+      storeModes: modesMap,
       isActive: emp.isActive,
     });
   }
@@ -538,30 +584,57 @@ export function EmployeePageClient({ userRole, userPermissions, companyId }: { u
         : [...f.storeIds, storeId];
 
       const nextStoreMaxHours = { ...f.storeMaxHours };
+      const nextStoreModes = { ...f.storeModes };
+
       if (isSelected) {
         delete nextStoreMaxHours[storeId];
+        delete nextStoreModes[storeId];
+      } else {
+        nextStoreModes[storeId] = "AUTO";
       }
 
       return {
         ...f,
         storeIds: nextStoreIds,
         storeMaxHours: nextStoreMaxHours,
+        storeModes: nextStoreModes,
       };
     });
   }
 
-  function distributeHoursEvenly() {
-    const total = Number(form.maxHoursPerMonth) || 0;
-    const count = form.storeIds.length;
-    if (count === 0 || total <= 0) return;
-    const perStore = Math.floor(total / count);
-    const remainder = total % count;
-    const nextHours: Record<string, string> = { ...form.storeMaxHours };
-    form.storeIds.forEach((storeId, idx) => {
-      const allotted = idx === 0 ? perStore + remainder : perStore;
-      nextHours[storeId] = String(allotted);
+  function setStoreMode(storeId: string, mode: "AUTO" | "CUSTOM") {
+    if (!canManageEmployees) return;
+
+    setForm((f) => {
+      const nextModes = { ...f.storeModes, [storeId]: mode };
+      const nextHours = { ...f.storeMaxHours };
+
+      if (mode === "CUSTOM") {
+        if (!nextHours[storeId] || nextHours[storeId] === "") {
+          nextHours[storeId] = String(effectiveStoreHours[storeId] ?? 0);
+        }
+      } else {
+        delete nextHours[storeId];
+      }
+
+      return {
+        ...f,
+        storeModes: nextModes,
+        storeMaxHours: nextHours,
+      };
     });
-    setForm((f) => ({ ...f, storeMaxHours: nextHours }));
+  }
+
+  function setCustomHours(storeId: string, value: string) {
+    if (!canManageEmployees) return;
+
+    setForm((f) => ({
+      ...f,
+      storeMaxHours: {
+        ...f.storeMaxHours,
+        [storeId]: value,
+      },
+    }));
   }
 
   function renderEmployeeForm(submitLabel: string) {
@@ -624,105 +697,145 @@ export function EmployeePageClient({ userRole, userPermissions, companyId }: { u
           <label className="mb-1 block text-sm font-medium">Email</label>
           <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
         </div>
-        <div className="md:col-span-2">
-          <label className="mb-2 block text-sm font-medium">Cửa hàng phụ trách *</label>
-          <div className="flex flex-wrap gap-2">
-            {stores.map((store) => (
-              <button
-                key={store.id}
-                type="button"
-                onClick={() => toggleStore(store.id)}
-                className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${form.storeIds.includes(store.id) ? "border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-700" : "border-slate-300 dark:border-[#3C3C3C] text-slate-700 dark:text-neutral-300"}`}
-              >
-                {store.name}
-              </button>
-            ))}
+        <div className="md:col-span-2 space-y-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="block text-sm font-semibold text-slate-900 dark:text-neutral-100">
+                Cửa hàng phụ trách & Định mức giờ làm việc *
+              </label>
+              <p className="text-xs text-slate-500 dark:text-neutral-400">
+                Bật công tắc để phân công nhân viên. Chọn chế độ Tự động (hệ thống tự cân đối số giờ) hoặc Tùy chỉnh.
+              </p>
+            </div>
+            <span className="text-xs font-medium text-slate-600 dark:text-neutral-300">
+              Đã chọn: <strong className="text-blue-600 dark:text-blue-400">{form.storeIds.length}</strong>/{stores.length} cửa hàng
+            </span>
           </div>
-        </div>
 
-        {form.storeIds.length > 0 && (() => {
-          const totalMonthlyHours = Number(form.maxHoursPerMonth) || 0;
-          const totalAllocatedHours = form.storeIds.reduce((sum, id) => {
-            const val = Number(form.storeMaxHours[id]) || 0;
-            return sum + val;
-          }, 0);
-          const isOverAllocated = totalAllocatedHours > totalMonthlyHours;
+          <div className="space-y-2 rounded-xl border border-slate-200 dark:border-[#333333] bg-slate-50/50 dark:bg-[#1A1A1A]/40 p-3">
+            {stores.map((store) => {
+              const isAssigned = form.storeIds.includes(store.id);
+              const mode = form.storeModes[store.id] ?? "AUTO";
+              const computedHours = effectiveStoreHours[store.id] ?? 0;
+              const customValue = form.storeMaxHours[store.id] ?? "";
 
-          return (
-            <div className="md:col-span-2 rounded-xl border border-slate-200 dark:border-[#333333] bg-slate-50/70 dark:bg-[#1E1E1E]/60 p-4 space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <span className="text-sm font-semibold text-slate-800 dark:text-neutral-200">
-                    Quy định số giờ tối đa theo từng cửa hàng (Tùy chọn)
-                  </span>
-                  <p className="text-xs text-slate-500 dark:text-neutral-400">
-                    Phân bổ định mức giờ/tháng cho từng cửa hàng. Để trống nếu không giới hạn riêng theo cửa hàng.
-                  </p>
-                </div>
-                {form.storeIds.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={distributeHoursEvenly}
-                    className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/60 px-2.5 py-1 rounded-md bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 transition-colors"
-                  >
-                    ⚡ Chia đều {form.maxHoursPerMonth || 0}h
-                  </button>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-                {form.storeIds.map((storeId) => {
-                  const store = stores.find((s) => s.id === storeId);
-                  if (!store) return null;
-                  const hoursVal = form.storeMaxHours[storeId] ?? "";
-
-                  return (
-                    <div
-                      key={storeId}
-                      className="flex items-center justify-between gap-3 p-2.5 rounded-lg border border-slate-200 dark:border-[#333333] bg-white dark:bg-[#252526]"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">
-                          {store.name}
-                        </p>
-                        <p className="text-[11px] text-slate-400 dark:text-neutral-400">Tối đa tại cửa hàng</p>
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <Input
-                          type="text"
-                          inputMode="numeric"
-                          placeholder="VD: 90"
-                          className="w-20 text-center h-8 text-xs font-bold"
-                          value={hoursVal}
-                          onChange={(e) => {
-                            const val = e.target.value.replace(/[^\d]/g, "");
-                            setForm((f) => ({
-                              ...f,
-                              storeMaxHours: {
-                                ...f.storeMaxHours,
-                                [storeId]: val,
-                              },
-                            }));
-                          }}
-                        />
-                        <span className="text-xs font-medium text-slate-500 dark:text-neutral-400">
-                          giờ
-                        </span>
-                      </div>
+              return (
+                <div
+                  key={store.id}
+                  className={cn(
+                    "flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg border transition-all",
+                    isAssigned
+                      ? "bg-white dark:bg-[#252526] border-blue-200 dark:border-blue-900/60 shadow-2xs"
+                      : "bg-white/60 dark:bg-[#202020]/60 border-slate-200 dark:border-[#2D2D30] opacity-75 hover:opacity-100"
+                  )}
+                >
+                  {/* Cột trái: Công tắc (Switch) + Tên cửa hàng */}
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Switch
+                      checked={isAssigned}
+                      onCheckedChange={() => toggleStore(store.id)}
+                    />
+                    <div className="min-w-0">
+                      <span
+                        onClick={() => toggleStore(store.id)}
+                        className={cn(
+                          "text-sm font-semibold cursor-pointer select-none",
+                          isAssigned
+                            ? "text-slate-900 dark:text-white"
+                            : "text-slate-500 dark:text-neutral-400"
+                        )}
+                      >
+                        {store.name}
+                      </span>
+                      <p className="text-[11px] text-slate-400 dark:text-neutral-500">
+                        {isAssigned ? "Đang được phân công phụ trách" : "Chưa phân công"}
+                      </p>
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
 
-              {totalAllocatedHours > 0 && (
-                <div className="flex flex-wrap items-center justify-between text-xs pt-1 px-1 gap-2 border-t border-slate-200/60 dark:border-[#333333]/60">
-                  <span className="text-slate-500 dark:text-neutral-400">
-                    Tổng giờ đã phân bổ:{" "}
-                    <strong className={isOverAllocated ? "text-rose-600 dark:text-rose-400 font-bold" : "text-emerald-600 dark:text-emerald-400 font-bold"}>
+                  {/* Cột phải: Khi bật công tắc -> Hiện bộ điều khiển số giờ tối đa */}
+                  {isAssigned && (
+                    <div className="flex items-center gap-2 shrink-0 pl-11 sm:pl-0">
+                      <div className="flex items-center rounded-lg bg-slate-100 dark:bg-[#1E1E1E] p-0.5 border border-slate-200 dark:border-[#333333]">
+                        <button
+                          type="button"
+                          onClick={() => setStoreMode(store.id, "AUTO")}
+                          className={cn(
+                            "px-2.5 py-1 text-xs rounded-md font-medium transition-all",
+                            mode === "AUTO"
+                              ? "bg-white dark:bg-[#2D2D30] text-blue-600 dark:text-blue-400 shadow-2xs font-semibold"
+                              : "text-slate-500 dark:text-neutral-400 hover:text-slate-800 dark:hover:text-neutral-200"
+                          )}
+                        >
+                          Tự động
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setStoreMode(store.id, "CUSTOM")}
+                          className={cn(
+                            "px-2.5 py-1 text-xs rounded-md font-medium transition-all",
+                            mode === "CUSTOM"
+                              ? "bg-white dark:bg-[#2D2D30] text-blue-600 dark:text-blue-400 shadow-2xs font-semibold"
+                              : "text-slate-500 dark:text-neutral-400 hover:text-slate-800 dark:hover:text-neutral-200"
+                          )}
+                        >
+                          Tùy chỉnh
+                        </button>
+                      </div>
+
+                      {mode === "CUSTOM" ? (
+                        <div className="flex items-center gap-1.5">
+                          <Input
+                            type="text"
+                            inputMode="numeric"
+                            placeholder={String(computedHours)}
+                            className="w-20 text-center h-8 text-xs font-bold"
+                            value={customValue}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/[^\d]/g, "");
+                              setCustomHours(store.id, val);
+                            }}
+                          />
+                          <span className="text-xs font-medium text-slate-500 dark:text-neutral-400">
+                            giờ
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-slate-100 dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#333333]">
+                          <span className="text-xs font-bold text-slate-800 dark:text-neutral-200">
+                            {computedHours}
+                          </span>
+                          <span className="text-[11px] font-medium text-slate-500 dark:text-neutral-400">
+                            giờ
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {form.storeIds.length > 0 && (() => {
+              const totalMonthlyHours = Number(form.maxHoursPerMonth) || 0;
+              const isOverAllocated = totalAllocatedHours > totalMonthlyHours;
+
+              return (
+                <div className="flex flex-wrap items-center justify-between text-xs pt-2.5 px-1 border-t border-slate-200/70 dark:border-[#333333]/70 gap-2">
+                  <span className="text-slate-600 dark:text-neutral-400">
+                    Tổng giờ các cửa hàng:{" "}
+                    <strong
+                      className={
+                        isOverAllocated
+                          ? "text-rose-600 dark:text-rose-400 font-bold"
+                          : "text-emerald-600 dark:text-emerald-400 font-bold"
+                      }
+                    >
                       {totalAllocatedHours}h
                     </strong>{" "}
                     / {totalMonthlyHours}h
                   </span>
+
                   {isOverAllocated ? (
                     <span className="text-rose-600 dark:text-rose-400 font-medium">
                       ⚠️ Vượt quá tổng định mức ({totalAllocatedHours - totalMonthlyHours}h)
@@ -737,10 +850,10 @@ export function EmployeePageClient({ userRole, userPermissions, companyId }: { u
                     </span>
                   )}
                 </div>
-              )}
-            </div>
-          );
-        })()}
+              );
+            })()}
+          </div>
+        </div>
         <div className="md:col-span-2 flex gap-2">
           <Button type="submit">{submitLabel}</Button>
           {editingId && (

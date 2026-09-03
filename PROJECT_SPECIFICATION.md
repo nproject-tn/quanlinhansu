@@ -220,10 +220,17 @@
     * **Giới hạn kiểm thực linh hoạt (Flexible Validation Limits)**: Hỗ trợ số ca tối đa/tháng lên đến **300 ca/tháng** và số giờ tối đa lên đến **720 giờ/tháng** (thay vì giới hạn cũ 62 ca) để đáp ứng trọn vẹn cho các mô hình ca ngắn, ca livestream liên tục 2h - 2.5h/ca nhiều ca trong ngày.
   * Gán cửa hàng & Phân bổ giờ theo từng cửa hàng (`EmployeeStore`):
     * Một nhân viên có thể được phân quyền làm việc tại một hoặc nhiều cửa hàng.
-    * **Quy định số giờ tối đa cho từng cửa hàng phụ trách (Store-Specific Monthly Max Hours)**: Ngoài tổng số giờ tối đa/tháng của nhân viên, hệ thống cho phép chỉ định số giờ tối đa cụ thể tại từng chi nhánh (ví dụ: tổng 140h gồm 90h tại Cửa hàng A và 50h tại Cửa hàng B).
-    * Hỗ trợ nút thao tác nhanh **⚡ Chia đều giờ** tự động tính toán phân bổ đều tổng số giờ cho các chi nhánh đã chọn, kèm thanh đối chiếu đối soát trực quan (`Tổng giờ đã phân bổ: ...h / ...h`) báo lỗi nếu vượt quá tổng định mức.
+    * **Giao diện Danh sách Cửa hàng Xếp dọc kèm Công tắc (Vertical Store List with Switches)**:
+      * Mỗi cửa hàng là một hàng riêng biệt xếp dọc, có công tắc (`Switch`) bên cạnh tên cửa hàng.
+      * Bật công tắc để phân công nhân viên làm việc tại cửa hàng đó; tắt công tắc để gỡ phân công.
+    * **Quy định số giờ tối đa cho từng cửa hàng (Chế độ Tự động & Tùy chỉnh)**:
+      * Khi bật công tắc tại một cửa hàng, bên cạnh hiển thị tính năng quy định số giờ tối đa với 2 chế độ:
+        * **Tự động (Auto)**: Hệ thống tự động cân đối và phân bổ số giờ còn lại từ tổng định mức tháng của nhân viên (`maxHoursPerMonth`), đảm bảo không bị trống dữ liệu.
+        * **Tùy chỉnh (Custom)**: Cho phép người dùng nhập trực tiếp số giờ cụ thể vào ô nhập liệu.
+      * **Cơ chế Tự động Trừ Số giờ Còn lại (Automatic Residual Deduction)**: Ví dụ khi tổng định mức là 140h, nếu người dùng chuyển Cửa hàng 1 sang *Tùy chỉnh* và nhập 80h, ô của Cửa hàng 2 (đang ở chế độ *Tự động*) sẽ tự động lấy `140h - 80h = 60h` để luôn khớp tổng số giờ mà người dùng không cần tính toán hay nhập thủ công.
+      * **Thanh đối chiếu tổng giờ trực quan**: Hiển thị tỷ lệ giờ phân bổ (`...h / ...h`) với màu xanh khi khớp 100% hoặc cảnh báo màu đỏ nếu người dùng nhập vượt tổng định mức.
     * **Áp dụng vào Xếp ca tự động (Auto-Scheduling)**: Thuật toán `autoAssignShifts` và `validateAssignment` tự động tuân thủ chặt chẽ định mức giờ theo từng cửa hàng (`STORE_MONTHLY_MAX_HOURS`), loại bỏ ứng viên vượt quá hạn mức giờ của cửa hàng đó khi chạy xếp ca tự động.
-    * Hiển thị trực quan trên bảng danh sách nhân viên kèm số giờ phân bổ theo từng cửa hàng: `[Tên CH 1] (90h), [Tên CH 2] (50h)`.
+    * Hiển thị trực quan trên bảng danh sách nhân viên kèm số giờ phân bổ theo từng cửa hàng: `[Tên CH 1] (80h), [Tên CH 2] (60h)`.
   * **Bộ lọc Đa lựa chọn Thông minh & Cơ chế Lọc Xếp tầng 2 Chiều (Bidirectional Cascading Multi-Select Filters)**:
     * **Lọc Trạng thái (`Select`)**: Phân loại theo "Đang làm việc", "Đã nghỉ việc", hoặc "Tất cả trạng thái". Đóng vai trò **Bộ lọc gốc (Master Filter)** thiết lập tập ứng viên hợp lệ:
       * Khi chọn *Đang làm việc*: Bộ lọc nhân viên chỉ hiển thị nhân sự đang hoạt động; Bộ lọc cửa hàng chỉ hiển thị các cửa hàng mà nhân sự đang làm việc phụ trách.
