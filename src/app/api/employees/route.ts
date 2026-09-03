@@ -33,6 +33,7 @@ export async function GET() {
           store: { isActive: true },
         },
         select: {
+          maxHoursPerMonth: true,
           store: { select: { id: true, name: true } },
         },
       },
@@ -54,7 +55,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { storeIds, ...data } = parsed.data;
+  const { storeIds, storeMaxHours, ...data } = parsed.data;
 
   const employee = await prisma.employee.create({
     data: {
@@ -63,7 +64,10 @@ export async function POST(request: Request) {
       email: data.email || null,
       phone: data.phone || null,
       stores: {
-        create: storeIds.map((storeId) => ({ storeId })),
+        create: storeIds.map((storeId) => ({
+          storeId,
+          maxHoursPerMonth: storeMaxHours?.[storeId] ?? null,
+        })),
       },
     },
     select: {
@@ -81,6 +85,7 @@ export async function POST(request: Request) {
       isActive: true,
       stores: {
         select: {
+          maxHoursPerMonth: true,
           store: { select: { id: true, name: true } },
         },
       },
@@ -89,7 +94,9 @@ export async function POST(request: Request) {
 
   const { session, user } = await requireAuth(["OWNER"], { module: "employees", action: "EDIT" });
   if (user) {
-    const storeNames = employee.stores.map((s) => s.store.name);
+    const storeDescriptions = employee.stores.map((s) => 
+      s.maxHoursPerMonth ? `${s.store.name} (${s.maxHoursPerMonth}h)` : s.store.name
+    );
     const empTypeLabel = employee.employmentType === "FULL_TIME" 
       ? "Toàn thời gian (Full-time)" 
       : employee.employmentType === "PART_TIME" 
@@ -111,11 +118,11 @@ export async function POST(request: Request) {
       targetType: "Employee",
       targetId: employee.id,
       targetName: employee.name,
-      description: `Đã thêm nhân viên mới: ${employee.name} (${employee.position || "Nhân viên"}) tại ${storeNames.length > 0 ? storeNames.join(", ") : "chưa phân công cửa hàng"}`,
+      description: `Đã thêm nhân viên mới: ${employee.name} (${employee.position || "Nhân viên"}) tại ${storeDescriptions.length > 0 ? storeDescriptions.join(", ") : "chưa phân công cửa hàng"}`,
       details: {
         name: employee.name,
         position: employee.position || "Nhân viên",
-        stores: storeNames.length > 0 ? storeNames.join(", ") : "Chưa phân công",
+        stores: storeDescriptions.length > 0 ? storeDescriptions.join(", ") : "Chưa phân công",
         employmentType: empTypeLabel,
         salaryType: salTypeLabel,
       },

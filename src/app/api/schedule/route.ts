@@ -425,7 +425,7 @@ export async function POST(request: Request) {
             name: true,
             maxShiftsPerMonth: true,
             maxHoursPerMonth: true,
-            stores: { select: { storeId: true } },
+            stores: { select: { storeId: true, maxHoursPerMonth: true } },
           },
           orderBy: { name: "asc" },
         }),
@@ -515,6 +515,12 @@ export async function POST(request: Request) {
         maxShiftsPerMonth: e.maxShiftsPerMonth,
         maxHoursPerMonth: e.maxHoursPerMonth,
         storeIds: e.stores.map((s) => s.storeId),
+        storeMaxHours: e.stores.reduce((acc, s) => {
+          if (s.maxHoursPerMonth !== null && s.maxHoursPerMonth !== undefined) {
+            acc[s.storeId] = s.maxHoursPerMonth;
+          }
+          return acc;
+        }, {} as Record<string, number>),
       })),
       contextShifts,
       stores as any,

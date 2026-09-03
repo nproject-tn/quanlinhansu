@@ -29,7 +29,7 @@ export type AssignmentSlot = {
 };
 
 export type ScheduleConflict = {
-  type: "OVERLAP" | "DAILY_MAX_SHIFTS" | "DAILY_MAX_HOURS" | "MONTHLY_MAX_SHIFTS" | "MONTHLY_MAX_HOURS" | "OVER_CAPACITY" | "SINGLE_STAFF";
+  type: "OVERLAP" | "DAILY_MAX_SHIFTS" | "DAILY_MAX_HOURS" | "MONTHLY_MAX_SHIFTS" | "MONTHLY_MAX_HOURS" | "STORE_MONTHLY_MAX_HOURS" | "OVER_CAPACITY" | "SINGLE_STAFF";
   message: string;
   employeeId?: string;
   date?: string;
@@ -255,12 +255,13 @@ export function buildAssignmentSlots(
   return slots;
 }
 
-type EmployeeForSchedule = {
+export type EmployeeForSchedule = {
   id: string;
   name: string;
   maxShiftsPerMonth: number;
   maxHoursPerMonth: number;
   storeIds: string[];
+  storeMaxHours?: Record<string, number | null>;
 };
 
 export type AssignmentRecord = {
@@ -590,6 +591,16 @@ function scoreCandidate(
   score -= sameDayShifts.length * 40;
   score += Math.max(0, employee.maxHoursPerMonth - monthHours) * 0.5;
 
+  const storeLimit = employee.storeMaxHours?.[slot.storeId];
+  if (storeLimit !== undefined && storeLimit !== null && storeLimit > 0) {
+    const storeHours = calculateTotalMonthlyHours(
+      employeeMonthAssignments
+        .filter((a) => a.storeId === slot.storeId)
+        .map((a) => ({ date: a.date, shift: a.shift }))
+    );
+    score += Math.max(0, storeLimit - (storeHours + shift.durationHours)) * 1.5;
+  }
+
   score += stableNoise(`${employee.id}|${slot.storeId}|${slot.shiftTemplateId}|${slotDateKey}`);
 
   return score;
@@ -771,6 +782,31 @@ export function validateAssignment(
         employeeId,
         date: dateStr,
       });
+    }
+
+    const storeLimit = employee.storeMaxHours?.[storeId];
+    if (storeLimit !== undefined && storeLimit !== null && storeLimit > 0) {
+      const storeMonthHours = calculateTotalMonthlyHours(
+        allAssignments
+          .filter(
+            (a) =>
+              a.employeeId === employeeId &&
+              a.storeId === storeId &&
+              getUtcMonthKey(a.date) === getUtcMonthKey(date)
+          )
+          .map(a => ({ date: a.date, shift: { startTime: a.shiftTemplate.startTime, endTime: a.shiftTemplate.endTime } }))
+      );
+
+      const newStoreHours = storeMonthHours + targetShift.durationHours;
+      if (newStoreHours > storeLimit) {
+        const exceededStoreHours = Math.round((newStoreHours - storeLimit) * 10) / 10;
+        conflicts.push({
+          type: "STORE_MONTHLY_MAX_HOURS",
+          message: `Vượt số giờ tối đa/tháng tại cửa hàng này (${storeLimit}h). Số giờ nếu xếp: ${newStoreHours}h (vượt ${exceededStoreHours}h)`,
+          employeeId,
+          date: dateStr,
+        });
+      }
     }
 
     const monthShifts = allAssignments.filter(

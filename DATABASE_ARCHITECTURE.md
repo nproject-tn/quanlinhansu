@@ -84,7 +84,7 @@ Hệ thống quản lý theo mô hình **Multi-Tenant (Mỗi khách hàng/công 
 | 9 | `VerificationToken`| Auth | Mã xác thực token |
 | 10 | `Store` | Nhân sự & Cửa hàng | Cửa hàng / chi nhánh |
 | 11 | `Employee` | Nhân sự & Cửa hàng | Hồ sơ nhân viên, loại lương, định mức |
-| 12 | `EmployeeStore` | Nhân sự & Cửa hàng | Phân bổ nhân viên vào các cửa hàng |
+| 12 | `EmployeeStore` | Nhân sự & Cửa hàng | Phân bổ nhân viên vào các cửa hàng & định mức giờ theo cửa hàng (`maxHoursPerMonth`) |
 | 13 | `ShiftTemplate` | Xếp ca | Mẫu khung giờ ca làm việc |
 | 14 | `StaffingRule` | Xếp ca | Định mức nhân sự theo thứ trong tuần |
 | 15 | `StaffingOverride`| Xếp ca | Định mức nhân sự theo ngày cụ thể |

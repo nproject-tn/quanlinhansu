@@ -13,6 +13,7 @@ export const employeeSchema = z.object({
   maxShiftsPerMonth: z.number().min(1, "Số ca/tháng tối thiểu là 1").max(300, "Số ca/tháng không được vượt quá 300"),
   maxHoursPerMonth: z.number().min(1, "Số giờ/tháng tối thiểu là 1").max(720, "Số giờ/tháng không được vượt quá 720"),
   storeIds: z.array(z.string()).min(1, "Chọn ít nhất 1 cửa hàng"),
+  storeMaxHours: z.record(z.string(), z.number().min(0).max(720).nullable()).optional(),
   isActive: z.boolean().default(true),
 });
 

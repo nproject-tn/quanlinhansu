@@ -94,6 +94,7 @@ const DETAIL_KEY_LABELS: Record<string, string> = {
   addedStores: "Phân công thêm cửa hàng",
   removedStores: "Gỡ phụ trách tại cửa hàng",
   currentStores: "Cửa hàng phụ trách hiện tại",
+  storeHoursChanges: "Định mức giờ theo cửa hàng",
   nameChange: "Thay đổi họ tên",
   employeeId: "Nhân viên",
   employeeName: "Nhân viên",
@@ -240,6 +241,7 @@ function renderAuditDetails(details: any) {
               "addedStores",
               "removedStores",
               "currentStores",
+              "storeHoursChanges",
               "nameChange",
               "address",
             ].includes(key);

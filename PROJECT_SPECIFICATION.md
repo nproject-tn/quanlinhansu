@@ -121,7 +121,7 @@
 9. **VerificationToken**: NextAuth token xác thực email.
 10. **Store**: Chi nhánh / Cửa hàng (id, companyId, name, code, address, phone, managerName, status, openingHours JSON, displayOrder).
 11. **Employee**: Hồ sơ nhân sự (id, companyId, code, name, email, phone, avatar, position, contractType, baseSalary, hourlyRate, targetHours, status, joinedDate).
-12. **EmployeeStore**: Quan hệ Nhân viên - Cửa hàng được phép làm việc (id, companyId, employeeId, storeId).
+12. **EmployeeStore**: Quan hệ Nhân viên - Cửa hàng được phép làm việc & Định mức giờ theo cửa hàng (id, employeeId, storeId, maxHoursPerMonth).
 13. **ShiftTemplate**: Ca làm việc mẫu (id, companyId, name, code, startTime, endTime, breakMinutes, durationHours, payMultiplier, color, isNightShift).
 14. **StaffingRule**: Quy tắc định biên nhân sự theo doanh thu / theo giờ (id, companyId, storeId, dayOfWeek, shiftTemplateId, minStaff, targetRevenue).
 15. **StaffingOverride**: Ngoại lệ định biên ngày lễ/sự kiện (id, companyId, storeId, date, shiftTemplateId, requiredStaff, note).
@@ -218,7 +218,12 @@
   * Định mức giờ làm mục tiêu (Target hours/tháng) & Số ca tối đa/tháng:
     * **Cơ chế tính toán 2 chiều tự động (Bidirectional Shift-Hour Sync)**: Khi người dùng nhập số giờ tối đa/tháng, hệ thống tự động quy đổi ra số ca dựa trên thời lượng ca trung bình (~2.6h - 3h/ca) và ngược lại.
     * **Giới hạn kiểm thực linh hoạt (Flexible Validation Limits)**: Hỗ trợ số ca tối đa/tháng lên đến **300 ca/tháng** và số giờ tối đa lên đến **720 giờ/tháng** (thay vì giới hạn cũ 62 ca) để đáp ứng trọn vẹn cho các mô hình ca ngắn, ca livestream liên tục 2h - 2.5h/ca nhiều ca trong ngày.
-  * Gán cửa hàng: Một nhân viên có thể được phân quyền làm việc tại một hoặc nhiều cửa hàng (`EmployeeStore`).
+  * Gán cửa hàng & Phân bổ giờ theo từng cửa hàng (`EmployeeStore`):
+    * Một nhân viên có thể được phân quyền làm việc tại một hoặc nhiều cửa hàng.
+    * **Quy định số giờ tối đa cho từng cửa hàng phụ trách (Store-Specific Monthly Max Hours)**: Ngoài tổng số giờ tối đa/tháng của nhân viên, hệ thống cho phép chỉ định số giờ tối đa cụ thể tại từng chi nhánh (ví dụ: tổng 140h gồm 90h tại Cửa hàng A và 50h tại Cửa hàng B).
+    * Hỗ trợ nút thao tác nhanh **⚡ Chia đều giờ** tự động tính toán phân bổ đều tổng số giờ cho các chi nhánh đã chọn, kèm thanh đối chiếu đối soát trực quan (`Tổng giờ đã phân bổ: ...h / ...h`) báo lỗi nếu vượt quá tổng định mức.
+    * **Áp dụng vào Xếp ca tự động (Auto-Scheduling)**: Thuật toán `autoAssignShifts` và `validateAssignment` tự động tuân thủ chặt chẽ định mức giờ theo từng cửa hàng (`STORE_MONTHLY_MAX_HOURS`), loại bỏ ứng viên vượt quá hạn mức giờ của cửa hàng đó khi chạy xếp ca tự động.
+    * Hiển thị trực quan trên bảng danh sách nhân viên kèm số giờ phân bổ theo từng cửa hàng: `[Tên CH 1] (90h), [Tên CH 2] (50h)`.
   * **Bộ lọc Đa lựa chọn Thông minh & Cơ chế Lọc Xếp tầng 2 Chiều (Bidirectional Cascading Multi-Select Filters)**:
     * **Lọc Trạng thái (`Select`)**: Phân loại theo "Đang làm việc", "Đã nghỉ việc", hoặc "Tất cả trạng thái". Đóng vai trò **Bộ lọc gốc (Master Filter)** thiết lập tập ứng viên hợp lệ:
       * Khi chọn *Đang làm việc*: Bộ lọc nhân viên chỉ hiển thị nhân sự đang hoạt động; Bộ lọc cửa hàng chỉ hiển thị các cửa hàng mà nhân sự đang làm việc phụ trách.

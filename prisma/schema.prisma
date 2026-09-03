@@ -285,11 +285,12 @@ model Employee {
 }
 
 model EmployeeStore {
-  id         String   @id @default(cuid())
-  employeeId String
-  storeId    String
-  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  store      Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  id               String   @id @default(cuid())
+  employeeId       String
+  storeId          String
+  maxHoursPerMonth Float?
+  employee         Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  store            Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   @@unique([employeeId, storeId])
   @@index([storeId])

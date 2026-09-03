@@ -78,7 +78,7 @@ export async function updateAssignment(
         name: true,
         maxShiftsPerMonth: true,
         maxHoursPerMonth: true,
-        stores: { select: { storeId: true } },
+        stores: { select: { storeId: true, maxHoursPerMonth: true } },
       },
     }),
     prisma.shiftAssignment.findMany({
@@ -166,6 +166,12 @@ export async function updateAssignment(
       maxShiftsPerMonth: employee.maxShiftsPerMonth,
       maxHoursPerMonth: employee.maxHoursPerMonth,
       storeIds: employee.stores.map((s) => s.storeId),
+      storeMaxHours: employee.stores.reduce((acc, s) => {
+        if (s.maxHoursPerMonth !== null && s.maxHoursPerMonth !== undefined) {
+          acc[s.storeId] = s.maxHoursPerMonth;
+        }
+        return acc;
+      }, {} as Record<string, number>),
     },
     {
       maxShiftsPerDay: store?.maxShiftsPerDay ?? null,
@@ -178,10 +184,10 @@ export async function updateAssignment(
   );
 
   const hasHardConflict = conflicts.some(
-    (conflict) => !["MONTHLY_MAX_HOURS", "MONTHLY_MAX_SHIFTS", "DAILY_MAX_HOURS", "DAILY_MAX_SHIFTS"].includes(conflict.type)
+    (conflict) => !["MONTHLY_MAX_HOURS", "MONTHLY_MAX_SHIFTS", "STORE_MONTHLY_MAX_HOURS", "DAILY_MAX_HOURS", "DAILY_MAX_SHIFTS"].includes(conflict.type)
   );
   const requiresConfirmation = conflicts.some(
-    (conflict) => ["MONTHLY_MAX_HOURS", "MONTHLY_MAX_SHIFTS", "DAILY_MAX_HOURS", "DAILY_MAX_SHIFTS"].includes(conflict.type)
+    (conflict) => ["MONTHLY_MAX_HOURS", "MONTHLY_MAX_SHIFTS", "STORE_MONTHLY_MAX_HOURS", "DAILY_MAX_HOURS", "DAILY_MAX_SHIFTS"].includes(conflict.type)
   );
 
   if (conflicts.length > 0 && (hasHardConflict || !input.confirmOverCapacity)) {
@@ -270,7 +276,7 @@ export async function moveAssignment(
             name: true,
             maxShiftsPerMonth: true,
             maxHoursPerMonth: true,
-            stores: { select: { storeId: true } },
+            stores: { select: { storeId: true, maxHoursPerMonth: true } },
           },
         },
         shiftTemplate: {
@@ -304,7 +310,7 @@ export async function moveAssignment(
             name: true,
             maxShiftsPerMonth: true,
             maxHoursPerMonth: true,
-            stores: { select: { storeId: true } },
+            stores: { select: { storeId: true, maxHoursPerMonth: true } },
           },
         },
       },
@@ -432,6 +438,12 @@ export async function moveAssignment(
       maxShiftsPerMonth: source.employee.maxShiftsPerMonth,
       maxHoursPerMonth: source.employee.maxHoursPerMonth,
       storeIds: source.employee.stores.map((store) => store.storeId),
+      storeMaxHours: source.employee.stores.reduce((acc, s) => {
+        if (s.maxHoursPerMonth !== null && s.maxHoursPerMonth !== undefined) {
+          acc[s.storeId] = s.maxHoursPerMonth;
+        }
+        return acc;
+      }, {} as Record<string, number>),
     },
     {
       maxShiftsPerDay: targetStore?.maxShiftsPerDay ?? null,
@@ -463,6 +475,12 @@ export async function moveAssignment(
             maxShiftsPerMonth: targetAssignment.employee.maxShiftsPerMonth,
             maxHoursPerMonth: targetAssignment.employee.maxHoursPerMonth,
             storeIds: targetAssignment.employee.stores.map((store) => store.storeId),
+            storeMaxHours: targetAssignment.employee.stores.reduce((acc, s) => {
+              if (s.maxHoursPerMonth !== null && s.maxHoursPerMonth !== undefined) {
+                acc[s.storeId] = s.maxHoursPerMonth;
+              }
+              return acc;
+            }, {} as Record<string, number>),
           },
           {
             maxShiftsPerDay: sourceStore?.maxShiftsPerDay ?? null,
@@ -476,7 +494,7 @@ export async function moveAssignment(
       : [];
 
   const conflicts = [...sourceConflicts, ...targetConflicts].filter(
-    (c) => c.type !== "MONTHLY_MAX_HOURS" && c.type !== "MONTHLY_MAX_SHIFTS"
+    (c) => c.type !== "MONTHLY_MAX_HOURS" && c.type !== "MONTHLY_MAX_SHIFTS" && c.type !== "STORE_MONTHLY_MAX_HOURS"
   );
   const hasHardConflict = conflicts.some(
     (conflict) => conflict.type !== "DAILY_MAX_HOURS" && conflict.type !== "DAILY_MAX_SHIFTS"

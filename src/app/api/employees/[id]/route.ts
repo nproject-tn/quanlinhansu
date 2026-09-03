@@ -85,7 +85,7 @@ export async function PUT(request: Request, { params }: Params) {
     return NextResponse.json({ error: "Không tìm thấy nhân viên" }, { status: 404 });
   }
 
-  const { storeIds, ...data } = parsed.data;
+  const { storeIds, storeMaxHours, ...data } = parsed.data;
 
   await prisma.employeeStore.deleteMany({ where: { employeeId: id, store: { companyId } } });
 
@@ -96,7 +96,10 @@ export async function PUT(request: Request, { params }: Params) {
       email: data.email || null,
       phone: data.phone || null,
       stores: {
-        create: storeIds.map((storeId) => ({ storeId })),
+        create: storeIds.map((storeId) => ({
+          storeId,
+          maxHoursPerMonth: storeMaxHours?.[storeId] ?? null,
+        })),
       },
     },
     include: {
@@ -160,8 +163,34 @@ export async function PUT(request: Request, { params }: Params) {
       changeDetails.addedStores = addedStores.join(", ");
     }
 
-    if (addedStores.length > 0 || removedStores.length > 0) {
-      changeDetails.currentStores = newStoreNames.length > 0 ? newStoreNames.join(", ") : "Không có cửa hàng phụ trách";
+    // Check store hours changes
+    const storeHoursChanged: string[] = [];
+    for (const s of employee.stores) {
+      const oldStore = existing.stores.find((es) => es.storeId === s.storeId);
+      const oldHours = oldStore?.maxHoursPerMonth ?? null;
+      const newHours = s.maxHoursPerMonth ?? null;
+      if (oldHours !== newHours) {
+        if (newHours !== null) {
+          storeHoursChanged.push(`${s.store.name}: ${newHours}h`);
+        } else {
+          storeHoursChanged.push(`${s.store.name}: Bỏ định mức giờ`);
+        }
+      }
+    }
+
+    if (storeHoursChanged.length > 0) {
+      changes.push(`Định mức giờ theo cửa hàng: ${storeHoursChanged.join(", ")}`);
+      changeDetails.storeHoursChanges = storeHoursChanged.join(" • ");
+    }
+
+    const currentStoreDescriptions = employee.stores.map((s) =>
+      s.maxHoursPerMonth ? `${s.store.name} (${s.maxHoursPerMonth}h)` : s.store.name
+    );
+
+    if (addedStores.length > 0 || removedStores.length > 0 || storeHoursChanged.length > 0) {
+      changeDetails.currentStores = currentStoreDescriptions.length > 0 
+        ? currentStoreDescriptions.join(", ") 
+        : "Không có cửa hàng phụ trách";
     }
 
     const description = changes.length > 0
