@@ -102,7 +102,7 @@ export function getShiftContainmentError(
   }
 
   if (isShiftContained(existing.startTime, existing.endTime, candidate.startTime, candidate.endTime)) {
-    return `Khung giờ ${candidate.startTime} - ${candidate.endTime} không hợp lệ vì bị lọt lòng hoặc bao trọn ca "${existing.name}" (${existing.startTime} - ${existing.endTime}) của cửa hàng.`;
+    return `Khung giờ ${candidate.startTime} - ${candidate.endTime} không hợp lệ vì bị trùng bên trong ca "${existing.name}" (${existing.startTime} - ${existing.endTime}) của cửa hàng.`;
   }
 
   return null;
