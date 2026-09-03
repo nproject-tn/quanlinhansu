@@ -262,6 +262,10 @@
 * **Ca làm việc Mẫu (`/app/[companyId]/cau-hinh-ca`)**:
   * Khai báo các ca chuẩn: Ca Sáng (08:00 - 16:00), Ca Chiều (14:00 - 22:00), Ca Tối, Ca Gãy...
   * Thiết lập: Giờ bắt đầu, Giờ kết thúc, Thời gian nghỉ giữa ca (phút), Tổng giờ công thực tế, Hệ số lương (1.0, 1.5, 2.0 cho ca đêm/ngày lễ), Mã màu nhận diện.
+  * **Quy tắc Khung giờ Ca Làm việc**:
+    * **Chặn tạo 2 ca có giờ làm giống hệt nhau trong cùng một cửa hàng**: Hệ thống tuyệt đối không cho phép tạo hoặc chỉnh sửa 2 ca làm việc có cùng giờ bắt đầu (`startTime`) và giờ kết thúc (`endTime`) trong cùng một chi nhánh (áp dụng trên cả giao diện và API `POST/PUT /api/shift-templates`).
+    * **Bảo lưu logic giao nhau giữa các ca (Overlapping Shifts)**: Các ca làm việc vẫn được phép giao thoa/gối đầu nhau 1 tiếng hoặc nhiều tiếng (ví dụ: Ca 1 từ 08:00 - 12:00 và Ca 2 từ 11:00 - 15:00 giao nhau 1 tiếng) để phục vụ nhu cầu bàn giao ca hoặc tăng cường nhân sự giờ cao điểm.
+    * **Bộ sinh khung giờ mặc định tuần tự 24/7**: Khi thiết lập số ca/ngày tại cửa hàng (lên đến 8 ca), hệ thống tự động sinh các khung giờ kế tiếp nhau chia đều vòng tròn 24 tiếng mà không bị lặp lại khung giờ sáng.
 * **Quy tắc Định biên & Ngoại lệ**:
   * `StaffingRule`: Số lượng nhân sự tối thiểu của từng ca theo các thứ trong tuần (Thứ 2 -> Chủ Nhật).
   * `StaffingOverride`: Tăng cường định biên cho các dịp khuyến mãi Black Friday, Tết, Khai trương...

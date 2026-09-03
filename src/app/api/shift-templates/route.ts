@@ -68,6 +68,26 @@ export async function POST(request: Request) {
     );
   }
 
+  // Kiểm tra khung giờ ca có bị trùng hệt với ca ĐANG HOẠT ĐỘNG khác trong cùng cửa hàng không
+  const duplicateTimeShift = await prisma.shiftTemplate.findFirst({
+    where: {
+      companyId,
+      storeId: parsed.data.storeId,
+      startTime: parsed.data.startTime,
+      endTime: parsed.data.endTime,
+      isActive: true,
+    },
+  });
+
+  if (duplicateTimeShift) {
+    return NextResponse.json(
+      {
+        error: `Cửa hàng này đã có ca "${duplicateTimeShift.name}" với khung giờ ${duplicateTimeShift.startTime} - ${duplicateTimeShift.endTime}. Không thể tạo 2 ca có giờ làm giống hệt nhau.`,
+      },
+      { status: 400 }
+    );
+  }
+
   const durationHours = calcDurationHours(parsed.data.startTime, parsed.data.endTime);
   const template = await prisma.shiftTemplate.create({
     data: { ...parsed.data, durationHours, companyId },

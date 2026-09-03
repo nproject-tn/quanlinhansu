@@ -24,6 +24,7 @@ type ShiftTemplate = {
   endTime: string;
   durationHours: number;
   sortOrder: number;
+  isActive?: boolean;
 };
 type StaffingRule = {
   storeId: string;
@@ -607,6 +608,14 @@ export default function ShiftConfigClient({ canEdit }: { canEdit?: boolean }) {
   }
 
   async function saveEditShift(shift: ShiftTemplate) {
+    const duplicateTime = shifts.find(
+      (s) => s.id !== shift.id && s.isActive !== false && s.startTime === editForm.startTime && s.endTime === editForm.endTime
+    );
+    if (duplicateTime) {
+      setMessage(`Cửa hàng đã có "${duplicateTime.name}" với khung giờ ${duplicateTime.startTime} - ${duplicateTime.endTime}. Không thể tạo 2 ca có giờ làm giống hệt nhau.`);
+      return;
+    }
+
     const durationHours = calcDurationHours(editForm.startTime, editForm.endTime);
     const res = await fetch(`/api/shift-templates/${shift.id}`, {
       method: "PUT",
@@ -622,7 +631,11 @@ export default function ShiftConfigClient({ canEdit }: { canEdit?: boolean }) {
       }),
     });
 
-    if (!res.ok) return;
+    if (!res.ok) {
+      const data = await readJsonSafely<{ error?: string }>(res, {});
+      setMessage(data.error ?? "Lỗi cập nhật ca");
+      return;
+    }
 
     setEditingShift(null);
     await loadStoreConfig(selectedStore, selectedMonth);
@@ -630,6 +643,14 @@ export default function ShiftConfigClient({ canEdit }: { canEdit?: boolean }) {
   }
 
   async function saveNewShift() {
+    const duplicateTime = shifts.find(
+      (s) => s.isActive !== false && s.startTime === newShiftForm.startTime && s.endTime === newShiftForm.endTime
+    );
+    if (duplicateTime) {
+      setMessage(`Cửa hàng đã có "${duplicateTime.name}" với khung giờ ${duplicateTime.startTime} - ${duplicateTime.endTime}. Không thể tạo 2 ca có giờ làm giống hệt nhau.`);
+      return;
+    }
+
     const durationHours = calcDurationHours(newShiftForm.startTime, newShiftForm.endTime);
     const res = await fetch(`/api/shift-templates`, {
       method: "POST",

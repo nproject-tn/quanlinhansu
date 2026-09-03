@@ -31,8 +31,20 @@ export const DEFAULT_SHIFT_TIMES = [
   { startTime: "14:00", endTime: "17:00" },
   { startTime: "17:00", endTime: "20:00" },
   { startTime: "20:00", endTime: "23:00" },
+  { startTime: "23:00", endTime: "02:00" },
+  { startTime: "02:00", endTime: "05:00" },
+  { startTime: "05:00", endTime: "08:00" },
 ] as const;
 
 export function getDefaultShiftTime(index: number) {
-  return DEFAULT_SHIFT_TIMES[index] ?? { startTime: "08:00", endTime: "11:00" };
+  if (index >= 0 && index < DEFAULT_SHIFT_TIMES.length) {
+    return DEFAULT_SHIFT_TIMES[index];
+  }
+  const startHour = (8 + index * 3) % 24;
+  const endHour = (startHour + 3) % 24;
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return {
+    startTime: `${pad(startHour)}:00`,
+    endTime: `${pad(endHour)}:00`,
+  };
 }
