@@ -228,6 +228,10 @@
         * **Tự động (Auto)**: Hệ thống tự động cân đối và phân bổ số giờ còn lại từ tổng định mức tháng của nhân viên (`maxHoursPerMonth`), đảm bảo không bị trống dữ liệu.
         * **Tùy chỉnh (Custom)**: Cho phép người dùng nhập trực tiếp số giờ cụ thể vào ô nhập liệu.
       * **Cơ chế Tự động Trừ Số giờ Còn lại (Automatic Residual Deduction)**: Ví dụ khi tổng định mức là 140h, nếu người dùng chuyển Cửa hàng 1 sang *Tùy chỉnh* và nhập 80h, ô của Cửa hàng 2 (đang ở chế độ *Tự động*) sẽ tự động lấy `140h - 80h = 60h` để luôn khớp tổng số giờ mà người dùng không cần tính toán hay nhập thủ công.
+      * **Kiểm thực Chặt chẽ (Strict Total Hour Constraint Validation)**:
+        * Khi người dùng nhập tùy chỉnh ở nhiều cửa hàng khiến **tổng số giờ phân bổ vượt quá số giờ tối đa/tháng của nhân viên**, hệ thống **tuyệt đối không cho phép lưu**.
+        * Nút **Lưu / Cập nhật** tự động bị vô hiệu hóa (`disabled`) kèm dòng thông báo cảnh báo lỗi trực quan.
+        * Phía Client (`handleSubmit`) và Server API (`src/lib/validations.ts` với `superRefine`) đều từ chối lưu và yêu cầu người dùng phải điều chỉnh lại số giờ cho hợp lệ trước khi lưu.
       * **Thanh đối chiếu tổng giờ trực quan**: Hiển thị tỷ lệ giờ phân bổ (`...h / ...h`) với màu xanh khi khớp 100% hoặc cảnh báo màu đỏ nếu người dùng nhập vượt tổng định mức.
     * **Áp dụng vào Xếp ca tự động (Auto-Scheduling)**: Thuật toán `autoAssignShifts` và `validateAssignment` tự động tuân thủ chặt chẽ định mức giờ theo từng cửa hàng (`STORE_MONTHLY_MAX_HOURS`), loại bỏ ứng viên vượt quá hạn mức giờ của cửa hàng đó khi chạy xếp ca tự động.
     * Hiển thị trực quan trên bảng danh sách nhân viên kèm số giờ phân bổ theo từng cửa hàng: `[Tên CH 1] (80h), [Tên CH 2] (60h)`.

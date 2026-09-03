@@ -422,6 +422,13 @@ export function EmployeePageClient({ userRole, userPermissions, companyId }: { u
       return;
     }
 
+    if (form.storeIds.length > 0 && totalAllocatedHours > hours) {
+      setMessage(
+        `Tổng số giờ phân bổ cho các cửa hàng (${totalAllocatedHours}h) vượt quá số giờ tối đa/tháng của nhân viên (${hours}h). Vui lòng điều chỉnh lại.`
+      );
+      return;
+    }
+
     const storeMaxHoursPayload: Record<string, number | null> = {};
     for (const storeId of form.storeIds) {
       const assignedHours = effectiveStoreHours[storeId];
@@ -854,8 +861,18 @@ export function EmployeePageClient({ userRole, userPermissions, companyId }: { u
             })()}
           </div>
         </div>
-        <div className="md:col-span-2 flex gap-2">
-          <Button type="submit">{submitLabel}</Button>
+        <div className="md:col-span-2 flex flex-col sm:flex-row items-start sm:items-center gap-3 pt-1">
+          <Button
+            type="submit"
+            disabled={form.storeIds.length > 0 && totalAllocatedHours > (Number(form.maxHoursPerMonth) || 0)}
+            className={
+              form.storeIds.length > 0 && totalAllocatedHours > (Number(form.maxHoursPerMonth) || 0)
+                ? "opacity-50 cursor-not-allowed"
+                : ""
+            }
+          >
+            {submitLabel}
+          </Button>
           {editingId && (
             <Button
               type="button"
@@ -868,6 +885,11 @@ export function EmployeePageClient({ userRole, userPermissions, companyId }: { u
             >
               Hủy
             </Button>
+          )}
+          {form.storeIds.length > 0 && totalAllocatedHours > (Number(form.maxHoursPerMonth) || 0) && (
+            <span className="text-xs text-rose-600 dark:text-rose-400 font-medium flex items-center gap-1">
+              ⚠️ Không thể lưu vì tổng giờ phân bổ các cửa hàng ({totalAllocatedHours}h) vượt quá định mức tháng ({form.maxHoursPerMonth || 0}h). Vui lòng điều chỉnh lại!
+            </span>
           )}
         </div>
       </form>

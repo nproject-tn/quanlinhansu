@@ -1,21 +1,40 @@
 import { z } from "zod";
 
-export const employeeSchema = z.object({
-  name: z.string().min(1, "Tên không được để trống"),
-  phone: z.string().optional(),
-  email: z.string().email("Email không hợp lệ").optional().or(z.literal("")),
-  employmentType: z.enum(["FULL_TIME", "PART_TIME"]),
-  position: z.string().min(1, "Chức vụ không được để trống"),
-  salaryType: z.enum(["FIXED_MONTHLY", "HOURLY"]),
-  monthlySalary: z.number().optional().nullable(),
-  hourlyRate: z.number().optional().nullable(),
-  maxShiftsPerWeek: z.number().min(1).max(28).optional(),
-  maxShiftsPerMonth: z.number().min(1, "Số ca/tháng tối thiểu là 1").max(300, "Số ca/tháng không được vượt quá 300"),
-  maxHoursPerMonth: z.number().min(1, "Số giờ/tháng tối thiểu là 1").max(720, "Số giờ/tháng không được vượt quá 720"),
-  storeIds: z.array(z.string()).min(1, "Chọn ít nhất 1 cửa hàng"),
-  storeMaxHours: z.record(z.string(), z.number().min(0).max(720).nullable()).optional(),
-  isActive: z.boolean().default(true),
-});
+export const employeeSchema = z
+  .object({
+    name: z.string().min(1, "Tên không được để trống"),
+    phone: z.string().optional(),
+    email: z.string().email("Email không hợp lệ").optional().or(z.literal("")),
+    employmentType: z.enum(["FULL_TIME", "PART_TIME"]),
+    position: z.string().min(1, "Chức vụ không được để trống"),
+    salaryType: z.enum(["FIXED_MONTHLY", "HOURLY"]),
+    monthlySalary: z.number().optional().nullable(),
+    hourlyRate: z.number().optional().nullable(),
+    maxShiftsPerWeek: z.number().min(1).max(28).optional(),
+    maxShiftsPerMonth: z.number().min(1, "Số ca/tháng tối thiểu là 1").max(300, "Số ca/tháng không được vượt quá 300"),
+    maxHoursPerMonth: z.number().min(1, "Số giờ/tháng tối thiểu là 1").max(720, "Số giờ/tháng không được vượt quá 720"),
+    storeIds: z.array(z.string()).min(1, "Chọn ít nhất 1 cửa hàng"),
+    storeMaxHours: z.record(z.string(), z.number().min(0).max(720).nullable()).optional(),
+    isActive: z.boolean().default(true),
+  })
+  .superRefine((data, ctx) => {
+    if (data.storeMaxHours && data.maxHoursPerMonth && data.storeIds && data.storeIds.length > 0) {
+      let totalStoreHours = 0;
+      for (const storeId of data.storeIds) {
+        const hours = data.storeMaxHours[storeId];
+        if (hours !== undefined && hours !== null && !isNaN(hours)) {
+          totalStoreHours += hours;
+        }
+      }
+      if (totalStoreHours > data.maxHoursPerMonth) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Tổng số giờ phân bổ cho các cửa hàng (${totalStoreHours}h) không được vượt quá số giờ tối đa/tháng của nhân viên (${data.maxHoursPerMonth}h). Vui lòng điều chỉnh lại.`,
+          path: ["storeMaxHours"],
+        });
+      }
+    }
+  });
 
 export const storeSchema = z.object({
   name: z.string().min(1, "Tên cửa hàng không được để trống"),
