@@ -391,7 +391,7 @@ export function EmployeePageClient({ userRole, userPermissions, companyId }: { u
       body: JSON.stringify(payload),
     });
 
-    const data = await readJsonSafely<{ error?: { fieldErrors?: unknown } }>(res, {});
+    const data = await readJsonSafely<{ error?: string | { fieldErrors?: Record<string, string[]> } }>(res, {});
     if (res.ok) {
       setMessage(editingId ? "Đã cập nhật nhân viên" : "Đã thêm nhân viên");
       setForm(emptyForm);
@@ -401,7 +401,34 @@ export function EmployeePageClient({ userRole, userPermissions, companyId }: { u
       void load();
       void loadMonthlyHours(hoursMonth);
     } else {
-      setMessage(data.error?.fieldErrors ? "Dữ liệu không hợp lệ" : "Lỗi lưu nhân viên");
+      let errorText = "Lỗi lưu nhân viên";
+      if (typeof data.error === "string") {
+        errorText = data.error;
+      } else if (data.error && typeof data.error === "object" && "fieldErrors" in data.error) {
+        const fieldErrors = (data.error as { fieldErrors?: Record<string, string[]> }).fieldErrors;
+        if (fieldErrors) {
+          const FIELD_NAMES: Record<string, string> = {
+            name: "Họ tên",
+            phone: "Số điện thoại",
+            email: "Email",
+            position: "Chức vụ",
+            maxShiftsPerMonth: "Số ca tối đa/tháng",
+            maxHoursPerMonth: "Số giờ tối đa/tháng",
+            maxShiftsPerWeek: "Số ca tối đa/tuần",
+            storeIds: "Cửa hàng phụ trách",
+          };
+          const entries = Object.entries(fieldErrors);
+          if (entries.length > 0) {
+            const [field, messages] = entries[0];
+            const fieldLabel = FIELD_NAMES[field] || field;
+            const msg = messages?.[0] || "Dữ liệu không hợp lệ";
+            errorText = `${fieldLabel}: ${msg}`;
+          } else {
+            errorText = "Dữ liệu không hợp lệ";
+          }
+        }
+      }
+      setMessage(errorText);
     }
   }
 

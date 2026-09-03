@@ -9,9 +9,9 @@ export const employeeSchema = z.object({
   salaryType: z.enum(["FIXED_MONTHLY", "HOURLY"]),
   monthlySalary: z.number().optional().nullable(),
   hourlyRate: z.number().optional().nullable(),
-  maxShiftsPerWeek: z.number().min(1).max(14).optional(),
-  maxShiftsPerMonth: z.number().min(1).max(62),
-  maxHoursPerMonth: z.number().min(1).max(300),
+  maxShiftsPerWeek: z.number().min(1).max(28).optional(),
+  maxShiftsPerMonth: z.number().min(1, "Số ca/tháng tối thiểu là 1").max(300, "Số ca/tháng không được vượt quá 300"),
+  maxHoursPerMonth: z.number().min(1, "Số giờ/tháng tối thiểu là 1").max(720, "Số giờ/tháng không được vượt quá 720"),
   storeIds: z.array(z.string()).min(1, "Chọn ít nhất 1 cửa hàng"),
   isActive: z.boolean().default(true),
 });

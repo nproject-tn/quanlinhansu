@@ -215,7 +215,9 @@
   * Thông tin cơ bản: Mã nhân viên (tự sinh hoặc tùy chỉnh), Họ tên, Email, Điện thoại, Ảnh đại diện, Vị trí công tác.
   * Loại hợp đồng: Full-time (toàn thời gian), Part-time (bán thời gian), Thử việc (Intern/Probation).
   * Cơ chế lương: Lương cơ bản tháng (Base salary) hoặc Lương theo giờ (Hourly rate).
-  * Định mức giờ làm mục tiêu (Target hours/tháng).
+  * Định mức giờ làm mục tiêu (Target hours/tháng) & Số ca tối đa/tháng:
+    * **Cơ chế tính toán 2 chiều tự động (Bidirectional Shift-Hour Sync)**: Khi người dùng nhập số giờ tối đa/tháng, hệ thống tự động quy đổi ra số ca dựa trên thời lượng ca trung bình (~2.6h - 3h/ca) và ngược lại.
+    * **Giới hạn kiểm thực linh hoạt (Flexible Validation Limits)**: Hỗ trợ số ca tối đa/tháng lên đến **300 ca/tháng** và số giờ tối đa lên đến **720 giờ/tháng** (thay vì giới hạn cũ 62 ca) để đáp ứng trọn vẹn cho các mô hình ca ngắn, ca livestream liên tục 2h - 2.5h/ca nhiều ca trong ngày.
   * Gán cửa hàng: Một nhân viên có thể được phân quyền làm việc tại một hoặc nhiều cửa hàng (`EmployeeStore`).
   * **Bộ lọc Đa lựa chọn Thông minh & Cơ chế Lọc Xếp tầng 2 Chiều (Bidirectional Cascading Multi-Select Filters)**:
     * **Lọc Trạng thái (`Select`)**: Phân loại theo "Đang làm việc", "Đã nghỉ việc", hoặc "Tất cả trạng thái". Đóng vai trò **Bộ lọc gốc (Master Filter)** thiết lập tập ứng viên hợp lệ:
