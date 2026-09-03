@@ -70,6 +70,8 @@ export type ExportScheduleData = {
   selectedEmployeeId?: string;
   selectedEmployeeIds?: string[];
   selectedStoreIds?: string[];
+  excludeMatrixSheet?: boolean;
+  fileName?: string;
 };
 
 export async function exportScheduleToExcel(data: ExportScheduleData) {
@@ -132,10 +134,11 @@ export async function exportScheduleToExcel(data: ExportScheduleData) {
   // ==========================================
   // SHEET 1: MA TRẬN LỊCH XẾP CA (SCHEDULE MATRIX)
   // ==========================================
-  const wsMatrix = workbook.addWorksheet("Lịch xếp ca", {
-    views: [{ state: "frozen", xSplit: 3, ySplit: 5 }],
-    pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1 },
-  });
+  if (!data.excludeMatrixSheet) {
+    const wsMatrix = workbook.addWorksheet("Lịch xếp ca", {
+      views: [{ state: "frozen", xSplit: 3, ySplit: 5 }],
+      pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1 },
+    });
 
   // 1. Title Banner
   wsMatrix.mergeCells("A1", `${getColumnLetter(3 + dates.length)}1`);
@@ -324,6 +327,7 @@ export async function exportScheduleToExcel(data: ExportScheduleData) {
   dates.forEach((_, idx) => {
     wsMatrix.getColumn(4 + idx).width = 22; // Date columns
   });
+  }
 
   // ==========================================
   // SHEET 2: TỔNG HỢP CÔNG & GIỜ LÀM (EMPLOYEE SUMMARY)
@@ -740,7 +744,11 @@ export async function exportScheduleToExcel(data: ExportScheduleData) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    const fileName = `lich_xep_ca_${data.startDateStr}_${data.endDateStr}.xlsx`;
+    const fileName =
+      data.fileName ||
+      (data.excludeMatrixSheet
+        ? `tong_hop_cong_gio_lam_${data.startDateStr}_${data.endDateStr}.xlsx`
+        : `lich_xep_ca_${data.startDateStr}_${data.endDateStr}.xlsx`);
     a.download = fileName;
     document.body.appendChild(a);
     a.click();

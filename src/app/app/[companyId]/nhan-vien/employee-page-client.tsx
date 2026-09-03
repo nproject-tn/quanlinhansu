@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useConfirmDialog } from "@/components/confirm/confirm-dialog-provider";
-import { ChevronDown, ChevronUp, Plus, TimerReset, Ban } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus, TimerReset, Ban, Download, Loader2 } from "lucide-react";
 import { EMPLOYMENT_TYPE_LABELS, cn } from "@/lib/utils";
 import { useNotifications } from "@/components/notifications/notification-center";
 import {
@@ -23,6 +23,7 @@ import { EmployeeFaultsModal } from "@/components/employees/employee-faults-moda
 import { format } from "date-fns";
 import type { UserRole } from "@/generated/prisma/client";
 import { hasPermission } from "@/lib/permissions";
+import { exportScheduleToExcel } from "@/lib/schedule-excel-exporter";
 
 type Store = { id: string; name: string };
 type Employee = {
@@ -310,6 +311,116 @@ export function EmployeePageClient({ userRole, userPermissions, companyId }: { u
     const res = await fetch(`/api/employees/monthly-hours?${params.toString()}`);
     const data = await readJsonSafely<EmployeeMonthlyHours[]>(res, []);
     setMonthlyHours(data);
+  }
+
+  const [isExportingHoursExcel, setIsExportingHoursExcel] = useState(false);
+
+  async function handleExportHoursExcel() {
+    if (filteredMonthlyHours.length === 0) {
+      notify({
+        tone: "warning",
+        title: "Không có dữ liệu",
+        body: "Không có dữ liệu giờ làm thực tế trong tháng này để xuất Excel",
+      });
+      return;
+    }
+
+    setIsExportingHoursExcel(true);
+    try {
+      const params = new URLSearchParams();
+      params.set("mode", "month");
+      params.set("date", `${hoursMonth}-01`);
+      if (selectedStoreIds.length > 0) {
+        params.set("storeIds", selectedStoreIds.join(","));
+      }
+
+      const res = await fetch(`/api/schedule?${params.toString()}`);
+      if (!res.ok) {
+        const errData = await readJsonSafely<{ error?: string }>(res, {});
+        throw new Error(errData.error || "Không thể tải dữ liệu lịch làm việc để xuất Excel");
+      }
+
+      const scheduleData = await res.json();
+      if (!scheduleData || !Array.isArray(scheduleData.slots)) {
+        throw new Error("Dữ liệu lịch làm việc không hợp lệ");
+      }
+
+      const selectedStoresList =
+        selectedStoreIds.length > 0
+          ? (scheduleData.stores || []).filter((s: any) => selectedStoreIds.includes(s.id))
+          : scheduleData.stores || [];
+
+      const storeFilterName =
+        selectedStoreIds.length === 0
+          ? "Tất cả cửa hàng"
+          : selectedStoresList.map((s: any) => s.name).join(", ");
+
+      // Merge employees list to guarantee all employees shown in filteredMonthlyHours are included
+      const empMap = new Map<string, any>();
+      (scheduleData.employees || []).forEach((e: any) => empMap.set(e.id, e));
+      allEmployees.forEach((e: any) => {
+        if (!empMap.has(e.id)) {
+          empMap.set(e.id, e);
+        }
+      });
+      filteredMonthlyHours.forEach((e) => {
+        if (!empMap.has(e.id)) {
+          empMap.set(e.id, {
+            id: e.id,
+            name: e.name,
+            position: e.position,
+          });
+        }
+      });
+      const allEmpsList = Array.from(empMap.values());
+      const selectedEmpsList =
+        selectedEmployeeIds.length > 0
+          ? allEmpsList.filter((e: any) => selectedEmployeeIds.includes(e.id))
+          : allEmpsList;
+
+      const employeeFilterName =
+        selectedEmployeeIds.length === 0
+          ? "Tất cả nhân viên"
+          : selectedEmpsList.map((e: any) => e.name).join(", ");
+
+      const scheduleDates = [...new Set((scheduleData.slots as any[]).map((s: any) => s.date))].sort();
+
+      await exportScheduleToExcel({
+        companyName: typeof window !== "undefined" ? document.title.split("-")[0]?.trim() || "ApexFlow" : "ApexFlow",
+        mode: "month",
+        referenceDate: `${hoursMonth}-01`,
+        startDateStr: scheduleData.start || `${hoursMonth}-01`,
+        endDateStr: scheduleData.end || `${hoursMonth}-30`,
+        dates: scheduleDates,
+        stores: selectedStoresList,
+        shifts: scheduleData.shifts || [],
+        slots: scheduleData.slots || [],
+        employees: selectedEmpsList,
+        overtimes: scheduleData.overtimes || [],
+        dayNotes: scheduleData.dayNotes || [],
+        storeFilterName,
+        employeeFilterName,
+        selectedStoreIds,
+        selectedEmployeeIds,
+        excludeMatrixSheet: true,
+        fileName: `tong_hop_cong_gio_lam_${hoursMonth}.xlsx`,
+      });
+
+      notify({
+        tone: "success",
+        title: "Xuất Excel thành công",
+        body: "Đã tải xuống bảng Tổng hợp công & Giờ làm và Chi tiết Tăng ca / Vi phạm!",
+      });
+    } catch (err: any) {
+      console.error("Export Excel error:", err);
+      notify({
+        tone: "error",
+        title: "Lỗi xuất Excel",
+        body: err.message || "Không thể xuất file Excel",
+      });
+    } finally {
+      setIsExportingHoursExcel(false);
+    }
   }
 
   useEffect(() => {
@@ -1111,12 +1222,29 @@ export function EmployeePageClient({ userRole, userPermissions, companyId }: { u
               </p>
             )}
           </div>
-          <MonthPicker
-            value={hoursMonth}
-            onChange={setHoursMonth}
-            className="min-w-[190px]"
-            ariaLabel="Chọn tháng xem giờ làm thực tế"
-          />
+          <div className="flex flex-wrap items-center gap-2.5">
+            <MonthPicker
+              value={hoursMonth}
+              onChange={setHoursMonth}
+              className="min-w-[190px]"
+              ariaLabel="Chọn tháng xem giờ làm thực tế"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportHoursExcel}
+              disabled={isExportingHoursExcel || filteredMonthlyHours.length === 0}
+              className="h-10 px-3.5 gap-2 rounded-xl text-xs font-semibold border border-slate-300 dark:border-[#333333] text-slate-700 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-[#2A2A2A] shadow-sm shrink-0"
+              title="Xuất bảng tổng hợp công & giờ làm và chi tiết tăng ca / vi phạm ra file Excel"
+            >
+              {isExportingHoursExcel ? (
+                <Loader2 className="h-4 w-4 animate-spin text-slate-600 dark:text-neutral-400" />
+              ) : (
+                <Download className="h-4 w-4 text-slate-600 dark:text-neutral-400" />
+              )}
+              <span>Xuất Excel</span>
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">

@@ -254,6 +254,12 @@
     * **Lọc theo nhân viên**: Chỉ hiển thị đúng các nhân viên được chọn.
     * **Lọc theo cửa hàng**: Chỉ hiển thị nhân viên phụ trách/làm việc tại các cửa hàng đó, đồng thời **toàn bộ số giờ làm chính, giờ làm thêm, số ca thực tế và số lỗi phát sinh chỉ tính toán trên các cửa hàng được lọc**.
   * Tự động tổng hợp số giờ đã làm thực tế trong tháng đối chiếu với chỉ tiêu giờ để phục vụ tính lương.
+  * **Nút Xuất Excel Trực tiếp Nằm Cạnh Bộ Lọc Tháng**:
+    * Cho phép người dùng xuất nhanh báo cáo công và giờ làm việc ngay tại bảng *Giờ làm thực tế trong tháng* mà không cần phải chuyển sang tab Lịch xếp ca.
+    * Tạo file Excel chuyên nghiệp chỉ gồm **2 Sheet trọng tâm**:
+      1. **Sheet 1 ("Tổng hợp công & Giờ làm")**: Thống kê chi tiết ca và giờ làm thực tế theo từng cửa hàng và toàn công ty cho các nhân viên đang được lọc (áp dụng thuật toán Timeline Interval Merging chuẩn xác).
+      2. **Sheet 2 ("Chi tiết Tăng ca & Vi phạm")**: Liệt kê chi tiết các ca làm thêm giờ, đi trễ, về sớm kèm lý do/ghi chú.
+    * Tự động đặt tên file định dạng: `tong_hop_cong_gio_lam_yyyy-MM.xlsx`.
 
 ---
 

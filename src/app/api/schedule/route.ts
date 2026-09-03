@@ -20,7 +20,10 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   try {
-    const { session, error, companyId } = await requireAuth(["OWNER"], { module: "schedule", action: "VIEW" });
+    const { session, error, companyId } = await requireAuth(["OWNER"], [
+      { module: "schedule", action: "VIEW" },
+      { module: "employees", action: "VIEW_HOURS" },
+    ]);
     if (error) return error;
 
     const { searchParams } = new URL(request.url);
