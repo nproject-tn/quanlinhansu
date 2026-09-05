@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Building2, Plus, CheckCircle2, Circle, Upload, Loader2, X, LogOut } from "lucide-react";
+import { Building2, Plus, CheckCircle2, Circle, Upload, Loader2, X, LogOut, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
 import { useNotifications } from "@/components/notifications/notification-center";
-import { uploadCompanyLogoAction, deleteCompanyLogoAction } from "./actions";
+import { uploadCompanyLogoAction, deleteCompanyLogoAction, updateCompanyNameAction } from "./actions";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,6 +53,10 @@ export function WorkspaceListClient({
   const [companyToLeave, setCompanyToLeave] = useState<Company | null>(null);
   const [isLeavingCompany, setIsLeavingCompany] = useState(false);
   const [uploadingLogoId, setUploadingLogoId] = useState<string | null>(null);
+  const [failedLogos, setFailedLogos] = useState<Record<string, boolean>>({});
+  const [companyToRename, setCompanyToRename] = useState<Company | null>(null);
+  const [renamingName, setRenamingName] = useState("");
+  const [isRenaming, setIsRenaming] = useState(false);
 
   const toggleSelectMode = () => {
     setIsSelectMode(!isSelectMode);
@@ -63,6 +68,27 @@ export function WorkspaceListClient({
       setSelectedIds(selectedIds.filter((id) => id !== companyId));
     } else {
       setSelectedIds([...selectedIds, companyId]);
+    }
+  };
+
+  const handleRenameCompany = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!companyToRename) return;
+    const trimmed = renamingName.trim();
+    if (!trimmed) {
+      notify({ tone: "error", title: "Lỗi", body: "Tên doanh nghiệp không được để trống" });
+      return;
+    }
+    setIsRenaming(true);
+    try {
+      await updateCompanyNameAction(companyToRename.id, trimmed);
+      notify({ tone: "success", title: "Thành công", body: `Đã đổi tên doanh nghiệp thành "${trimmed}"` });
+      setCompanyToRename(null);
+      router.refresh();
+    } catch (err: any) {
+      notify({ tone: "error", title: "Lỗi", body: err.message || "Không thể đổi tên doanh nghiệp" });
+    } finally {
+      setIsRenaming(false);
     }
   };
 
@@ -120,6 +146,7 @@ export function WorkspaceListClient({
       formData.append("logo", file);
 
       await uploadCompanyLogoAction(companyId, formData);
+      setFailedLogos(prev => ({ ...prev, [companyId]: false }));
       notify({ tone: "success", title: "Thành công", body: "Đã cập nhật logo doanh nghiệp" });
     } catch (err: any) {
       notify({ tone: "error", title: "Lỗi", body: err.message });
@@ -153,8 +180,12 @@ export function WorkspaceListClient({
           if (isSelectMode && isOwned) {
             toggleSelection(membership.company.id);
           } else if (!isSelectMode) {
-            // Check if click was on the upload input label or delete button to prevent navigation
-            if ((e.target as HTMLElement).closest('.upload-label') || (e.target as HTMLElement).closest('.delete-logo-btn')) return;
+            // Check if click was on the upload input label, delete button, or rename button to prevent navigation
+            if (
+              (e.target as HTMLElement).closest('.upload-label') || 
+              (e.target as HTMLElement).closest('.delete-logo-btn') ||
+              (e.target as HTMLElement).closest('.rename-company-btn')
+            ) return;
             router.push(`/app/${membership.company.id}`);
           }
         }}
@@ -178,8 +209,13 @@ export function WorkspaceListClient({
             <div className="h-12 w-12 rounded-xl bg-slate-100 dark:bg-neutral-800 border border-slate-200/80 dark:border-neutral-700 flex items-center justify-center overflow-hidden">
               {uploadingLogoId === membership.company.id ? (
                 <Loader2 className="h-5 w-5 text-slate-600 dark:text-neutral-300 animate-spin" />
-              ) : membership.company.logo ? (
-                <img src={membership.company.logo} alt="Logo" className="w-full h-full object-cover" />
+              ) : membership.company.logo && !failedLogos[membership.company.id] ? (
+                <img 
+                  src={membership.company.logo} 
+                  alt="Logo" 
+                  className="w-full h-full object-cover" 
+                  onError={() => setFailedLogos(prev => ({ ...prev, [membership.company.id]: true }))}
+                />
               ) : (
                 <span className="font-bold text-xl uppercase text-slate-800 dark:text-neutral-100">
                   {membership.company.name.charAt(0)}
@@ -212,10 +248,25 @@ export function WorkspaceListClient({
               </>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <span className="text-xs font-medium bg-slate-100 dark:bg-neutral-800 text-slate-600 dark:text-neutral-300 px-2.5 py-1 rounded-full border border-slate-200/60 dark:border-neutral-700">
               {membership.role === "OWNER" ? "Chủ sở hữu" : membership.role === "ADMIN" ? "Quản trị viên" : membership.role === "SCHEDULER" ? "Quản lý lịch" : "Nhân viên"}
             </span>
+            {isOwned && !isSelectMode && (
+              <button
+                type="button"
+                title="Đổi tên doanh nghiệp"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setCompanyToRename(membership.company);
+                  setRenamingName(membership.company.name);
+                }}
+                className="rename-company-btn p-1.5 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 dark:hover:bg-neutral-800 dark:hover:text-white transition-colors"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+            )}
             {!isOwned && (
               <button
                 type="button"
@@ -232,9 +283,26 @@ export function WorkspaceListClient({
             )}
           </div>
         </div>
-        <h3 className="text-lg font-bold mb-1 text-slate-900 dark:text-white transition-colors">
-          {membership.company.name}
-        </h3>
+        <div className="flex items-center gap-2 group/title">
+          <h3 className="text-lg font-bold mb-1 text-slate-900 dark:text-white transition-colors truncate">
+            {membership.company.name}
+          </h3>
+          {isOwned && !isSelectMode && (
+            <button
+              type="button"
+              title="Đổi tên doanh nghiệp"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setCompanyToRename(membership.company);
+                setRenamingName(membership.company.name);
+              }}
+              className="rename-company-btn mb-1 p-1 text-slate-400 hover:text-slate-900 dark:hover:text-white opacity-0 group-hover:opacity-100 transition-opacity rounded"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
         <div className="flex items-center gap-4 text-sm text-slate-500 mt-4">
           {isOwned && membership.company._count ? (
             <>
@@ -378,6 +446,78 @@ export function WorkspaceListClient({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Modal Đổi tên doanh nghiệp */}
+      {companyToRename && (
+        <div 
+          className="fixed inset-0 z-[120] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+          onClick={() => !isRenaming && setCompanyToRename(null)}
+        >
+          <div 
+            className="bg-white dark:bg-[#18181B] border border-slate-200 dark:border-neutral-800 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Đổi tên doanh nghiệp</h3>
+                <p className="text-xs text-slate-500 dark:text-neutral-400 mt-1">
+                  Mã định danh Workspace ({companyToRename.id}) sẽ được giữ nguyên.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => !isRenaming && setCompanyToRename(null)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-neutral-200 p-1 rounded-lg"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleRenameCompany} className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-slate-700 dark:text-neutral-300 block mb-1.5">
+                  Tên doanh nghiệp mới
+                </label>
+                <Input
+                  value={renamingName}
+                  onChange={(e) => setRenamingName(e.target.value)}
+                  placeholder="Ví dụ: Tokyolife Miền Nam..."
+                  className="w-full text-sm h-10"
+                  autoFocus
+                  disabled={isRenaming}
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCompanyToRename(null)}
+                  disabled={isRenaming}
+                >
+                  Huỷ
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={isRenaming || !renamingName.trim() || renamingName.trim() === companyToRename.name}
+                  className="bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-neutral-200"
+                >
+                  {isRenaming ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                      Đang lưu...
+                    </>
+                  ) : (
+                    "Lưu thay đổi"
+                  )}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 }

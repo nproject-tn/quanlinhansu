@@ -78,3 +78,48 @@ export async function deleteCompanyLogoAction(companyId: string) {
     throw new Error(`Lỗi xoá logo: ${error.message}`);
   }
 }
+
+export async function updateCompanyNameAction(companyId: string, name: string) {
+  const session = await auth();
+  if (!session?.user) {
+    throw new Error("Unauthorized");
+  }
+
+  const trimmedName = name.trim();
+  if (!trimmedName) {
+    throw new Error("Tên doanh nghiệp không được để trống");
+  }
+
+  if (trimmedName.length > 100) {
+    throw new Error("Tên doanh nghiệp không được vượt quá 100 ký tự");
+  }
+
+  // Verify membership and role
+  const membership = await prisma.companyMember.findFirst({
+    where: {
+      companyId,
+      userId: session.user.id,
+      role: { in: ["OWNER", "ADMIN"] },
+    }
+  });
+
+  if (!membership) {
+    throw new Error("Không có quyền đổi tên doanh nghiệp này");
+  }
+
+  try {
+    const updatedCompany = await prisma.company.update({
+      where: { id: companyId },
+      data: { name: trimmedName },
+    });
+
+    revalidatePath("/workspaces");
+    revalidatePath(`/app/${companyId}`);
+    revalidatePath(`/app/${companyId}/cai-dat`);
+    return { success: true, company: updatedCompany };
+  } catch (error: any) {
+    console.error("Error updating company name:", error);
+    throw new Error(`Lỗi đổi tên doanh nghiệp: ${error.message}`);
+  }
+}
+

@@ -45,6 +45,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/src/generated/prisma ./src/generated/prisma
 
+# Ensure uploads directory exists and is owned by nextjs user
+RUN mkdir -p /app/public/uploads/logos && chown -R nextjs:nodejs /app/public/uploads
+
 USER nextjs
 
 EXPOSE 3000

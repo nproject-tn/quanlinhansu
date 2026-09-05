@@ -19,6 +19,8 @@ services:
       - AUTH_GOOGLE_SECRET=${AUTH_GOOGLE_SECRET}
       # Bật logging Prisma
       - PRISMA_CLIENT_ENGINE_TYPE=binary
+    volumes:
+      - uploads_data:/app/public/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -75,3 +77,4 @@ volumes:
   pgdata_dev:
   caddy_data:
   caddy_config:
+  uploads_data:

@@ -29,6 +29,8 @@ export function WorkspaceSwitcher({
   isCollapsed?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [triggerLogoFailed, setTriggerLogoFailed] = useState(false);
+  const [failedItemLogos, setFailedItemLogos] = useState<Record<string, boolean>>({});
 
   const fetcher = async (url: string) => {
     const res = await fetch(url);
@@ -62,8 +64,13 @@ export function WorkspaceSwitcher({
               strokeWidth={1.75}
             />
             <div className="relative z-10 h-[15px] w-[15px] rounded-full bg-white border border-slate-300 flex items-center justify-center overflow-hidden shadow-2xs dark:bg-[#252526] dark:border-[#3C3C3C]">
-              {currentCompany?.logo ? (
-                <img src={currentCompany.logo} alt="Logo" className="w-full h-full object-cover" />
+              {currentCompany?.logo && !triggerLogoFailed ? (
+                <img 
+                  src={currentCompany.logo} 
+                  alt="Logo" 
+                  className="w-full h-full object-cover" 
+                  onError={() => setTriggerLogoFailed(true)}
+                />
               ) : (
                 <span className="text-[8px] font-bold text-slate-700 uppercase dark:text-white leading-none">
                   {currentCompany?.name ? currentCompany.name.charAt(0) : "W"}
@@ -110,8 +117,13 @@ export function WorkspaceSwitcher({
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div className="h-7 w-7 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 dark:bg-[#1E1E1E] dark:border-[#3C3C3C]">
-                      {m.company.logo ? (
-                        <img src={m.company.logo} alt={m.company.name} className="w-full h-full object-cover" />
+                      {m.company.logo && !failedItemLogos[m.companyId] ? (
+                        <img 
+                          src={m.company.logo} 
+                          alt={m.company.name} 
+                          className="w-full h-full object-cover" 
+                          onError={() => setFailedItemLogos(prev => ({ ...prev, [m.companyId]: true }))}
+                        />
                       ) : (
                         <span className="text-xs font-bold text-slate-700 uppercase dark:text-[#E0E0E0]">
                           {m.company.name.charAt(0)}

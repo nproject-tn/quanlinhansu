@@ -2,6 +2,8 @@ import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 
+import sharp from "sharp";
+
 // Create an S3 client for Oracle Object Storage (or any S3 compatible API)
 export const s3Client = new S3Client({
   region: process.env.S3_REGION || "ap-singapore-1",
@@ -26,19 +28,20 @@ export async function uploadToS3(
   let contentType = "image/webp";
 
   try {
-    const sharp = (await import("sharp")).default;
     optimizedBuffer = await sharp(buffer)
       .resize(256, 256, { fit: "cover", withoutEnlargement: true }) // Max 256x256, crop to square
       .webp({ quality: 80 }) // Compress to WebP with 80% quality
       .toBuffer();
+    ext = "webp";
+    contentType = "image/webp";
   } catch (e) {
     console.warn("Image optimization with sharp skipped:", e);
-    ext = filename.split(".").pop() || "png";
-    contentType = mimetype || "image/png";
+    ext = filename.split(".").pop()?.toLowerCase() || "png";
+    contentType = mimetype || (ext === "svg" ? "image/svg+xml" : "image/png");
   }
     
   const cleanFilename = filename.replace(/[^a-zA-Z0-9.-]/g, "_").replace(/\.[^/.]+$/, "");
-  const uniqueFilename = `${Date.now()}-${Math.random().toString(36).substring(7)}-${cleanFilename}.webp`;
+  const uniqueFilename = `${Date.now()}-${Math.random().toString(36).substring(7)}-${cleanFilename}.${ext}`;
   
   if (!bucketName || !process.env.S3_ENDPOINT) {
     // FALLBACK: Local file system upload if S3 is not configured
@@ -58,7 +61,7 @@ export async function uploadToS3(
     Bucket: bucketName,
     Key: `logos/${uniqueFilename}`,
     Body: optimizedBuffer,
-    ContentType: "image/webp",
+    ContentType: contentType,
     ACL: "public-read",
   });
 

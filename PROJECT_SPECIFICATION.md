@@ -179,6 +179,14 @@
   * Tùy chọn tạo công ty mới hoặc tham gia bằng mã mời (Invite Code).
   * Chuyển đổi nhanh giữa các Workspace mà không cần đăng nhập lại.
   * Đường dẫn ứng dụng gắn liền với slug: `/app/[companyId]/...` (ví dụ: `/app/tokyolife-hcm/...`).
+  * **Quản lý Logo & Phục vụ Tệp tải lên Động (`Dynamic Uploads & Resilient Logo Display`)**:
+    * Hỗ trợ tải lên logo doanh nghiệp trực tiếp từ thẻ Workspace hoặc trang Cài đặt. Tự động nén và tối ưu hóa ảnh bằng thư viện `sharp` (chuyển sang WebP chất lượng cao, crop vuông 256x256).
+    * Phục vụ tệp tĩnh tải lên tại runtime thông qua route handler động `GET /uploads/[...path]` (đọc trực tiếp từ thư mục `public/uploads`), khắc phục triệt để hạn chế 404 của Next.js standalone mode khi tệp được thêm sau khi build.
+    * Gắn volume bền vững `uploads_data:/app/public/uploads` trong Docker để đảm bảo toàn bộ tệp và logo đã tải không bị mất khi container được rebuild hoặc restart.
+    * Cơ chế phòng thủ giao diện (`onError Fallback`): Tự động phát hiện lỗi tải ảnh và fallback về avatar chữ cái viết hoa ban đầu, triệt tiêu hoàn toàn biểu tượng ảnh vỡ (broken image icon) trên trình duyệt.
+  * **Tính năng Đổi tên Doanh nghiệp (`Rename Workspace`)**:
+    * Cho phép Chủ sở hữu (`OWNER`) và Quản trị viên (`ADMIN`) đổi tên doanh nghiệp bất kỳ lúc nào trực tiếp trên thẻ Workspace tại `/workspaces` (icon bút `Pencil` cạnh tên công ty hoặc góc thẻ mở modal Đổi tên) hoặc trong mục Cài đặt (`/app/[companyId]/cai-dat`).
+    * Cập nhật tức thời tên hiển thị trên Sidebar, Workspace Switcher và trang chủ, trong khi giữ nguyên mã định danh Workspace ID (slug) để bảo toàn tuyệt đối mọi liên kết và dữ liệu lịch sử trong cơ sở dữ liệu.
 * **Thanh điều hướng Sidebar Đa nền tảng & Cấu trúc phân lớp z-index**:
   * **Desktop**: Hỗ trợ mở rộng (`w-64`) và thu gọn linh hoạt (`w-[5.5rem]`), hover flyout submenu cho phân hệ Hàng hoá, ghim dọc cố định (`md:sticky md:z-30`).
   * **Mobile Drawer**: Khi mở trên điện thoại (`isMobileOpen`), Sidebar hiển thị dưới dạng ngăn kéo trượt (Slide-out Drawer `max-md:z-[90]`) với nền kính mờ `backdrop-blur-xl` (`z-[80]`), tự động hiển thị đầy đủ 100% logo thương hiệu, tên mục điều hướng, thông tin tài khoản người dùng, và thanh công cụ Đăng xuất / Đổi giao diện Sáng - Tối / Chuyển doanh nghiệp ở dạng hàng ngang tinh tế.
@@ -398,7 +406,10 @@
 ## 10. PHÂN HỆ 7: CÀI ĐẶT DOANH NGHIỆP, THÀNH VIÊN & GIAO DIỆN
 
 Đường dẫn: `/app/[companyId]/cai-dat`
-* **Hồ sơ Doanh nghiệp**: Logo công ty, Tên doanh nghiệp, Mã định danh Slug, Địa chỉ, Email liên hệ.
+* **Hồ sơ Doanh nghiệp**:
+  * Cập nhật và xóa Logo doanh nghiệp (hover để tải ảnh mới hoặc bấm nút xoá đỏ). Tự động nén ảnh WebP và có cơ chế xử lý lỗi `onError` fallback tránh vỡ ảnh.
+  * Đổi tên doanh nghiệp trực tiếp (nút `Pencil` inline chuyển tiêu đề thành ô nhập liệu nhanh với các nút Lưu / Huỷ tiện lợi), xác thực quyền `OWNER` / `ADMIN` qua API `PUT /api/settings/company`.
+  * Hiển thị mã định danh Workspace ID (slug) cố định để phục vụ tra cứu và tích hợp.
 * **Cài đặt Giao diện (Theme Preferences)**:
   * Lựa chọn trực tiếp 3 chế độ: ☀️ Giao diện sáng, 🌙 Giao diện tối (Neutral Charcoal & True Black), 💻 Tự động theo hệ điều hành (OS).
   * Hiển thị trạng thái đang kích hoạt (`Check` icon) và giải thích tương thích.
