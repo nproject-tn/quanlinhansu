@@ -328,7 +328,12 @@
       * Tối ưu kích thước chữ (`text-[10px] - text-xs`), padding tinh gọn, lược bỏ tên cửa hàng trùng lặp để thẻ ca hiển thị cân xứng hoàn hảo khi chia 2 cột trên điện thoại.
       * Sử dụng cấu trúc `min-w-0 flex-1 overflow-hidden` và `truncate` cho tên nhân viên và ca làm việc.
       * Cụm nút thao tác (Thêm lỗi `+`, Kéo thả `⠿`, Xóa `✕`) được gán `shrink-0`, cố định an toàn 100% bên trong khung thẻ, triệt tiêu hoàn toàn hiện tượng icon bị tràn ra ngoài viền khi co giãn cửa sổ.
-    * **Lịch dạng bảng ngang (Horizontal Board)**: Hỗ trợ cuộn ngang mượt mà kèm thanh kéo chuột tùy chỉnh và tính năng Pan bằng phím `R`.
+    * **Lịch dạng bảng ngang (Horizontal Board)**:
+      * Hỗ trợ cuộn ngang mượt mà kèm thanh kéo chuột tùy chỉnh và tính năng Pan bằng phím `R`.
+      * **Khử Trùng Ca & Hàng Ảo Giữa Các Kỳ Cấu Hình Ca (Shift Deduplication & Phantom Row Elimination)**:
+        * Backend API (`/api/schedule`) tự động lọc ca theo khoảng ngày của bảng cấu hình (`period: { startDate <= end, endDate >= start }`) và chỉ tải các ca thuộc kỳ đang xem hoặc có phân công thực tế.
+        * Giao diện Bảng ngang (`schedule-calendar.tsx`), bộ xuất Excel (`schedule-excel-exporter.ts`), và bộ xuất Ảnh HD (`schedule-image-exporter.ts`) tự động nhóm các ca có cùng tên và khung giờ (`${name}|${startTime}|${endTime}`) từ các bảng cấu hình khác nhau thành một hàng duy nhất.
+        * Tự động loại bỏ hoàn toàn các hàng ca ảo (hàng 100% "Không có ca" không có bất kỳ ca làm việc nào trong khoảng ngày hiển thị), đảm bảo mỗi ca chỉ xuất hiện duy nhất 1 lần và bảng xếp ca luôn gọn gàng, trực quan.
   * **Menu Xuất Dữ Liệu Lịch Gộp Thông Minh (Export Popover Menu)**:
     * Nút bấm biểu tượng Download (`Download`) tinh gọn trên thanh Toolbar, khi click sẽ mở popup gồm **2 tùy chọn xuất chuyên nghiệp**:
       1. **Xuất File Excel (.xlsx) Đa Sheet Có Màu Sắc Định Dạng Cao Cấp (`schedule-excel-exporter.ts`)**:

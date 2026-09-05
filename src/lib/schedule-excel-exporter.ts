@@ -21,6 +21,7 @@ type Shift = {
   startTime: string;
   endTime: string;
   durationHours: number;
+  sortOrder?: number;
 };
 
 type Store = {
@@ -210,6 +211,44 @@ export async function exportScheduleToExcel(data: ExportScheduleData) {
     const storeShifts = data.shifts.filter((s) => s.storeId === store.id);
     if (storeShifts.length === 0) return;
 
+    // Nhóm các ca có cùng tên và khung giờ (từ các bảng cấu hình khác nhau trong kỳ)
+    type ShiftExcelGroup = {
+      key: string;
+      name: string;
+      startTime: string;
+      endTime: string;
+      durationHours: number;
+      sortOrder: number;
+      shiftIds: string[];
+    };
+
+    const groupMap = new Map<string, ShiftExcelGroup>();
+    for (const shift of storeShifts) {
+      const key = `${shift.name}|${shift.startTime}|${shift.endTime}`;
+      const existing = groupMap.get(key);
+      if (existing) {
+        existing.shiftIds.push(shift.id);
+        existing.sortOrder = Math.min(existing.sortOrder, shift.sortOrder ?? 0);
+      } else {
+        groupMap.set(key, {
+          key,
+          name: shift.name,
+          startTime: shift.startTime,
+          endTime: shift.endTime,
+          durationHours: shift.durationHours,
+          sortOrder: shift.sortOrder ?? 0,
+          shiftIds: [shift.id],
+        });
+      }
+    }
+    const shiftGroups = Array.from(groupMap.values()).sort((a, b) => a.sortOrder - b.sortOrder);
+    const activeShiftGroups = shiftGroups.filter((g) =>
+      dates.some((dateStr) =>
+        filteredSlots.some((s) => s.storeId === store.id && g.shiftIds.includes(s.shiftTemplateId) && s.date.startsWith(dateStr))
+      )
+    );
+    if (activeShiftGroups.length === 0) return;
+
     // Store Section Header Banner
     wsMatrix.mergeCells(`A${currentRowIndex}`, `${getColumnLetter(3 + dates.length)}${currentRowIndex}`);
     const storeBanner = wsMatrix.getCell(`A${currentRowIndex}`);
@@ -220,8 +259,8 @@ export async function exportScheduleToExcel(data: ExportScheduleData) {
     wsMatrix.getRow(currentRowIndex).height = 26;
     currentRowIndex++;
 
-    // For each Shift in store
-    storeShifts.forEach((shift, shiftIdx) => {
+    // For each Shift group in store
+    activeShiftGroups.forEach((shift, shiftIdx) => {
       const shiftRow = wsMatrix.getRow(currentRowIndex);
       shiftRow.height = 32;
 
@@ -245,14 +284,14 @@ export async function exportScheduleToExcel(data: ExportScheduleData) {
         const colIndex = 4 + dIdx;
         const cell = shiftRow.getCell(colIndex);
 
-        // Find slots for this date, store, shift
+        // Find slots for this date, store, shift group
         const matchingSlots = filteredSlots.filter(
-          (s) => s.storeId === store.id && s.shiftTemplateId === shift.id && s.date.startsWith(dateStr)
+          (s) => s.storeId === store.id && shift.shiftIds.includes(s.shiftTemplateId) && s.date.startsWith(dateStr)
         );
 
         // Find overtimes
         const matchingOvertimes = data.overtimes.filter(
-          (ot) => ot.storeId === store.id && ot.shiftTemplateId === shift.id && ot.date.startsWith(dateStr)
+          (ot) => ot.storeId === store.id && shift.shiftIds.includes(ot.shiftTemplateId) && ot.date.startsWith(dateStr)
         );
 
         if (matchingSlots.length > 0) {

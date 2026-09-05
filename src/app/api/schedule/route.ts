@@ -92,7 +92,29 @@ export async function GET(request: Request) {
 
     const [shifts, rules, overrides, existing, employees, overtimes, monthlyAssignments] = await prisma.$transaction([
       prisma.shiftTemplate.findMany({
-        where: { storeId: { in: storeIds }, isActive: true },
+        where: {
+          storeId: { in: storeIds },
+          isActive: true,
+          OR: [
+            {
+              periodId: null,
+              ...(start >= parseDateOnly("2026-10-01") ? { id: "never_match" } : {}),
+            },
+            {
+              period: {
+                startDate: { lte: end },
+                endDate: { gte: start },
+              },
+            },
+            {
+              shiftAssignments: {
+                some: {
+                  date: { gte: start, lte: end },
+                },
+              },
+            },
+          ],
+        },
         select: {
           id: true,
           storeId: true,
@@ -352,7 +374,29 @@ export async function POST(request: Request) {
     const [shifts, contextShifts, rules, overrides, existing, contextExisting, employees] =
       await prisma.$transaction([
         prisma.shiftTemplate.findMany({
-          where: { storeId: { in: storeIds }, isActive: true },
+          where: {
+            storeId: { in: storeIds },
+            isActive: true,
+            OR: [
+              {
+                periodId: null,
+                ...(start >= parseDateOnly("2026-10-01") ? { id: "never_match" } : {}),
+              },
+              {
+                period: {
+                  startDate: { lte: end },
+                  endDate: { gte: start },
+                },
+              },
+              {
+                shiftAssignments: {
+                  some: {
+                    date: { gte: start, lte: end },
+                  },
+                },
+              },
+            ],
+          },
           select: {
             id: true,
             storeId: true,
@@ -373,7 +417,29 @@ export async function POST(request: Request) {
           orderBy: [{ storeId: "asc" }, { sortOrder: "asc" }],
         }),
         prisma.shiftTemplate.findMany({
-          where: { storeId: { in: activeStoreIds }, isActive: true },
+          where: {
+            storeId: { in: activeStoreIds },
+            isActive: true,
+            OR: [
+              {
+                periodId: null,
+                ...(planningStart >= parseDateOnly("2026-10-01") ? { id: "never_match" } : {}),
+              },
+              {
+                period: {
+                  startDate: { lte: planningEnd },
+                  endDate: { gte: planningStart },
+                },
+              },
+              {
+                shiftAssignments: {
+                  some: {
+                    date: { gte: planningStart, lte: planningEnd },
+                  },
+                },
+              },
+            ],
+          },
           select: {
             id: true,
             storeId: true,

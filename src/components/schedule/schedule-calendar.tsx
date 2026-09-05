@@ -1829,9 +1829,49 @@ export function ScheduleCalendar({
                     const storeShifts = (shiftsByStore.get(store.id) ?? []).filter((shift) =>
                       visibleShiftIdsByStore.get(store.id)?.has(shift.id)
                     );
-                    const hasAnySlotsForStore = visibleDates.some((date) =>
-                      storeShifts.some((shift) => (slotsByGroup.get(`${date}|${store.id}|${shift.id}`) ?? []).length > 0)
+
+                    // Nhóm các ca có cùng tên và khung giờ (từ các bảng cấu hình ca khác nhau trong kỳ)
+                    type ShiftRowGroup = {
+                      key: string;
+                      name: string;
+                      startTime: string;
+                      endTime: string;
+                      sortOrder: number;
+                      shifts: typeof storeShifts;
+                    };
+
+                    const groupMap = new Map<string, ShiftRowGroup>();
+                    for (const shift of storeShifts) {
+                      const groupKey = `${shift.name}|${shift.startTime}|${shift.endTime}`;
+                      const existing = groupMap.get(groupKey);
+                      if (existing) {
+                        existing.shifts.push(shift);
+                        existing.sortOrder = Math.min(existing.sortOrder, shift.sortOrder);
+                      } else {
+                        groupMap.set(groupKey, {
+                          key: groupKey,
+                          name: shift.name,
+                          startTime: shift.startTime,
+                          endTime: shift.endTime,
+                          sortOrder: shift.sortOrder,
+                          shifts: [shift],
+                        });
+                      }
+                    }
+                    const shiftRowGroups = Array.from(groupMap.values()).sort(
+                      (a, b) => a.sortOrder - b.sortOrder
                     );
+
+                    // Chỉ hiển thị các hàng ca thực sự có ca làm việc trên ít nhất 1 ngày trong visibleDates
+                    const activeShiftGroups = shiftRowGroups.filter((group) =>
+                      visibleDates.some((date) =>
+                        group.shifts.some(
+                          (s) => (slotsByGroup.get(`${date}|${store.id}|${s.id}`) ?? []).length > 0
+                        )
+                      )
+                    );
+                    const hasAnySlotsForStore = activeShiftGroups.length > 0;
+
                     return (
                       <Fragment key={store.id}>
                         <tr key={`${store.id}-header`}>
@@ -1890,71 +1930,90 @@ export function ScheduleCalendar({
                             </td>
                           </tr>
                         ) : (
-                          storeShifts.map((shift) => (
-                            <tr key={`${store.id}-${shift.id}`}>
-                              <td className="sticky left-0 z-10 border-r border-b border-slate-200 bg-white px-4 py-2 align-top dark:border-[#333333] dark:bg-[#252526]">
-                                <div className="font-bold text-slate-900 dark:text-white">{shift.name}</div>
-                                <div className="text-xs font-semibold font-mono text-slate-500 dark:text-[#CCCCCC]">
-                                  {shift.startTime}-{shift.endTime}
-                                </div>
-                              </td>
-                            {visibleDates.map((date) => {
-                              const daySlots = slotsByGroup.get(`${date}|${store.id}|${shift.id}`) ?? [];
-                              const hasSelectedEmployeeInGroup =
-                                !hasEmployeeFilter ||
-                                visibleGroupKeys.has(`${date}|${store.id}|${shift.id}`);
-                              const note = dayNoteMap.get(date);
-                              return (
-                                <td
-                                  key={`${store.id}-${shift.id}-${date}`}
-                                  className={cn(
-                                    "min-w-[240px] border-r border-b border-slate-200 align-top dark:border-[#333333]",
-                                    note ? getDayNoteColor(note.colorKey).softClass : "bg-white dark:bg-[#1E1E1E]"
-                                  )}
-                                >
-                                  <div className="space-y-1.5 p-1.5">
-                                    {daySlots.length > 0 && hasSelectedEmployeeInGroup ? (
-                                      <CompactSlotGroup
-                                        slots={daySlots}
-                                        shift={shift}
-                                        store={store}
-                                        employeeMap={employeeMap}
-                                        employees={eligibleEmployeesByStore.get(store.id) ?? []}
-                                        canEdit={canEdit}
-                                        loading={loading}
-                                        flashSlots={flashSlots}
-                                        overtimes={overtimes.filter((ot) => ot.storeId === store.id && ot.shiftTemplateId === shift.id && ot.date === date)}
-                                        onAddOvertime={() => {
-                                          setOvertimeSlotContext({ storeId: store.id, shiftTemplateId: shift.id, date });
-                                          setOvertimeModalMode("add");
-                                          setOvertimeModalOpen(true);
-                                        }}
-                                        onEditOvertime={(id, empId, hours) => {
-                                          setEditingOvertimeId(id);
-                                          setEditingOvertimeEmployeeId(empId);
-                                          setEditingOvertimeInitialHours(hours);
-                                          setOvertimeModalMode("edit");
-                                          setOvertimeModalOpen(true);
-                                        }}
-                                        onDeleteOvertime={deleteOvertime}
-                                        onAssign={(slot, id) => assignEmployee(slot, id)}
-                                        onClear={(slot) => assignEmployee(slot, null)}
-                                        onAddFault={(slot) => setFaultSlot(slot)}
-                                      />
-                                    ) : hasEmployeeFilter ? (
-                                      <div className="min-h-[112px]" />
-                                    ) : (
-                                      <div className="rounded-md border border-dashed border-slate-200 bg-white/70 px-3 py-3 text-center text-xs text-slate-400 dark:border-neutral-800 dark:bg-neutral-900/50 dark:text-neutral-500">
-                                        Không có ca
-                                      </div>
-                                    )}
+                          activeShiftGroups.map((group) => {
+                            const firstShift = group.shifts[0];
+                            return (
+                              <tr key={`${store.id}-${group.key}`}>
+                                <td className="sticky left-0 z-10 border-r border-b border-slate-200 bg-white px-4 py-2 align-top dark:border-[#333333] dark:bg-[#252526]">
+                                  <div className="font-bold text-slate-900 dark:text-white">{group.name}</div>
+                                  <div className="text-xs font-semibold font-mono text-slate-500 dark:text-[#CCCCCC]">
+                                    {group.startTime}-{group.endTime}
                                   </div>
                                 </td>
-                              );
-                            })}
-                          </tr>
-                        ))
-                      )}
+                                {visibleDates.map((date) => {
+                                  const daySlots = group.shifts.flatMap(
+                                    (s) => slotsByGroup.get(`${date}|${store.id}|${s.id}`) ?? []
+                                  );
+                                  const hasSelectedEmployeeInGroup =
+                                    !hasEmployeeFilter ||
+                                    group.shifts.some((s) => visibleGroupKeys.has(`${date}|${store.id}|${s.id}`));
+                                  const note = dayNoteMap.get(date);
+                                  const shiftForDate =
+                                    group.shifts.find(
+                                      (s) => (slotsByGroup.get(`${date}|${store.id}|${s.id}`) ?? []).length > 0
+                                    ) || firstShift;
+
+                                  return (
+                                    <td
+                                      key={`${store.id}-${group.key}-${date}`}
+                                      className={cn(
+                                        "min-w-[240px] border-r border-b border-slate-200 align-top dark:border-[#333333]",
+                                        note ? getDayNoteColor(note.colorKey).softClass : "bg-white dark:bg-[#1E1E1E]"
+                                      )}
+                                    >
+                                      <div className="space-y-1.5 p-1.5">
+                                        {daySlots.length > 0 && hasSelectedEmployeeInGroup ? (
+                                          <CompactSlotGroup
+                                            slots={daySlots}
+                                            shift={shiftForDate}
+                                            store={store}
+                                            employeeMap={employeeMap}
+                                            employees={eligibleEmployeesByStore.get(store.id) ?? []}
+                                            canEdit={canEdit}
+                                            loading={loading}
+                                            flashSlots={flashSlots}
+                                            overtimes={overtimes.filter(
+                                              (ot) =>
+                                                ot.storeId === store.id &&
+                                                group.shifts.some((s) => s.id === ot.shiftTemplateId) &&
+                                                ot.date === date
+                                            )}
+                                            onAddOvertime={() => {
+                                              setOvertimeSlotContext({
+                                                storeId: store.id,
+                                                shiftTemplateId: shiftForDate.id,
+                                                date,
+                                              });
+                                              setOvertimeModalMode("add");
+                                              setOvertimeModalOpen(true);
+                                            }}
+                                            onEditOvertime={(id, empId, hours) => {
+                                              setEditingOvertimeId(id);
+                                              setEditingOvertimeEmployeeId(empId);
+                                              setEditingOvertimeInitialHours(hours);
+                                              setOvertimeModalMode("edit");
+                                              setOvertimeModalOpen(true);
+                                            }}
+                                            onDeleteOvertime={deleteOvertime}
+                                            onAssign={(slot, id) => assignEmployee(slot, id)}
+                                            onClear={(slot) => assignEmployee(slot, null)}
+                                            onAddFault={(slot) => setFaultSlot(slot)}
+                                          />
+                                        ) : hasEmployeeFilter ? (
+                                          <div className="min-h-[112px]" />
+                                        ) : (
+                                          <div className="rounded-md border border-dashed border-slate-200 bg-white/70 px-3 py-3 text-center text-xs text-slate-400 dark:border-neutral-800 dark:bg-neutral-900/50 dark:text-neutral-500">
+                                            Không có ca
+                                          </div>
+                                        )}
+                                      </div>
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            );
+                          })
+                        )}
                     </Fragment>
                     );
                   })}

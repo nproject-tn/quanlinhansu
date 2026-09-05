@@ -264,6 +264,44 @@ export async function exportScheduleToImage(data: ExportScheduleData) {
     const storeShifts = data.shifts.filter((s) => s.storeId === store.id);
     if (storeShifts.length === 0) return;
 
+    // Nhóm các ca có cùng tên và khung giờ (từ các bảng cấu hình khác nhau trong kỳ)
+    type ShiftImageGroup = {
+      key: string;
+      name: string;
+      startTime: string;
+      endTime: string;
+      durationHours: number;
+      sortOrder: number;
+      shiftIds: string[];
+    };
+
+    const groupMap = new Map<string, ShiftImageGroup>();
+    for (const shift of storeShifts) {
+      const key = `${shift.name}|${shift.startTime}|${shift.endTime}`;
+      const existing = groupMap.get(key);
+      if (existing) {
+        existing.shiftIds.push(shift.id);
+        existing.sortOrder = Math.min(existing.sortOrder, shift.sortOrder ?? 0);
+      } else {
+        groupMap.set(key, {
+          key,
+          name: shift.name,
+          startTime: shift.startTime,
+          endTime: shift.endTime,
+          durationHours: shift.durationHours,
+          sortOrder: shift.sortOrder ?? 0,
+          shiftIds: [shift.id],
+        });
+      }
+    }
+    const shiftGroups = Array.from(groupMap.values()).sort((a, b) => a.sortOrder - b.sortOrder);
+    const activeShiftGroups = shiftGroups.filter((g) =>
+      dates.some((dateStr) =>
+        filteredSlots.some((s) => s.storeId === store.id && g.shiftIds.includes(s.shiftTemplateId) && s.date.startsWith(dateStr))
+      )
+    );
+    if (activeShiftGroups.length === 0) return;
+
     // Store Section Banner Row
     const storeBannerRow = document.createElement("tr");
     const storeBannerCell = document.createElement("td");
@@ -281,7 +319,7 @@ export async function exportScheduleToImage(data: ExportScheduleData) {
     tbody.appendChild(storeBannerRow);
 
     // Shift rows
-    storeShifts.forEach((shift, shiftIdx) => {
+    activeShiftGroups.forEach((shift, shiftIdx) => {
       const row = document.createElement("tr");
       const isEven = shiftIdx % 2 === 0;
       row.style.backgroundColor = isEven ? "#FFFFFF" : "#F8FAFC";
@@ -315,11 +353,11 @@ export async function exportScheduleToImage(data: ExportScheduleData) {
         tdCell.style.maxWidth = `${dateColWidth}px`;
 
         const matchingSlots = filteredSlots.filter(
-          (s) => s.storeId === store.id && s.shiftTemplateId === shift.id && s.date.startsWith(dateStr)
+          (s) => s.storeId === store.id && shift.shiftIds.includes(s.shiftTemplateId) && s.date.startsWith(dateStr)
         );
 
         const matchingOvertimes = data.overtimes.filter(
-          (ot) => ot.storeId === store.id && ot.shiftTemplateId === shift.id && ot.date.startsWith(dateStr)
+          (ot) => ot.storeId === store.id && shift.shiftIds.includes(ot.shiftTemplateId) && ot.date.startsWith(dateStr)
         );
 
         if (matchingSlots.length > 0) {
