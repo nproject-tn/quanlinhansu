@@ -1203,7 +1203,7 @@ export default function ShiftConfigClient({
               className="h-8 text-xs font-semibold gap-1.5 border-dashed border-amber-300 bg-amber-50/50 hover:bg-amber-100 text-amber-900 dark:border-amber-800/40 dark:bg-amber-950/20 dark:text-amber-300 dark:hover:bg-amber-950/40"
             >
               <Plus className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-              <span>+ Cấu hình ngày còn thiếu</span>
+              <span>Cấu hình ngày còn thiếu</span>
             </Button>
           )}
         </div>
@@ -1304,7 +1304,7 @@ export default function ShiftConfigClient({
                   className="h-9 px-4 text-xs font-semibold gap-2 shadow-sm"
                 >
                   <Plus className="h-4 w-4" />
-                  <span>+ Thêm bảng cấu hình ca mới</span>
+                  <span>Thêm bảng cấu hình ca mới</span>
                 </Button>
               </div>
             )}
@@ -1400,7 +1400,7 @@ export default function ShiftConfigClient({
                     className="h-8 text-xs font-semibold gap-1.5"
                   >
                     <Plus className="h-3.5 w-3.5" />
-                    <span>+ Thêm ca làm việc đầu tiên</span>
+                    <span>Thêm ca làm việc đầu tiên</span>
                   </Button>
                 )}
               </div>
