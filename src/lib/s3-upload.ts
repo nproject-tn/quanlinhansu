@@ -2,7 +2,14 @@ import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 
-import sharp from "sharp";
+async function getSharpInstance() {
+  try {
+    const s = await import("sharp");
+    return s.default || s;
+  } catch {
+    return null;
+  }
+}
 
 // Create an S3 client for Oracle Object Storage (or any S3 compatible API)
 export const s3Client = new S3Client({
@@ -28,12 +35,17 @@ export async function uploadToS3(
   let contentType = "image/webp";
 
   try {
-    optimizedBuffer = await sharp(buffer)
-      .resize(256, 256, { fit: "cover", withoutEnlargement: true }) // Max 256x256, crop to square
-      .webp({ quality: 80 }) // Compress to WebP with 80% quality
-      .toBuffer();
-    ext = "webp";
-    contentType = "image/webp";
+    const sharpInstance = await getSharpInstance();
+    if (sharpInstance) {
+      optimizedBuffer = await sharpInstance(buffer)
+        .resize(256, 256, { fit: "cover", withoutEnlargement: true }) // Max 256x256, crop to square
+        .webp({ quality: 80 }) // Compress to WebP with 80% quality
+        .toBuffer();
+      ext = "webp";
+      contentType = "image/webp";
+    } else {
+      throw new Error("sharp not available");
+    }
   } catch (e) {
     console.warn("Image optimization with sharp skipped:", e);
     ext = filename.split(".").pop()?.toLowerCase() || "png";
