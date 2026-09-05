@@ -76,6 +76,7 @@ model Company {
   users                    User[] // Legacy 1:N relation
   stores                   Store[]
   employees                Employee[]
+  shiftConfigPeriods       ShiftConfigPeriod[]
   shiftTemplates           ShiftTemplate[]
   staffingRules            StaffingRule[]
   staffingOverrides        StaffingOverride[]
@@ -236,6 +237,7 @@ model Store {
   maxShiftsPerDay   Int?
   isActive          Boolean            @default(true)
   employees         EmployeeStore[]
+  shiftConfigPeriods ShiftConfigPeriod[]
   shiftTemplates    ShiftTemplate[]
   staffingRules     StaffingRule[]
   staffingOverrides StaffingOverride[]
@@ -296,12 +298,31 @@ model EmployeeStore {
   @@index([storeId])
 }
 
+model ShiftConfigPeriod {
+  id             String          @id @default(cuid())
+  companyId      String
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  storeId        String
+  store          Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name           String
+  startDate      DateTime        @db.Date
+  endDate        DateTime        @db.Date
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  shiftTemplates ShiftTemplate[]
+
+  @@index([companyId, storeId])
+  @@index([storeId, startDate, endDate])
+}
+
 model ShiftTemplate {
   id                String             @id @default(cuid())
   companyId         String
   company           Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
   storeId           String
   store             Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  periodId          String?
+  period            ShiftConfigPeriod? @relation(fields: [periodId], references: [id], onDelete: Cascade)
   name              String
   startTime         String
   endTime           String
@@ -314,6 +335,7 @@ model ShiftTemplate {
   shiftOvertimes    ShiftOvertime[]
 
   @@index([companyId, storeId, isActive, sortOrder])
+  @@index([periodId])
 }
 
 model StaffingRule {

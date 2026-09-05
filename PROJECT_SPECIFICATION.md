@@ -273,16 +273,24 @@
 
 ## 7. PHÂN HỆ 4: CẤU HÌNH CA & QUY TẮC ĐỊNH BIÊN
 
-* **Ca làm việc Mẫu (`/app/[companyId]/cau-hinh-ca`)**:
-  * Khai báo các ca chuẩn: Ca Sáng (08:00 - 16:00), Ca Chiều (14:00 - 22:00), Ca Tối, Ca Gãy...
-  * Thiết lập: Giờ bắt đầu, Giờ kết thúc, Thời gian nghỉ giữa ca (phút), Tổng giờ công thực tế, Hệ số lương (1.0, 1.5, 2.0 cho ca đêm/ngày lễ), Mã màu nhận diện.
+* **Cấu hình Ca Đa Thời Kỳ & Phạm Vi Ngày Linh Hoạt (`ShiftConfigPeriod`)**:
+  * **Hỗ trợ Nhiều Bảng Cấu Hình Ca Trong Tháng**: Cho phép người dùng thêm nhiều bảng cấu hình ca khác nhau cho 1 hoặc nhiều ngày cụ thể trong tháng (ví dụ: 10 ngày đầu tháng có 5 ca/ngày, 10 ngày tiếp theo cắt giảm còn 3 ca/ngày, 10 ngày cuối tháng tăng lên 6 ca/ngày, hoặc các ngày lễ/sự kiện đặc biệt chỉ có 1 ca riêng).
+  * **Thay Đổi Mở Rộng / Thu Hẹp Khoảng Ngày (Date Range Adjustment)**: Người dùng có thể dễ dàng chỉnh sửa thêm hoặc bớt khoảng ngày (`startDate` - `endDate`) của bảng cấu hình đã tạo.
+  * **Quy Tắc Chống Trùng Ngày Tuyệt Đối (Strict No-Overlap Rule)**: Hệ thống tuyệt đối không cho phép 2 bảng cấu hình ca trong cùng một cửa hàng có khoảng ngày giao thoa / trùng nhau (`startDate <= other.endDate && other.startDate <= endDate`). Backend API (`POST/PUT /api/shift-config-periods`) và Frontend UI đều kiểm tra thời gian thực, hiển thị cảnh báo đỏ chi tiết tên bảng và khoảng ngày bị trùng, vô hiệu hóa nút Lưu khi có xung đột.
+  * **Bảo Lưu Dữ Liệu Lịch Sử (Tháng 9/2026 Trở Về Trước)**: Dữ liệu ca và phân công từ tháng 9/2026 trở về trước được bảo toàn 100%, tự động bọc vào bảng cấu hình của tháng để người dùng vẫn có thể tiếp tục xem và chỉnh sửa theo tính năng mới.
+  * **Khởi Tạo Trống Hoàn Toàn Từ Tháng 10/2026 Trở Đi**: Bắt đầu từ tháng 10/2026, các tháng mới sẽ hoàn toàn trống nếu người dùng chưa vào thiết lập (không tự sinh bảng mẫu). Khi người dùng vào tháng mới, hệ thống hiển thị màn hình trống thân thiện với nút `+ Thêm bảng cấu hình ca mới`.
+  * **Nhắc Nhở Điều Hướng Trên Lịch Xếp Ca**: Nếu một ngày hoặc khoảng thời gian chưa được cấu hình ca, tab Lịch Xếp Ca (`/lich-xep-ca`) sẽ không sinh ca trống và hiển thị thông báo nổi bật: *"Cửa hàng chưa có cấu hình ca làm việc cho khoảng thời gian này. 👉 Chuyển sang tab Cấu hình ca để thêm ca làm"* kèm nút liên kết trực tiếp.
+  * **Thanh Tiến Trình Phủ Kín Tháng (Month Coverage Summary)**: Hiển thị tỷ lệ ngày đã cấu hình ca trong tháng (`X / Y ngày`), đánh dấu xanh khi phủ kín 100% cả tháng và hiển thị nút hành động nhanh `+ Cấu hình ngày còn thiếu` khi còn ngày trống.
+* **Ca làm việc Mẫu (`ShiftTemplate`)**:
+  * Khai báo các ca chuẩn: Ca Sáng (08:00 - 16:00), Ca Chiều (14:00 - 22:00), Ca Tối, Ca Gãy... gắn với từng bảng cấu hình ca (`periodId`).
+  * Thiết lập: Giờ bắt đầu, Giờ kết thúc, Thời gian nghỉ giữa ca (phút), Tổng giờ công thực tế, Hệ số lương, Mã màu nhận diện.
   * **Quy tắc Khung giờ Ca Làm việc**:
-    * **Chặn tạo 2 ca có giờ làm giống hệt nhau hoặc lọt lòng trong nhau trong cùng một cửa hàng**: Hệ thống tuyệt đối không cho phép tạo hoặc chỉnh sửa 2 ca làm việc có cùng giờ bắt đầu/kết thúc, hoặc ca này nằm lọt lòng hoàn toàn / bao trọn ca kia trong cùng một chi nhánh (ví dụ: Ca 1 từ `08:00 - 11:00` thì Ca 2 KHÔNG THỂ là `09:00 - 11:00`, `08:00 - 10:00`, `08:30 - 10:30` hay `07:00 - 12:00`). Áp dụng nghiêm ngặt ở cả giao diện `shift-config-client.tsx` và API `POST/PUT /api/shift-templates`.
+    * **Chặn tạo 2 ca có giờ làm giống hệt nhau hoặc lọt lòng trong nhau trong cùng một bảng cấu hình**: Hệ thống tuyệt đối không cho phép tạo hoặc chỉnh sửa 2 ca làm việc có cùng giờ bắt đầu/kết thúc, hoặc ca này nằm lọt lòng hoàn toàn / bao trọn ca kia trong cùng một bảng cấu hình (ví dụ: Ca 1 từ `08:00 - 11:00` thì Ca 2 KHÔNG THỂ là `09:00 - 11:00`, `08:00 - 10:00`, `08:30 - 10:30` hay `07:00 - 12:00`). Áp dụng nghiêm ngặt ở cả giao diện `shift-config-client.tsx` và API `POST/PUT /api/shift-templates`.
     * **Bảo lưu logic giao nhau giữa các ca (Overlapping Shifts)**: Các ca làm việc vẫn được phép giao thoa/gối đầu nhau 1 tiếng hoặc nhiều tiếng (ví dụ: Ca 1 từ `08:00 - 11:00` và Ca 2 từ `09:00 - 12:00` giao nhau 2 tiếng) để phục vụ nhu cầu bàn giao ca hoặc tăng cường nhân sự giờ cao điểm.
     * **Bộ sinh khung giờ mặc định tuần tự 24/7**: Khi thiết lập số ca/ngày tại cửa hàng (lên đến 8 ca), hệ thống tự động sinh các khung giờ kế tiếp nhau chia đều vòng tròn 24 tiếng mà không bị lặp lại khung giờ sáng.
 * **Quy tắc Định biên & Ngoại lệ**:
   * `StaffingRule`: Số lượng nhân sự tối thiểu của từng ca theo các thứ trong tuần (Thứ 2 -> Chủ Nhật).
-  * `StaffingOverride`: Tăng cường định biên cho các dịp khuyến mãi Black Friday, Tết, Khai trương...
+  * `StaffingOverride`: Tăng cường định biên cho các dịp khuyến mãi Black Friday, Tết, Khai trương... hỗ trợ áp dụng nhanh cho toàn bộ đợt hoặc từng ngày trong đợt.
   * **Tối ưu hóa Bảng Ma trận Ca Siêu Tinh gọn (High-Density Mobile Optimized Matrix)**:
     * **Rút gọn Cột Cố định từ 3 cột (370px) xuống 2 cột (225px)**:
       * **Cột 1: `Ca` (`w-[60px]`)**: Hiển thị tên ca (Ca 1, Ca 2...), in đậm, cố định góc trái (`sticky left-0`).

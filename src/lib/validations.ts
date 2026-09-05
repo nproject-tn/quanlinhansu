@@ -44,12 +44,28 @@ export const storeSchema = z.object({
   isActive: z.boolean().default(true),
 });
 
+export const shiftConfigPeriodSchema = z.object({
+  storeId: z.string().min(1, "Vui lòng chọn cửa hàng"),
+  name: z.string().min(1, "Tên bảng cấu hình không được để trống"),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Định dạng YYYY-MM-DD"),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Định dạng YYYY-MM-DD"),
+  cloneFromPeriodId: z.string().optional(),
+  initialShiftsCount: z.number().min(1).max(12).optional(),
+});
+
+export const shiftConfigPeriodUpdateSchema = z.object({
+  name: z.string().min(1, "Tên bảng cấu hình không được để trống").optional(),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Định dạng YYYY-MM-DD").optional(),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Định dạng YYYY-MM-DD").optional(),
+});
+
 export const shiftTemplateSchema = z.object({
   storeId: z.string(),
+  periodId: z.string().optional().nullable(),
   name: z.string().min(1),
   startTime: z.string().regex(/^\d{2}:\d{2}$/, "Định dạng HH:mm"),
   endTime: z.string().regex(/^\d{2}:\d{2}$/, "Định dạng HH:mm"),
-  durationHours: z.number().min(0.5).max(12),
+  durationHours: z.number().min(0.5).max(24),
   sortOrder: z.number().min(0),
   isActive: z.boolean().default(true),
 });

@@ -96,6 +96,14 @@ export async function GET(request: Request) {
         select: {
           id: true,
           storeId: true,
+          periodId: true,
+          period: {
+            select: {
+              id: true,
+              startDate: true,
+              endDate: true,
+            },
+          },
           name: true,
           startTime: true,
           endTime: true,
@@ -206,10 +214,23 @@ export async function GET(request: Request) {
         return [];
       });
 
+    const shiftsFormatted = shifts.map((s) => ({
+      id: s.id,
+      storeId: s.storeId,
+      periodId: s.periodId,
+      periodStartDate: s.period ? formatDateOnly(s.period.startDate) : null,
+      periodEndDate: s.period ? formatDateOnly(s.period.endDate) : null,
+      name: s.name,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      durationHours: s.durationHours,
+      sortOrder: s.sortOrder,
+    }));
+
     const slotsRaw = buildAssignmentSlots(
       dates,
       stores,
-      shifts,
+      shiftsFormatted,
       rules,
       overrides,
       existing.map((e) => ({
@@ -223,7 +244,7 @@ export async function GET(request: Request) {
       }))
     );
 
-    const unfilled = findUnfilledShifts(slotsRaw, stores, shifts);
+    const unfilled = findUnfilledShifts(slotsRaw, stores, shiftsFormatted);
 
     const slots = slotsRaw.map((s) => ({
       ...s,
@@ -235,7 +256,7 @@ export async function GET(request: Request) {
       start: formatDateOnly(start),
       end: formatDateOnly(end),
       stores,
-      shifts,
+      shifts: shiftsFormatted,
       rules,
       overrides,
       dayNotes: dayNotes.map((note) => ({
@@ -335,6 +356,14 @@ export async function POST(request: Request) {
           select: {
             id: true,
             storeId: true,
+            periodId: true,
+            period: {
+              select: {
+                id: true,
+                startDate: true,
+                endDate: true,
+              },
+            },
             name: true,
             startTime: true,
             endTime: true,
@@ -348,6 +377,14 @@ export async function POST(request: Request) {
           select: {
             id: true,
             storeId: true,
+            periodId: true,
+            period: {
+              select: {
+                id: true,
+                startDate: true,
+                endDate: true,
+              },
+            },
             name: true,
             startTime: true,
             endTime: true,
@@ -434,10 +471,23 @@ export async function POST(request: Request) {
         }),
       ]);
 
+    const shiftsFormatted = shifts.map((s) => ({
+      id: s.id,
+      storeId: s.storeId,
+      periodId: s.periodId,
+      periodStartDate: s.period ? formatDateOnly(s.period.startDate) : null,
+      periodEndDate: s.period ? formatDateOnly(s.period.endDate) : null,
+      name: s.name,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      durationHours: s.durationHours,
+      sortOrder: s.sortOrder,
+    }));
+
     let slots = buildAssignmentSlots(
       planningDates,
       stores,
-      shifts,
+      shiftsFormatted,
       rules,
       overrides,
       existing.map((e) => ({
@@ -510,6 +560,19 @@ export async function POST(request: Request) {
         shift: assignment.shiftTemplate,
       }));
 
+    const contextShiftsFormatted = contextShifts.map((s) => ({
+      id: s.id,
+      storeId: s.storeId,
+      periodId: s.periodId,
+      periodStartDate: s.period ? formatDateOnly(s.period.startDate) : null,
+      periodEndDate: s.period ? formatDateOnly(s.period.endDate) : null,
+      name: s.name,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      durationHours: s.durationHours,
+      sortOrder: s.sortOrder,
+    }));
+
     slots = autoAssignShifts(
       slots,
       employees.map((e) => ({
@@ -525,7 +588,7 @@ export async function POST(request: Request) {
           return acc;
         }, {} as Record<string, number>),
       })),
-      contextShifts,
+      contextShiftsFormatted,
       stores as any,
       {
         preserveManual: true,
@@ -566,7 +629,7 @@ export async function POST(request: Request) {
       });
     }
 
-    const unfilled = findUnfilledShifts(targetSlots, stores, shifts);
+    const unfilled = findUnfilledShifts(targetSlots, stores, shiftsFormatted);
 
     if (session?.user) {
       await logActivity({

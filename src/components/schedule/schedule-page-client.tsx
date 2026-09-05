@@ -35,6 +35,7 @@ import { MultiSelect } from "@/components/ui/multi-select";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 
 type SchedulePageClientProps = {
+  companyId?: string;
   user: {
     name: string;
     role: UserRole;
@@ -91,7 +92,7 @@ function normalizeToMonthStart(dateStr: string) {
   return formatDateOnly(new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1)));
 }
 
-export function SchedulePageClient({ user }: SchedulePageClientProps) {
+export function SchedulePageClient({ user, companyId }: SchedulePageClientProps) {
   const [mode, setMode] = useState<"day" | "week" | "month">(() => {
     if (typeof window !== "undefined") return (sessionStorage.getItem("schedule_mode") as "day" | "week" | "month") || "week";
     return "week";
@@ -1121,6 +1122,7 @@ export function SchedulePageClient({ user }: SchedulePageClientProps) {
 
       <div id="schedule-calendar-container">
         <ScheduleCalendar
+          companyId={companyId}
           stores={stores}
           shifts={shifts}
           slots={slots}

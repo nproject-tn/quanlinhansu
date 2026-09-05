@@ -22,7 +22,8 @@ import {
 } from "@dnd-kit/core";
 import { format, parseISO } from "date-fns";
 import { vi } from "date-fns/locale";
-import { AlertCircle, AlertTriangle, GripVertical, X, Plus } from "lucide-react";
+import Link from "next/link";
+import { AlertCircle, AlertTriangle, GripVertical, X, Plus, ArrowRight } from "lucide-react";
 import { FaultModal } from "./fault-modal";
 import { OvertimeModal } from "./overtime-modal";
 import { Badge } from "@/components/ui/badge";
@@ -80,6 +81,7 @@ type DayNote = {
 
 type Unfilled = { storeName: string; shiftName: string; date: string };
 type ScheduleCalendarProps = {
+  companyId?: string;
   stores: Store[];
   shifts: Shift[];
   slots: Slot[];
@@ -727,6 +729,7 @@ function CompactEmptySlotDropZone({
 }
 
 export function ScheduleCalendar({
+  companyId,
   stores,
   shifts,
   slots,
@@ -1826,6 +1829,9 @@ export function ScheduleCalendar({
                     const storeShifts = (shiftsByStore.get(store.id) ?? []).filter((shift) =>
                       visibleShiftIdsByStore.get(store.id)?.has(shift.id)
                     );
+                    const hasAnySlotsForStore = visibleDates.some((date) =>
+                      storeShifts.some((shift) => (slotsByGroup.get(`${date}|${store.id}|${shift.id}`) ?? []).length > 0)
+                    );
                     return (
                       <Fragment key={store.id}>
                         <tr key={`${store.id}-header`}>
@@ -1860,14 +1866,38 @@ export function ScheduleCalendar({
                             );
                           })}
                         </tr>
-                        {storeShifts.map((shift) => (
-                          <tr key={`${store.id}-${shift.id}`}>
-                            <td className="sticky left-0 z-10 border-r border-b border-slate-200 bg-white px-4 py-2 align-top dark:border-[#333333] dark:bg-[#252526]">
-                              <div className="font-bold text-slate-900 dark:text-white">{shift.name}</div>
-                              <div className="text-xs font-semibold font-mono text-slate-500 dark:text-[#CCCCCC]">
-                                {shift.startTime}-{shift.endTime}
+                        {storeShifts.length === 0 || !hasAnySlotsForStore ? (
+                          <tr key={`${store.id}-empty`}>
+                            <td
+                              colSpan={visibleDates.length + 1}
+                              className="border-b border-slate-200 bg-amber-50/70 p-4 dark:border-[#333333] dark:bg-amber-950/20"
+                            >
+                              <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
+                                <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200 font-medium">
+                                  <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                                  <span>Cửa hàng <strong>{store.name}</strong> chưa có cấu hình ca làm việc cho khoảng thời gian này.</span>
+                                </div>
+                                {companyId && (
+                                  <Link
+                                    href={`/app/${companyId}/cau-hinh-ca`}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold transition-colors shadow-xs"
+                                  >
+                                    <span>Chuyển sang tab Cấu hình ca để thêm ca làm</span>
+                                    <ArrowRight className="h-3.5 w-3.5" />
+                                  </Link>
+                                )}
                               </div>
                             </td>
+                          </tr>
+                        ) : (
+                          storeShifts.map((shift) => (
+                            <tr key={`${store.id}-${shift.id}`}>
+                              <td className="sticky left-0 z-10 border-r border-b border-slate-200 bg-white px-4 py-2 align-top dark:border-[#333333] dark:bg-[#252526]">
+                                <div className="font-bold text-slate-900 dark:text-white">{shift.name}</div>
+                                <div className="text-xs font-semibold font-mono text-slate-500 dark:text-[#CCCCCC]">
+                                  {shift.startTime}-{shift.endTime}
+                                </div>
+                              </td>
                             {visibleDates.map((date) => {
                               const daySlots = slotsByGroup.get(`${date}|${store.id}|${shift.id}`) ?? [];
                               const hasSelectedEmployeeInGroup =
@@ -1923,8 +1953,9 @@ export function ScheduleCalendar({
                               );
                             })}
                           </tr>
-                        ))}
-                      </Fragment>
+                        ))
+                      )}
+                    </Fragment>
                     );
                   })}
                 </tbody>
@@ -1999,54 +2030,76 @@ export function ScheduleCalendar({
                           />
                           <h4 className="font-bold text-slate-800 dark:text-neutral-100 truncate text-sm sm:text-base">{store.name}</h4>
                         </div>
-                        <div className="grid gap-2 sm:gap-2.5 grid-cols-2 2xl:grid-cols-3">
-                          {shiftsByStore
-                            .get(store.id)
-                            ?.filter((shift) => visibleShiftIdsByStore.get(store.id)?.has(shift.id))
-                            .flatMap((shift) =>
-                            (() => {
-                              const daySlots = slotsByGroup.get(`${date}|${store.id}|${shift.id}`) ?? [];
-                              if (
-                                daySlots.length === 0 ||
-                                (hasEmployeeFilter &&
-                                  !visibleGroupKeys.has(`${date}|${store.id}|${shift.id}`))
-                              ) {
-                                return [];
-                              }
+                        {(() => {
+                          const activeStoreShifts = (shiftsByStore.get(store.id) ?? [])
+                            .filter((shift) => visibleShiftIdsByStore.get(store.id)?.has(shift.id))
+                            .filter((shift) => (slotsByGroup.get(`${date}|${store.id}|${shift.id}`) ?? []).length > 0);
 
-                              return [
-                                <CompactSlotGroup
-                                  key={`${date}|${store.id}|${shift.id}`}
-                                  slots={daySlots}
-                                  shift={shift}
-                                  store={store}
-                                  employeeMap={employeeMap}
-                                  employees={eligibleEmployeesByStore.get(store.id) ?? []}
-                                  canEdit={canEdit}
-                                  loading={loading}
-                                  flashSlots={flashSlots}
-                                  overtimes={overtimes.filter((ot) => ot.storeId === store.id && ot.shiftTemplateId === shift.id && ot.date === date)}
-                                  onAddOvertime={() => {
-                                    setOvertimeSlotContext({ storeId: store.id, shiftTemplateId: shift.id, date });
-                                    setOvertimeModalMode("add");
-                                    setOvertimeModalOpen(true);
-                                  }}
-                                  onEditOvertime={(id, empId, hours) => {
-                                    setEditingOvertimeId(id);
-                                    setEditingOvertimeEmployeeId(empId);
-                                    setEditingOvertimeInitialHours(hours);
-                                    setOvertimeModalMode("edit");
-                                    setOvertimeModalOpen(true);
-                                  }}
-                                  onDeleteOvertime={deleteOvertime}
-                                  onAssign={(slot, id) => assignEmployee(slot, id)}
-                                  onClear={(slot) => assignEmployee(slot, null)}
-                                  onAddFault={(slot) => setFaultSlot(slot)}
-                                />,
-                              ];
-                            })()
-                          )}
-                        </div>
+                          if (activeStoreShifts.length === 0) {
+                            return (
+                              <div className="rounded-xl border border-dashed border-amber-200 bg-amber-50/50 p-4 text-center dark:border-amber-900/40 dark:bg-amber-950/20">
+                                <p className="text-xs font-medium text-amber-800 dark:text-amber-300">
+                                  Chưa có cấu hình ca cho ngày này.
+                                </p>
+                                {companyId && (
+                                  <Link
+                                    href={`/app/${companyId}/cau-hinh-ca`}
+                                    className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-amber-700 hover:text-amber-800 hover:underline dark:text-amber-400"
+                                  >
+                                    <span>Chuyển sang tab Cấu hình ca để thêm ca làm</span>
+                                    <ArrowRight className="h-3.5 w-3.5" />
+                                  </Link>
+                                )}
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div className="grid gap-2 sm:gap-2.5 grid-cols-2 2xl:grid-cols-3">
+                              {activeStoreShifts.map((shift) => {
+                                const daySlots = slotsByGroup.get(`${date}|${store.id}|${shift.id}`) ?? [];
+                                if (
+                                  daySlots.length === 0 ||
+                                  (hasEmployeeFilter &&
+                                    !visibleGroupKeys.has(`${date}|${store.id}|${shift.id}`))
+                                ) {
+                                  return null;
+                                }
+
+                                return (
+                                  <CompactSlotGroup
+                                    key={`${date}|${store.id}|${shift.id}`}
+                                    slots={daySlots}
+                                    shift={shift}
+                                    store={store}
+                                    employeeMap={employeeMap}
+                                    employees={eligibleEmployeesByStore.get(store.id) ?? []}
+                                    canEdit={canEdit}
+                                    loading={loading}
+                                    flashSlots={flashSlots}
+                                    overtimes={overtimes.filter((ot) => ot.storeId === store.id && ot.shiftTemplateId === shift.id && ot.date === date)}
+                                    onAddOvertime={() => {
+                                      setOvertimeSlotContext({ storeId: store.id, shiftTemplateId: shift.id, date });
+                                      setOvertimeModalMode("add");
+                                      setOvertimeModalOpen(true);
+                                    }}
+                                    onEditOvertime={(id, empId, hours) => {
+                                      setEditingOvertimeId(id);
+                                      setEditingOvertimeEmployeeId(empId);
+                                      setEditingOvertimeInitialHours(hours);
+                                      setOvertimeModalMode("edit");
+                                      setOvertimeModalOpen(true);
+                                    }}
+                                    onDeleteOvertime={deleteOvertime}
+                                    onAssign={(slot, id) => assignEmployee(slot, id)}
+                                    onClear={(slot) => assignEmployee(slot, null)}
+                                    onAddFault={(slot) => setFaultSlot(slot)}
+                                  />
+                                );
+                              })}
+                            </div>
+                          );
+                        })()}
                       </div>
                     ))}
                   </div>

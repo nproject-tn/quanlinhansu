@@ -23,11 +23,16 @@ export async function PUT(request: Request, { params }: Params) {
     return NextResponse.json({ error: "Ca không tồn tại hoặc không có quyền truy cập" }, { status: 404 });
   }
 
-  // Kiểm tra tên ca có bị trùng với các ca ĐANG HOẠT ĐỘNG khác không
+  const effectivePeriodId = parsed.data.periodId !== undefined ? parsed.data.periodId : existingTemplate.periodId;
+  const scopeCondition = effectivePeriodId
+    ? { periodId: effectivePeriodId }
+    : { storeId: parsed.data.storeId, periodId: null };
+
+  // Kiểm tra tên ca có bị trùng trong cùng bảng cấu hình không
   const existingActiveShift = await prisma.shiftTemplate.findFirst({
     where: {
-      storeId: parsed.data.storeId,
       companyId,
+      ...scopeCondition,
       name: parsed.data.name,
       isActive: true,
       id: { not: id }, // Bỏ qua chính ca đang cập nhật
@@ -36,16 +41,16 @@ export async function PUT(request: Request, { params }: Params) {
 
   if (existingActiveShift) {
     return NextResponse.json(
-      { error: "Tên ca này đã tồn tại, vui lòng chọn tên khác." },
+      { error: "Tên ca này đã tồn tại trong bảng cấu hình, vui lòng chọn tên khác." },
       { status: 400 }
     );
   }
 
-  // Kiểm tra khung giờ ca có bị trùng hệt hoặc nằm lọt lòng trong ca ĐANG HOẠT ĐỘNG khác không
+  // Kiểm tra khung giờ ca có bị trùng hệt hoặc nằm lọt lòng trong ca khác cùng bảng không
   const activeStoreShifts = await prisma.shiftTemplate.findMany({
     where: {
       companyId,
-      storeId: parsed.data.storeId,
+      ...scopeCondition,
       isActive: true,
       id: { not: id }, // Bỏ qua chính ca đang cập nhật
     },

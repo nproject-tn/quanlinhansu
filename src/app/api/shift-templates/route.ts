@@ -14,6 +14,7 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const storeId = searchParams.get("storeId");
+  const periodId = searchParams.get("periodId");
   const includeStore = searchParams.get("includeStore") === "1";
 
   const shiftTemplates = await prisma.shiftTemplate.findMany({
@@ -21,10 +22,12 @@ export async function GET(request: Request) {
       companyId,
       isActive: true,
       ...(storeId ? { storeId } : {}),
+      ...(periodId ? { periodId } : {}),
     },
     select: {
       id: true,
       storeId: true,
+      periodId: true,
       name: true,
       startTime: true,
       endTime: true,
@@ -51,11 +54,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  // Kiểm tra tên ca có bị trùng với các ca ĐANG HOẠT ĐỘNG không
+  const scopeCondition = parsed.data.periodId
+    ? { periodId: parsed.data.periodId }
+    : { storeId: parsed.data.storeId, periodId: null };
+
+  // Kiểm tra tên ca có bị trùng trong cùng bảng cấu hình không
   const existingActiveShift = await prisma.shiftTemplate.findFirst({
     where: {
       companyId,
-      storeId: parsed.data.storeId,
+      ...scopeCondition,
       name: parsed.data.name,
       isActive: true,
     },
@@ -63,16 +70,16 @@ export async function POST(request: Request) {
 
   if (existingActiveShift) {
     return NextResponse.json(
-      { error: "Tên ca này đã tồn tại, vui lòng chọn tên khác." },
+      { error: "Tên ca này đã tồn tại trong bảng cấu hình, vui lòng chọn tên khác." },
       { status: 400 }
     );
   }
 
-  // Kiểm tra khung giờ ca có bị trùng hệt hoặc nằm lọt lòng trong ca ĐANG HOẠT ĐỘNG khác không
+  // Kiểm tra khung giờ ca có bị trùng hệt hoặc nằm lọt lòng trong ca khác cùng bảng không
   const activeStoreShifts = await prisma.shiftTemplate.findMany({
     where: {
       companyId,
-      storeId: parsed.data.storeId,
+      ...scopeCondition,
       isActive: true,
     },
     select: { id: true, name: true, startTime: true, endTime: true },
@@ -91,6 +98,18 @@ export async function POST(request: Request) {
   const durationHours = calcDurationHours(parsed.data.startTime, parsed.data.endTime);
   const template = await prisma.shiftTemplate.create({
     data: { ...parsed.data, durationHours, companyId },
+  });
+
+  // Tự động tạo staffingRule cho 7 ngày trong tuần
+  await prisma.staffingRule.createMany({
+    data: Array.from({ length: 7 }, (_, dayOfWeek) => ({
+      companyId,
+      storeId: parsed.data.storeId,
+      shiftTemplateId: template.id,
+      dayOfWeek,
+      requiredStaff: 1,
+    })),
+    skipDuplicates: true,
   });
 
   // Đồng bộ số lượng ca và thứ tự ca

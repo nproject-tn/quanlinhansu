@@ -21,6 +21,7 @@ export default async function SchedulePage(props: {
 
   return (
     <SchedulePageClient
+      companyId={companyId}
       user={{
         name: session?.user.name ?? "",
         role: access.role,

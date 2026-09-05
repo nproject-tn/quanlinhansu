@@ -69,7 +69,7 @@ Hệ thống quản lý theo mô hình **Multi-Tenant (Mỗi khách hàng/công 
 
 ---
 
-## 3. 📦 DANH SÁCH 29 BẢNG DỮ LIỆU CHUẨN TRONG HỆ THỐNG
+## 3. 📦 DANH SÁCH 30 BẢNG DỮ LIỆU CHUẨN TRONG HỆ THỐNG
 
 | STT | Tên Bảng | Phân hệ | Mô tả nghiệp vụ |
 | :--- | :--- | :--- | :--- |
@@ -85,23 +85,24 @@ Hệ thống quản lý theo mô hình **Multi-Tenant (Mỗi khách hàng/công 
 | 10 | `Store` | Nhân sự & Cửa hàng | Cửa hàng / chi nhánh |
 | 11 | `Employee` | Nhân sự & Cửa hàng | Hồ sơ nhân viên, loại lương, định mức |
 | 12 | `EmployeeStore` | Nhân sự & Cửa hàng | Phân bổ nhân viên vào các cửa hàng & định mức giờ theo cửa hàng (`maxHoursPerMonth`) |
-| 13 | `ShiftTemplate` | Xếp ca | Mẫu khung giờ ca làm việc |
-| 14 | `StaffingRule` | Xếp ca | Định mức nhân sự theo thứ trong tuần |
-| 15 | `StaffingOverride`| Xếp ca | Định mức nhân sự theo ngày cụ thể |
-| 16 | `ShiftAssignment` | Xếp ca | Phân công ca làm việc cho nhân viên |
-| 17 | `ShiftOvertime` | Xếp ca | Làm thêm giờ (Tăng ca / OT) |
-| 18 | `ShiftFault` (`ShiftFaults`) | Xếp ca | Ghi nhận lỗi vi phạm ca làm việc |
-| 19 | `ScheduleDayNote` | Xếp ca | Ghi chú ngày trên bảng lịch ca |
-| 20 | `ScheduleApprovalRequest` | Xếp ca | Yêu cầu duyệt đổi ca/xóa ca/thêm OT |
-| 21 | `ScheduleConfig` | Xếp ca | Cấu hình ràng buộc (ngày làm liên tục...) |
-| 22 | `RevenueRecord` | Xếp ca & Cửa hàng | Báo cáo doanh thu ngày của cửa hàng |
-| 23 | `AttendanceLog` | Chấm công | Check-in / Check-out GPS & chụp ảnh |
-| 24 | `Manufacturer` | Hàng hóa | Nhà sản xuất / Xưởng may gia công |
-| 25 | `Category` | Hàng hóa | Loại hàng (Áo, Quần...) |
-| 26 | `Subcategory` | Hàng hóa | Chủng loại (Áo thun, Jean...) |
-| 27 | `Product` | Hàng hóa & Tồn kho | Sản phẩm, biến thể màu/size, SKU, Barcode |
-| 28 | `FactoryOrder` | Đơn NSX & Lô SX | Đơn đặt hàng NSX, mã PO, mã Lô, kiểm hàng QC |
-| 29 | `FactoryOrderItem`| Đơn NSX & Lô SX | Chi tiết số lượng biến thể trong lô sản xuất |
+| 13 | `ShiftConfigPeriod`| Xếp ca & Cấu hình | Bảng cấu hình ca theo ngày hoặc khoảng ngày cụ thể, chống trùng ngày |
+| 14 | `ShiftTemplate` | Xếp ca | Mẫu khung giờ ca làm việc theo từng bảng cấu hình |
+| 15 | `StaffingRule` | Xếp ca | Định mức nhân sự theo thứ trong tuần |
+| 16 | `StaffingOverride`| Xếp ca | Định mức nhân sự theo ngày cụ thể |
+| 17 | `ShiftAssignment` | Xếp ca | Phân công ca làm việc cho nhân viên |
+| 18 | `ShiftOvertime` | Xếp ca | Làm thêm giờ (Tăng ca / OT) |
+| 19 | `ShiftFault` (`ShiftFaults`) | Xếp ca | Ghi nhận lỗi vi phạm ca làm việc |
+| 20 | `ScheduleDayNote` | Xếp ca | Ghi chú ngày trên bảng lịch ca |
+| 21 | `ScheduleApprovalRequest` | Xếp ca | Yêu cầu duyệt đổi ca/xóa ca/thêm OT |
+| 22 | `ScheduleConfig` | Xếp ca | Cấu hình ràng buộc (ngày làm liên tục...) |
+| 23 | `RevenueRecord` | Xếp ca & Cửa hàng | Báo cáo doanh thu ngày của cửa hàng |
+| 24 | `AttendanceLog` | Chấm công | Check-in / Check-out GPS & chụp ảnh |
+| 25 | `Manufacturer` | Hàng hóa | Nhà sản xuất / Xưởng may gia công |
+| 26 | `Category` | Hàng hóa | Loại hàng (Áo, Quần...) |
+| 27 | `Subcategory` | Hàng hóa | Chủng loại (Áo thun, Jean...) |
+| 28 | `Product` | Hàng hóa & Tồn kho | Sản phẩm, biến thể màu/size, SKU, Barcode |
+| 29 | `FactoryOrder` | Đơn NSX & Lô SX | Đơn đặt hàng NSX, mã PO, mã Lô, kiểm hàng QC |
+| 30 | `FactoryOrderItem`| Đơn NSX & Lô SX | Chi tiết số lượng biến thể trong lô sản xuất |
 
 ---
 

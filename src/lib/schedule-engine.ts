@@ -10,6 +10,9 @@ const INVALID_CANDIDATE_SCORE = Number.NEGATIVE_INFINITY;
 export type ShiftTime = {
   id: string;
   storeId: string;
+  periodId?: string | null;
+  periodStartDate?: string | null;
+  periodEndDate?: string | null;
   name: string;
   startTime: string;
   endTime: string;
@@ -228,6 +231,16 @@ export function buildAssignmentSlots(
       const storeShifts = shiftsByStore.get(store.id) ?? [];
 
       for (const shift of storeShifts) {
+        // Kiểm tra xem ca làm này có áp dụng cho ngày này không
+        if (shift.periodStartDate && shift.periodEndDate) {
+          if (dateStr < shift.periodStartDate || dateStr > shift.periodEndDate) {
+            continue;
+          }
+        } else if (dateStr >= "2026-10-01") {
+          // Bắt đầu từ tháng 10/2026, ca không thuộc bảng cấu hình sẽ không hiển thị/sinh slot
+          continue;
+        }
+
         const required =
           overridesByKey.get(`${store.id}|${shift.id}|${dateStr}`) ??
           rulesByKey.get(`${store.id}|${shift.id}|${dayOfWeek}`) ??
