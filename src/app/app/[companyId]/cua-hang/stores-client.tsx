@@ -55,7 +55,7 @@ const LOGO_ACCEPT = [...ACCEPTED_LOGO_TYPES, ...ACCEPTED_LOGO_EXTENSIONS].join("
 const MAX_LOGO_SIZE_MB = 10;
 
 function SortableStoreCard({
-  store, canEdit, canDelete, editingNameFor, setEditingNameFor, editName, setEditName, handleSaveName, handleDelete, handleLogoChange, editingShiftsFor, setEditingShiftsFor, editShiftsPerDay, setEditShiftsPerDay, handleSaveShifts, LOGO_ACCEPT
+  store, canEdit, canDelete, editingNameFor, setEditingNameFor, editName, setEditName, handleSaveName, handleDelete, handleLogoChange, LOGO_ACCEPT
 }: any) {
   const {
     attributes, listeners, setNodeRef, transform, transition, isDragging,
@@ -152,46 +152,13 @@ function SortableStoreCard({
           </div>
         )}
       </CardHeader>
-      <CardContent className="space-y-2 text-sm text-slate-600 dark:text-[#CCCCCC]">
+      <CardContent className="space-y-1 text-sm text-slate-600 dark:text-[#CCCCCC]">
         <p className="text-slate-600 dark:text-[#CCCCCC]">{store.address || "Chưa có địa chỉ"}</p>
         <p className="text-slate-600 dark:text-[#A0A0A0]">{store._count?.employees ?? 0} nhân viên phụ trách</p>
-        <div className="flex flex-wrap items-center gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-[#333333]">
-          {editingShiftsFor === store.id ? (
-            <>
-              <span className="text-slate-600 dark:text-[#CCCCCC]">Số ca/ngày:</span>
-              <Input
-                type="number"
-                min="1"
-                value={editShiftsPerDay}
-                onChange={(e) => setEditShiftsPerDay(e.target.value)}
-                className="w-20 h-8"
-              />
-              <Button size="sm" onClick={() => handleSaveShifts(store.id)}>Lưu</Button>
-              <Button size="sm" variant="outline" onClick={() => setEditingShiftsFor(null)}>Hủy</Button>
-            </>
-          ) : (
-            <>
-              <span className="text-slate-600 dark:text-[#A0A0A0]">{store.shiftsPerDay ?? 3} ca/ngày · {store.shiftTemplates?.length ?? 0} ca đã cấu hình</span>
-              {canEdit && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 text-xs"
-                  onClick={() => {
-                    setEditingShiftsFor(store.id);
-                    setEditShiftsPerDay(String(store.shiftsPerDay ?? 3));
-                  }}
-                >
-                  Sửa số ca
-                </Button>
-              )}
-            </>
-          )}
-        </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
+      </CardContent>
+    </Card>
+  </div>
+);
 }
 
 
@@ -228,10 +195,7 @@ export default function StoresClient({ canEdit, canDelete }: { canEdit?: boolean
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
-  const [shiftsPerDay, setShiftsPerDay] = useState("3");
   const [message, setMessage] = useState<string | null>(null);
-  const [editingShiftsFor, setEditingShiftsFor] = useState<string | null>(null);
-  const [editShiftsPerDay, setEditShiftsPerDay] = useState("");
   const [editingNameFor, setEditingNameFor] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -327,17 +291,12 @@ export default function StoresClient({ canEdit, canDelete }: { canEdit?: boolean
       return;
     }
 
-    const count = Number(shiftsPerDay);
-    if (!count || count < 1) {
-      setMessage("Số ca/ngày phải lớn hơn 0");
-      return;
-    }
     setIsLoading(true);
     try {
       const res = await fetch("/api/stores", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, address, logoUrl, shiftsPerDay: count, isActive: true }),
+        body: JSON.stringify({ name, address, logoUrl, isActive: true }),
       });
       const data = await readJsonSafely<{ id: string; error?: string; logoPendingMigration?: boolean }>(
         res,
@@ -349,44 +308,17 @@ export default function StoresClient({ canEdit, canDelete }: { canEdit?: boolean
         return;
       }
 
-      await fetch(`/api/stores/${data.id}/shifts-config`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ shiftsPerDay: count }),
-      });
       setMessage(
         data.logoPendingMigration
           ? "Đã thêm cửa hàng, nhưng logo sẽ chỉ lưu được sau khi cập nhật database."
-          : "Đã thêm cửa hàng và tạo ca mặc định"
+          : "Đã thêm cửa hàng thành công"
       );
       setName("");
       setAddress("");
       setLogoUrl("");
-      setShiftsPerDay("3");
       await load();
     } finally {
       setIsLoading(false);
-    }
-  }
-
-  async function handleSaveShifts(storeId: string) {
-    const count = Number(editShiftsPerDay);
-    if (!count || count < 1) {
-      setMessage("Số ca/ngày phải lớn hơn 0");
-      return;
-    }
-    const res = await fetch(`/api/stores/${storeId}/shifts-config`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ shiftsPerDay: count }),
-    });
-    const data = await readJsonSafely<{ message?: string; error?: string }>(res, {});
-    if (res.ok) {
-      setMessage(data.message ?? "Đã lưu cấu hình số ca");
-      setEditingShiftsFor(null);
-      await load();
-    } else {
-      setMessage(data.error ?? "Lỗi lưu cấu hình ca");
     }
   }
 
@@ -494,10 +426,6 @@ export default function StoresClient({ canEdit, canDelete }: { canEdit?: boolean
                   />
                 </label>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-slate-600 dark:text-[#CCCCCC]">Số ca/ngày:</span>
-                <Input type="number" min="1" value={shiftsPerDay} onChange={(e) => setShiftsPerDay(e.target.value)} className="w-20" required disabled={!canEdit} />
-              </div>
               <Button type="submit" disabled={!canEdit || isLoading}>Thêm</Button>
             </div>
           </form>
@@ -520,11 +448,6 @@ export default function StoresClient({ canEdit, canDelete }: { canEdit?: boolean
                 handleSaveName={handleSaveName}
                 handleDelete={handleDelete}
                 handleLogoChange={handleLogoChange}
-                editingShiftsFor={editingShiftsFor}
-                setEditingShiftsFor={setEditingShiftsFor}
-                editShiftsPerDay={editShiftsPerDay}
-                setEditShiftsPerDay={setEditShiftsPerDay}
-                handleSaveShifts={handleSaveShifts}
                 LOGO_ACCEPT={LOGO_ACCEPT}
               />
             ))}

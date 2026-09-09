@@ -206,8 +206,8 @@
   * Gán Quản lý cửa hàng phụ trách, số điện thoại, địa chỉ, giờ mở/đóng cửa.
   * Kéo thả sắp xếp thứ tự hiển thị (`displayOrder`).
   * **Phân quyền Chi tiết 3 Cấp độ (Granular Store Permissions Enforcement)**:
-    * **Chỉ xem (`VIEW`)**: Xem danh sách cửa hàng, logo, địa chỉ, số ca/ngày, không thể chỉnh sửa hay xóa.
-    * **Chỉnh sửa (`EDIT`)**: Đổi tên cửa hàng, sửa địa chỉ, cập nhật logo, thay đổi số ca/ngày, kéo thả sắp xếp thứ tự hiển thị.
+    * **Chỉ xem (`VIEW`)**: Xem danh sách cửa hàng, logo, địa chỉ, không thể chỉnh sửa hay xóa.
+    * **Chỉnh sửa (`EDIT`)**: Đổi tên cửa hàng, sửa địa chỉ, cập nhật logo, kéo thả sắp xếp thứ tự hiển thị.
     * **Xoá cửa hàng (`DELETE`)**: Kiểm soát độc lập bằng nút switch *Xoá cửa hàng*.
       * Khi tắt quyền Xóa: Nút *Xóa* màu đỏ trên từng thẻ cửa hàng sẽ **tự động ẩn hoàn toàn khỏi giao diện người dùng**.
       * API `DELETE /api/stores/[id]` kiểm tra nghiêm ngặt `action: "DELETE"`, lập tức từ chối 403 Forbidden nếu thành viên không có quyền xóa, triệt tiêu mọi khả năng xóa ngoài ý muốn.
@@ -311,7 +311,7 @@
   * **Quy tắc Khung giờ Ca Làm việc**:
     * **Chặn tạo 2 ca có giờ làm giống hệt nhau hoặc lọt lòng trong nhau trong cùng một bảng cấu hình**: Hệ thống tuyệt đối không cho phép tạo hoặc chỉnh sửa 2 ca làm việc có cùng giờ bắt đầu/kết thúc, hoặc ca này nằm lọt lòng hoàn toàn / bao trọn ca kia trong cùng một bảng cấu hình (ví dụ: Ca 1 từ `08:00 - 11:00` thì Ca 2 KHÔNG THỂ là `09:00 - 11:00`, `08:00 - 10:00`, `08:30 - 10:30` hay `07:00 - 12:00`). Áp dụng nghiêm ngặt ở cả giao diện `shift-config-client.tsx` và API `POST/PUT /api/shift-templates`.
     * **Bảo lưu logic giao nhau giữa các ca (Overlapping Shifts)**: Các ca làm việc vẫn được phép giao thoa/gối đầu nhau 1 tiếng hoặc nhiều tiếng (ví dụ: Ca 1 từ `08:00 - 11:00` và Ca 2 từ `09:00 - 12:00` giao nhau 2 tiếng) để phục vụ nhu cầu bàn giao ca hoặc tăng cường nhân sự giờ cao điểm.
-    * **Bộ sinh khung giờ mặc định tuần tự 24/7**: Khi thiết lập số ca/ngày tại cửa hàng (lên đến 8 ca), hệ thống tự động sinh các khung giờ kế tiếp nhau chia đều vòng tròn 24 tiếng mà không bị lặp lại khung giờ sáng.
+    * **Bộ sinh khung giờ mặc định tuần tự 24/7**: Khi tạo ca làm việc mới, hệ thống tự động sinh các khung giờ kế tiếp nhau chia đều vòng tròn 24 tiếng mà không bị lặp lại khung giờ sáng.
 * **Quy tắc Định biên & Ngoại lệ**:
   * `StaffingRule`: Số lượng nhân sự tối thiểu của từng ca theo các thứ trong tuần (Thứ 2 -> Chủ Nhật).
   * `StaffingOverride`: Tăng cường định biên cho các dịp khuyến mãi Black Friday, Tết, Khai trương... hỗ trợ áp dụng nhanh cho toàn bộ đợt hoặc từng ngày trong đợt.

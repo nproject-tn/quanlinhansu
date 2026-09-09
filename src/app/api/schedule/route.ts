@@ -94,19 +94,24 @@ export async function GET(request: Request) {
       prisma.shiftTemplate.findMany({
         where: {
           storeId: { in: storeIds },
-          isActive: true,
           OR: [
             {
-              periodId: null,
-              ...(start >= parseDateOnly("2026-10-01") ? { id: "never_match" } : {}),
+              isActive: true,
+              OR: [
+                {
+                  periodId: null,
+                  ...(start >= parseDateOnly("2026-10-01") ? { id: "never_match" } : {}),
+                },
+                {
+                  period: {
+                    startDate: { lte: end },
+                    endDate: { gte: start },
+                  },
+                },
+              ],
             },
             {
-              period: {
-                startDate: { lte: end },
-                endDate: { gte: start },
-              },
-            },
-            {
+              // Ca lịch sử đã có phân công thực tế trong khoảng thời gian đang xem
               shiftAssignments: {
                 some: {
                   date: { gte: start, lte: end },
@@ -242,7 +247,7 @@ export async function GET(request: Request) {
       periodId: s.periodId,
       periodStartDate: s.period ? formatDateOnly(s.period.startDate) : null,
       periodEndDate: s.period ? formatDateOnly(s.period.endDate) : null,
-      name: s.name,
+      name: s.name.replace(/\s*\(đã xóa.*?\)/gi, "").trim(),
       startTime: s.startTime,
       endTime: s.endTime,
       durationHours: s.durationHours,

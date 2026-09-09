@@ -1,0 +1,2916 @@
+[
+  {
+    "id": "cmtebejp500mf01o6mw4locdy",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l254g000904lgkp8jkb6y",
+    "employeeId": "cmr6lbkij000604jssxxga1hu",
+    "date": "2026-09-01T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-29T11:46:18.809Z",
+    "updatedAt": "2026-08-29T11:46:18.809Z",
+    "employee": {
+      "id": "cmr6lbkij000604jssxxga1hu",
+      "name": "Lưu Gia Khánh",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l254g000904lgkp8jkb6y",
+      "name": "Ca 2 (đã xóa 857767)",
+      "startTime": "11:00",
+      "endTime": "14:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtefn34e00mm01o6iih7xey2",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l255g000p04lgm8t6k1re",
+    "employeeId": "cmr6l7k17000004k0hxg4qpno",
+    "date": "2026-09-01T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-29T13:44:55.694Z",
+    "updatedAt": "2026-08-29T13:44:55.694Z",
+    "employee": {
+      "id": "cmr6l7k17000004k0hxg4qpno",
+      "name": "Lê Trần Anh Kiệt",
+      "position": "Nhân viên Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l255g000p04lgm8t6k1re",
+      "name": "Ca 4 (đã xóa 851841)",
+      "startTime": "19:00",
+      "endTime": "21:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtebe14h00md01o6yrt1cltp",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l4j7i000z04l1328d48bu",
+    "employeeId": "cmr6l8yl4000004js81g9wcrm",
+    "date": "2026-09-01T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-29T11:45:54.737Z",
+    "updatedAt": "2026-08-29T11:46:06.581Z",
+    "employee": {
+      "id": "cmr6l8yl4000004js81g9wcrm",
+      "name": "Tạ Minh thuận",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l4j7i000z04l1328d48bu",
+      "name": "Ca 5 (đã xóa 064515) (đã xóa 067012)",
+      "startTime": "21:00",
+      "endTime": "23:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtd7eox400cl01o6rmok1zhd",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f7r002204lgmi6rs2fx",
+    "employeeId": "cmr6la7qg000304jsm2i1blg5",
+    "date": "2026-09-01T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-28T17:06:40.936Z",
+    "updatedAt": "2026-08-28T17:06:40.936Z",
+    "employee": {
+      "id": "cmr6la7qg000304jsm2i1blg5",
+      "name": "Đỗ Như Ý",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f7r002204lgmi6rs2fx",
+      "name": "Ca 4 (đã xóa 058985)",
+      "startTime": "19:00",
+      "endTime": "21:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtd7g3d500co01o6cwaeheef",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f72001m04lgx8lm16n1",
+    "employeeId": "cmr6l8478000004jl8w4ztmfc",
+    "date": "2026-09-01T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-28T17:07:46.313Z",
+    "updatedAt": "2026-08-28T17:07:46.313Z",
+    "employee": {
+      "id": "cmr6l8478000004jl8w4ztmfc",
+      "name": "Hoàng Thị Quỳnh Như",
+      "position": "Trưởng nhóm Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f72001m04lgx8lm16n1",
+      "name": "Ca 2 (đã xóa 051181)",
+      "startTime": "11:00",
+      "endTime": "14:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmte6xi9300ly01o68tizxavl",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l2566000x04lgr8rhbih0",
+    "employeeId": "cmr6l7k17000004k0hxg4qpno",
+    "date": "2026-09-02T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-29T09:41:05.319Z",
+    "updatedAt": "2026-08-29T09:41:05.319Z",
+    "employee": {
+      "id": "cmr6l7k17000004k0hxg4qpno",
+      "name": "Lê Trần Anh Kiệt",
+      "position": "Nhân viên Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2566000x04lgr8rhbih0",
+      "name": "Ca 5 (đã xóa 848462)",
+      "startTime": "21:00",
+      "endTime": "23:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmte6g9xl00jf01o6cq6rlc1b",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f72001m04lgx8lm16n1",
+    "employeeId": "cmr6l8478000004jl8w4ztmfc",
+    "date": "2026-09-02T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-29T09:27:41.385Z",
+    "updatedAt": "2026-08-29T09:27:41.385Z",
+    "employee": {
+      "id": "cmr6l8478000004jl8w4ztmfc",
+      "name": "Hoàng Thị Quỳnh Như",
+      "position": "Trưởng nhóm Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f72001m04lgx8lm16n1",
+      "name": "Ca 2 (đã xóa 051181)",
+      "startTime": "11:00",
+      "endTime": "14:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtefmusy00ml01o666opftkk",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l254g000904lgkp8jkb6y",
+    "employeeId": "cmr6lbkij000604jssxxga1hu",
+    "date": "2026-09-02T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-29T13:44:44.914Z",
+    "updatedAt": "2026-08-29T15:06:37.797Z",
+    "employee": {
+      "id": "cmr6lbkij000604jssxxga1hu",
+      "name": "Lưu Gia Khánh",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l254g000904lgkp8jkb6y",
+      "name": "Ca 2 (đã xóa 857767)",
+      "startTime": "11:00",
+      "endTime": "14:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtebb6xd00m601o6cxe9fjqv",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l255g000p04lgm8t6k1re",
+    "employeeId": "cmr6lbkij000604jssxxga1hu",
+    "date": "2026-09-02T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-29T11:43:42.289Z",
+    "updatedAt": "2026-08-29T11:43:42.289Z",
+    "employee": {
+      "id": "cmr6lbkij000604jssxxga1hu",
+      "name": "Lưu Gia Khánh",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l255g000p04lgm8t6k1re",
+      "name": "Ca 4 (đã xóa 851841)",
+      "startTime": "19:00",
+      "endTime": "21:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmte6x5af00lv01o6jsssrgc4",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f7r002204lgmi6rs2fx",
+    "employeeId": "cmr6l8yl4000004js81g9wcrm",
+    "date": "2026-09-02T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-29T09:40:48.519Z",
+    "updatedAt": "2026-08-29T09:40:48.519Z",
+    "employee": {
+      "id": "cmr6l8yl4000004js81g9wcrm",
+      "name": "Tạ Minh thuận",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f7r002204lgmi6rs2fx",
+      "name": "Ca 4 (đã xóa 058985)",
+      "startTime": "19:00",
+      "endTime": "21:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cms7q2sd7000204joqwzxcdig",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f6s001e04lg9xi8dxsd",
+    "employeeId": "cmr6l7k17000004k0hxg4qpno",
+    "date": "2026-09-03T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-07-30T16:22:58.843Z",
+    "updatedAt": "2026-08-29T09:41:30.129Z",
+    "employee": {
+      "id": "cmr6l7k17000004k0hxg4qpno",
+      "name": "Lê Trần Anh Kiệt",
+      "position": "Nhân viên Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f6s001e04lg9xi8dxsd",
+      "name": "Ca 1 (đã xóa 046763)",
+      "startTime": "08:00",
+      "endTime": "11:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmte6y5fk00lz01o62fdvkwh0",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l254g000904lgkp8jkb6y",
+    "employeeId": "cmr6lbkij000604jssxxga1hu",
+    "date": "2026-09-03T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-29T09:41:35.360Z",
+    "updatedAt": "2026-09-02T06:18:24.280Z",
+    "employee": {
+      "id": "cmr6lbkij000604jssxxga1hu",
+      "name": "Lưu Gia Khánh",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l254g000904lgkp8jkb6y",
+      "name": "Ca 2 (đã xóa 857767)",
+      "startTime": "11:00",
+      "endTime": "14:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtd7mkub00cz01o61osb94fz",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l255g000p04lgm8t6k1re",
+    "employeeId": "cmr6lb93x000504k4spdxlwnd",
+    "date": "2026-09-03T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-28T17:12:48.899Z",
+    "updatedAt": "2026-08-28T17:12:48.899Z",
+    "employee": {
+      "id": "cmr6lb93x000504k4spdxlwnd",
+      "name": "Nguyễn Trung Hiếu",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l255g000p04lgm8t6k1re",
+      "name": "Ca 4 (đã xóa 851841)",
+      "startTime": "19:00",
+      "endTime": "21:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmte6q2r300lt01o6t3folsde",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l4j7i000z04l1328d48bu",
+    "employeeId": "cmr6l7k17000004k0hxg4qpno",
+    "date": "2026-09-03T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-29T09:35:18.639Z",
+    "updatedAt": "2026-08-29T09:35:18.639Z",
+    "employee": {
+      "id": "cmr6l7k17000004k0hxg4qpno",
+      "name": "Lê Trần Anh Kiệt",
+      "position": "Nhân viên Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l4j7i000z04l1328d48bu",
+      "name": "Ca 5 (đã xóa 064515) (đã xóa 067012)",
+      "startTime": "21:00",
+      "endTime": "23:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmte6q59000lu01o6jinsdowy",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l2566000x04lgr8rhbih0",
+    "employeeId": "cmr6l8yl4000004js81g9wcrm",
+    "date": "2026-09-03T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-29T09:35:21.876Z",
+    "updatedAt": "2026-08-29T09:35:21.876Z",
+    "employee": {
+      "id": "cmr6l8yl4000004js81g9wcrm",
+      "name": "Tạ Minh thuận",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2566000x04lgr8rhbih0",
+      "name": "Ca 5 (đã xóa 848462)",
+      "startTime": "21:00",
+      "endTime": "23:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmte6pr1f00ls01o6qplwqmxx",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f7r002204lgmi6rs2fx",
+    "employeeId": "cmr6l8478000004jl8w4ztmfc",
+    "date": "2026-09-03T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-29T09:35:03.459Z",
+    "updatedAt": "2026-08-29T09:35:03.459Z",
+    "employee": {
+      "id": "cmr6l8478000004jl8w4ztmfc",
+      "name": "Hoàng Thị Quỳnh Như",
+      "position": "Trưởng nhóm Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f7r002204lgmi6rs2fx",
+      "name": "Ca 4 (đã xóa 058985)",
+      "startTime": "19:00",
+      "endTime": "21:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmte6p89400lo01o6ao3yjuut",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f72001m04lgx8lm16n1",
+    "employeeId": "cmr6l8478000004jl8w4ztmfc",
+    "date": "2026-09-03T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-29T09:34:39.112Z",
+    "updatedAt": "2026-08-29T09:34:39.112Z",
+    "employee": {
+      "id": "cmr6l8478000004jl8w4ztmfc",
+      "name": "Hoàng Thị Quỳnh Như",
+      "position": "Trưởng nhóm Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f72001m04lgx8lm16n1",
+      "name": "Ca 2 (đã xóa 051181)",
+      "startTime": "11:00",
+      "endTime": "14:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtd7x39a00dy01o6ymy612pb",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f7r002204lgmi6rs2fx",
+    "employeeId": "cmr6l8478000004jl8w4ztmfc",
+    "date": "2026-09-04T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-28T17:20:59.326Z",
+    "updatedAt": "2026-08-28T17:20:59.326Z",
+    "employee": {
+      "id": "cmr6l8478000004jl8w4ztmfc",
+      "name": "Hoàng Thị Quỳnh Như",
+      "position": "Trưởng nhóm Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f7r002204lgmi6rs2fx",
+      "name": "Ca 4 (đã xóa 058985)",
+      "startTime": "19:00",
+      "endTime": "21:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtd7xcoy00e001o6a0npft3o",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l2566000x04lgr8rhbih0",
+    "employeeId": "cmr6l8yl4000004js81g9wcrm",
+    "date": "2026-09-04T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-28T17:21:11.554Z",
+    "updatedAt": "2026-08-28T17:21:11.554Z",
+    "employee": {
+      "id": "cmr6l8yl4000004js81g9wcrm",
+      "name": "Tạ Minh thuận",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2566000x04lgr8rhbih0",
+      "name": "Ca 5 (đã xóa 848462)",
+      "startTime": "21:00",
+      "endTime": "23:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtd7ojdp00d401o6395c6z56",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l4j7i000z04l1328d48bu",
+    "employeeId": "cmr6l9hub000004kzl11w8dro",
+    "date": "2026-09-04T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-28T17:14:20.317Z",
+    "updatedAt": "2026-08-28T17:14:20.317Z",
+    "employee": {
+      "id": "cmr6l9hub000004kzl11w8dro",
+      "name": "Nguyễn Thị Tường Vy",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l4j7i000z04l1328d48bu",
+      "name": "Ca 5 (đã xóa 064515) (đã xóa 067012)",
+      "startTime": "21:00",
+      "endTime": "23:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtd7q3l600da01o6qbpuv014",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f72001m04lgx8lm16n1",
+    "employeeId": "cmr6la7qg000304jsm2i1blg5",
+    "date": "2026-09-04T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-28T17:15:33.162Z",
+    "updatedAt": "2026-08-28T17:15:33.162Z",
+    "employee": {
+      "id": "cmr6la7qg000304jsm2i1blg5",
+      "name": "Đỗ Như Ý",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f72001m04lgx8lm16n1",
+      "name": "Ca 2 (đã xóa 051181)",
+      "startTime": "11:00",
+      "endTime": "14:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cms7q31ws000304jokeb4o483",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l254y000h04lgjcpkrdmj",
+    "employeeId": "cmr6la7qg000304jsm2i1blg5",
+    "date": "2026-09-04T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-07-30T16:23:11.212Z",
+    "updatedAt": "2026-07-30T16:23:11.212Z",
+    "employee": {
+      "id": "cmr6la7qg000304jsm2i1blg5",
+      "name": "Đỗ Như Ý",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l254y000h04lgjcpkrdmj",
+      "name": "Ca 3 (đã xóa 854543)",
+      "startTime": "14:00",
+      "endTime": "17:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtd7pzvt00d901o6zskjhwxb",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l255g000p04lgm8t6k1re",
+    "employeeId": "cmr6la7qg000304jsm2i1blg5",
+    "date": "2026-09-04T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-28T17:15:28.361Z",
+    "updatedAt": "2026-08-28T17:15:28.361Z",
+    "employee": {
+      "id": "cmr6la7qg000304jsm2i1blg5",
+      "name": "Đỗ Như Ý",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l255g000p04lgm8t6k1re",
+      "name": "Ca 4 (đã xóa 851841)",
+      "startTime": "19:00",
+      "endTime": "21:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtd7oe9s00d301o6edqhafm2",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l254g000904lgkp8jkb6y",
+    "employeeId": "cmr6l9hub000004kzl11w8dro",
+    "date": "2026-09-04T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-28T17:14:13.696Z",
+    "updatedAt": "2026-08-28T17:14:13.696Z",
+    "employee": {
+      "id": "cmr6l9hub000004kzl11w8dro",
+      "name": "Nguyễn Thị Tường Vy",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l254g000904lgkp8jkb6y",
+      "name": "Ca 2 (đã xóa 857767)",
+      "startTime": "11:00",
+      "endTime": "14:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtd7wylb00dx01o6tsee03yp",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f6s001e04lg9xi8dxsd",
+    "employeeId": "cmr6l8478000004jl8w4ztmfc",
+    "date": "2026-09-04T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-28T17:20:53.279Z",
+    "updatedAt": "2026-08-28T17:20:53.279Z",
+    "employee": {
+      "id": "cmr6l8478000004jl8w4ztmfc",
+      "name": "Hoàng Thị Quỳnh Như",
+      "position": "Trưởng nhóm Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f6s001e04lg9xi8dxsd",
+      "name": "Ca 1 (đã xóa 046763)",
+      "startTime": "08:00",
+      "endTime": "11:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtd7upkb00do01o6crh7juk4",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l254g000904lgkp8jkb6y",
+    "employeeId": "cmr6l8478000004jl8w4ztmfc",
+    "date": "2026-09-05T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-28T17:19:08.267Z",
+    "updatedAt": "2026-08-28T17:19:08.267Z",
+    "employee": {
+      "id": "cmr6l8478000004jl8w4ztmfc",
+      "name": "Hoàng Thị Quỳnh Như",
+      "position": "Trưởng nhóm Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l254g000904lgkp8jkb6y",
+      "name": "Ca 2 (đã xóa 857767)",
+      "startTime": "11:00",
+      "endTime": "14:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtd7opv500d501o6zt2vitzb",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f72001m04lgx8lm16n1",
+    "employeeId": "cmr6l9hub000004kzl11w8dro",
+    "date": "2026-09-05T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-28T17:14:28.721Z",
+    "updatedAt": "2026-08-28T17:14:28.721Z",
+    "employee": {
+      "id": "cmr6l9hub000004kzl11w8dro",
+      "name": "Nguyễn Thị Tường Vy",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f72001m04lgx8lm16n1",
+      "name": "Ca 2 (đã xóa 051181)",
+      "startTime": "11:00",
+      "endTime": "14:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtd7w7f800dw01o6fef7ds8x",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l2566000x04lgr8rhbih0",
+    "employeeId": "cmr6l7k17000004k0hxg4qpno",
+    "date": "2026-09-05T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-28T17:20:18.068Z",
+    "updatedAt": "2026-08-28T17:20:18.068Z",
+    "employee": {
+      "id": "cmr6l7k17000004k0hxg4qpno",
+      "name": "Lê Trần Anh Kiệt",
+      "position": "Nhân viên Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2566000x04lgr8rhbih0",
+      "name": "Ca 5 (đã xóa 848462)",
+      "startTime": "21:00",
+      "endTime": "23:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtd7w4so00dv01o6114ze5y7",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l4j7i000z04l1328d48bu",
+    "employeeId": "cmr6l8yl4000004js81g9wcrm",
+    "date": "2026-09-05T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-28T17:20:14.664Z",
+    "updatedAt": "2026-08-28T17:20:14.664Z",
+    "employee": {
+      "id": "cmr6l8yl4000004js81g9wcrm",
+      "name": "Tạ Minh thuận",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l4j7i000z04l1328d48bu",
+      "name": "Ca 5 (đã xóa 064515) (đã xóa 067012)",
+      "startTime": "21:00",
+      "endTime": "23:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtd7v5ze00dr01o69t8932pz",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f7r002204lgmi6rs2fx",
+    "employeeId": "cmr6l8478000004jl8w4ztmfc",
+    "date": "2026-09-05T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-28T17:19:29.546Z",
+    "updatedAt": "2026-08-28T17:19:29.546Z",
+    "employee": {
+      "id": "cmr6l8478000004jl8w4ztmfc",
+      "name": "Hoàng Thị Quỳnh Như",
+      "position": "Trưởng nhóm Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f7r002204lgmi6rs2fx",
+      "name": "Ca 4 (đã xóa 058985)",
+      "startTime": "19:00",
+      "endTime": "21:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtd7rka700dd01o6uqd6mkvx",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f6s001e04lg9xi8dxsd",
+    "employeeId": "cmr6la7qg000304jsm2i1blg5",
+    "date": "2026-09-05T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-28T17:16:41.456Z",
+    "updatedAt": "2026-08-28T17:16:41.456Z",
+    "employee": {
+      "id": "cmr6la7qg000304jsm2i1blg5",
+      "name": "Đỗ Như Ý",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f6s001e04lg9xi8dxsd",
+      "name": "Ca 1 (đã xóa 046763)",
+      "startTime": "08:00",
+      "endTime": "11:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmte70zs800m101o6hxbicol6",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l255g000p04lgm8t6k1re",
+    "employeeId": "cmr6l9hub000004kzl11w8dro",
+    "date": "2026-09-05T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-29T09:43:48.008Z",
+    "updatedAt": "2026-08-29T09:43:48.008Z",
+    "employee": {
+      "id": "cmr6l9hub000004kzl11w8dro",
+      "name": "Nguyễn Thị Tường Vy",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l255g000p04lgm8t6k1re",
+      "name": "Ca 4 (đã xóa 851841)",
+      "startTime": "19:00",
+      "endTime": "21:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtd7p3l200d701o6b6kv5by5",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l255g000p04lgm8t6k1re",
+    "employeeId": "cmr6l9hub000004kzl11w8dro",
+    "date": "2026-09-06T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-28T17:14:46.502Z",
+    "updatedAt": "2026-08-28T17:14:46.502Z",
+    "employee": {
+      "id": "cmr6l9hub000004kzl11w8dro",
+      "name": "Nguyễn Thị Tường Vy",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l255g000p04lgm8t6k1re",
+      "name": "Ca 4 (đã xóa 851841)",
+      "startTime": "19:00",
+      "endTime": "21:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtd7oxgh00d601o6gdx4wa7y",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f72001m04lgx8lm16n1",
+    "employeeId": "cmr6l9hub000004kzl11w8dro",
+    "date": "2026-09-06T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-28T17:14:38.561Z",
+    "updatedAt": "2026-08-28T17:14:38.561Z",
+    "employee": {
+      "id": "cmr6l9hub000004kzl11w8dro",
+      "name": "Nguyễn Thị Tường Vy",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f72001m04lgx8lm16n1",
+      "name": "Ca 2 (đã xóa 051181)",
+      "startTime": "11:00",
+      "endTime": "14:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtd7n5qi00d201o6274xe5nw",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l254g000904lgkp8jkb6y",
+    "employeeId": "cmr6lb93x000504k4spdxlwnd",
+    "date": "2026-09-06T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-28T17:13:15.978Z",
+    "updatedAt": "2026-08-28T17:13:15.978Z",
+    "employee": {
+      "id": "cmr6lb93x000504k4spdxlwnd",
+      "name": "Nguyễn Trung Hiếu",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l254g000904lgkp8jkb6y",
+      "name": "Ca 2 (đã xóa 857767)",
+      "startTime": "11:00",
+      "endTime": "14:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtd7sftz00dh01o60lzg4k34",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l2566000x04lgr8rhbih0",
+    "employeeId": "cmr6l8yl4000004js81g9wcrm",
+    "date": "2026-09-06T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-28T17:17:22.343Z",
+    "updatedAt": "2026-08-28T17:18:37.510Z",
+    "employee": {
+      "id": "cmr6l8yl4000004js81g9wcrm",
+      "name": "Tạ Minh thuận",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2566000x04lgr8rhbih0",
+      "name": "Ca 5 (đã xóa 848462)",
+      "startTime": "21:00",
+      "endTime": "23:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtd7u43v00dm01o628iebqzz",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f7r002204lgmi6rs2fx",
+    "employeeId": "cmr6lbkij000604jssxxga1hu",
+    "date": "2026-09-06T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-28T17:18:40.459Z",
+    "updatedAt": "2026-08-28T17:18:40.459Z",
+    "employee": {
+      "id": "cmr6lbkij000604jssxxga1hu",
+      "name": "Lưu Gia Khánh",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f7r002204lgmi6rs2fx",
+      "name": "Ca 4 (đã xóa 058985)",
+      "startTime": "19:00",
+      "endTime": "21:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtd7ro5v00de01o600p325zf",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f6s001e04lg9xi8dxsd",
+    "employeeId": "cmr6l8478000004jl8w4ztmfc",
+    "date": "2026-09-06T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-08-28T17:16:46.483Z",
+    "updatedAt": "2026-08-28T17:16:46.483Z",
+    "employee": {
+      "id": "cmr6l8478000004jl8w4ztmfc",
+      "name": "Hoàng Thị Quỳnh Như",
+      "position": "Trưởng nhóm Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f6s001e04lg9xi8dxsd",
+      "name": "Ca 1 (đã xóa 046763)",
+      "startTime": "08:00",
+      "endTime": "11:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlr0yml000h01pe0jalfcgl",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l255g000p04lgm8t6k1re",
+    "employeeId": "cmr6l8478000004jl8w4ztmfc",
+    "date": "2026-09-07T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:38:02.062Z",
+    "updatedAt": "2026-09-03T16:38:02.062Z",
+    "employee": {
+      "id": "cmr6l8478000004jl8w4ztmfc",
+      "name": "Hoàng Thị Quỳnh Như",
+      "position": "Trưởng nhóm Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l255g000p04lgm8t6k1re",
+      "name": "Ca 4 (đã xóa 851841)",
+      "startTime": "19:00",
+      "endTime": "21:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlqyert000201pex6k1njr4",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f6s001e04lg9xi8dxsd",
+    "employeeId": "cmr6l8478000004jl8w4ztmfc",
+    "date": "2026-09-07T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:36:03.018Z",
+    "updatedAt": "2026-09-03T16:36:03.018Z",
+    "employee": {
+      "id": "cmr6l8478000004jl8w4ztmfc",
+      "name": "Hoàng Thị Quỳnh Như",
+      "position": "Trưởng nhóm Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f6s001e04lg9xi8dxsd",
+      "name": "Ca 1 (đã xóa 046763)",
+      "startTime": "08:00",
+      "endTime": "11:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlr0s25000f01peaqhi8o0g",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f72001m04lgx8lm16n1",
+    "employeeId": "cmr6l9hub000004kzl11w8dro",
+    "date": "2026-09-07T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:37:53.549Z",
+    "updatedAt": "2026-09-03T16:37:53.549Z",
+    "employee": {
+      "id": "cmr6l9hub000004kzl11w8dro",
+      "name": "Nguyễn Thị Tường Vy",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f72001m04lgx8lm16n1",
+      "name": "Ca 2 (đã xóa 051181)",
+      "startTime": "11:00",
+      "endTime": "14:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlr16p5000j01peoq62e5w0",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l4j7i000z04l1328d48bu",
+    "employeeId": "cmr6l8yl4000004js81g9wcrm",
+    "date": "2026-09-07T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:38:12.521Z",
+    "updatedAt": "2026-09-03T16:38:12.521Z",
+    "employee": {
+      "id": "cmr6l8yl4000004js81g9wcrm",
+      "name": "Tạ Minh thuận",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l4j7i000z04l1328d48bu",
+      "name": "Ca 5 (đã xóa 064515) (đã xóa 067012)",
+      "startTime": "21:00",
+      "endTime": "23:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlr189o000l01pey2xkda3v",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l2566000x04lgr8rhbih0",
+    "employeeId": "cmr6l7k17000004k0hxg4qpno",
+    "date": "2026-09-07T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:38:14.556Z",
+    "updatedAt": "2026-09-03T16:38:14.556Z",
+    "employee": {
+      "id": "cmr6l7k17000004k0hxg4qpno",
+      "name": "Lê Trần Anh Kiệt",
+      "position": "Nhân viên Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2566000x04lgr8rhbih0",
+      "name": "Ca 5 (đã xóa 848462)",
+      "startTime": "21:00",
+      "endTime": "23:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlr3hzy000n01pegp5pi6hq",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l254g000904lgkp8jkb6y",
+    "employeeId": "cmr6l8478000004jl8w4ztmfc",
+    "date": "2026-09-07T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:40:00.479Z",
+    "updatedAt": "2026-09-03T16:40:00.479Z",
+    "employee": {
+      "id": "cmr6l8478000004jl8w4ztmfc",
+      "name": "Hoàng Thị Quỳnh Như",
+      "position": "Trưởng nhóm Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l254g000904lgkp8jkb6y",
+      "name": "Ca 2 (đã xóa 857767)",
+      "startTime": "11:00",
+      "endTime": "14:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlr47qq000p01pe8g800fn9",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f7r002204lgmi6rs2fx",
+    "employeeId": "cmr6l7k17000004k0hxg4qpno",
+    "date": "2026-09-07T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:40:33.842Z",
+    "updatedAt": "2026-09-03T16:40:33.842Z",
+    "employee": {
+      "id": "cmr6l7k17000004k0hxg4qpno",
+      "name": "Lê Trần Anh Kiệt",
+      "position": "Nhân viên Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f7r002204lgmi6rs2fx",
+      "name": "Ca 4 (đã xóa 058985)",
+      "startTime": "19:00",
+      "endTime": "21:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrabl1001s01pekj076i0o",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l255g000p04lgm8t6k1re",
+    "employeeId": "cmr6l7k17000004k0hxg4qpno",
+    "date": "2026-09-08T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:45:18.757Z",
+    "updatedAt": "2026-09-03T16:45:18.757Z",
+    "employee": {
+      "id": "cmr6l7k17000004k0hxg4qpno",
+      "name": "Lê Trần Anh Kiệt",
+      "position": "Nhân viên Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l255g000p04lgm8t6k1re",
+      "name": "Ca 4 (đã xóa 851841)",
+      "startTime": "19:00",
+      "endTime": "21:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlshjev007701pe8jk6p9ol",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l4j7i000z04l1328d48bu",
+    "employeeId": "cmr6lbkij000604jssxxga1hu",
+    "date": "2026-09-08T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T17:18:55.111Z",
+    "updatedAt": "2026-09-03T17:18:55.111Z",
+    "employee": {
+      "id": "cmr6lbkij000604jssxxga1hu",
+      "name": "Lưu Gia Khánh",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l4j7i000z04l1328d48bu",
+      "name": "Ca 5 (đã xóa 064515) (đã xóa 067012)",
+      "startTime": "21:00",
+      "endTime": "23:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlshnb6007901peon83o5i8",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l2566000x04lgr8rhbih0",
+    "employeeId": "cmr6l8yl4000004js81g9wcrm",
+    "date": "2026-09-08T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T17:19:00.162Z",
+    "updatedAt": "2026-09-03T17:19:00.162Z",
+    "employee": {
+      "id": "cmr6l8yl4000004js81g9wcrm",
+      "name": "Tạ Minh thuận",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2566000x04lgr8rhbih0",
+      "name": "Ca 5 (đã xóa 848462)",
+      "startTime": "21:00",
+      "endTime": "23:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrj5da002w01pef94fcpkg",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l254g000904lgkp8jkb6y",
+    "employeeId": "cmr6l7k17000004k0hxg4qpno",
+    "date": "2026-09-08T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:52:10.606Z",
+    "updatedAt": "2026-09-03T16:52:10.606Z",
+    "employee": {
+      "id": "cmr6l7k17000004k0hxg4qpno",
+      "name": "Lê Trần Anh Kiệt",
+      "position": "Nhân viên Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l254g000904lgkp8jkb6y",
+      "name": "Ca 2 (đã xóa 857767)",
+      "startTime": "11:00",
+      "endTime": "14:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlr7tag001601peymm67xs6",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f72001m04lgx8lm16n1",
+    "employeeId": "cmr6lbkij000604jssxxga1hu",
+    "date": "2026-09-08T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:43:21.736Z",
+    "updatedAt": "2026-09-03T16:43:21.736Z",
+    "employee": {
+      "id": "cmr6lbkij000604jssxxga1hu",
+      "name": "Lưu Gia Khánh",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f72001m04lgx8lm16n1",
+      "name": "Ca 2 (đã xóa 051181)",
+      "startTime": "11:00",
+      "endTime": "14:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlr7glu001201pefr5s8k2q",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f6s001e04lg9xi8dxsd",
+    "employeeId": "cmr6l9hub000004kzl11w8dro",
+    "date": "2026-09-08T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:43:05.298Z",
+    "updatedAt": "2026-09-03T16:43:05.298Z",
+    "employee": {
+      "id": "cmr6l9hub000004kzl11w8dro",
+      "name": "Nguyễn Thị Tường Vy",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f6s001e04lg9xi8dxsd",
+      "name": "Ca 1 (đã xóa 046763)",
+      "startTime": "08:00",
+      "endTime": "11:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlr7mly001401pe99txpqwv",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f7e001u04lgzrokm9gr",
+    "employeeId": "cmr6la7qg000304jsm2i1blg5",
+    "date": "2026-09-08T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:43:13.078Z",
+    "updatedAt": "2026-09-03T16:43:13.078Z",
+    "employee": {
+      "id": "cmr6la7qg000304jsm2i1blg5",
+      "name": "Đỗ Như Ý",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f7e001u04lgzrokm9gr",
+      "name": "Ca 3 (đã xóa 055678)",
+      "startTime": "14:00",
+      "endTime": "17:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlr8kp2001c01pedsqeucm5",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l254y000h04lgjcpkrdmj",
+    "employeeId": "cmr6l8yl4000004js81g9wcrm",
+    "date": "2026-09-08T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:43:57.254Z",
+    "updatedAt": "2026-09-03T16:43:57.254Z",
+    "employee": {
+      "id": "cmr6l8yl4000004js81g9wcrm",
+      "name": "Tạ Minh thuận",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l254y000h04lgjcpkrdmj",
+      "name": "Ca 3 (đã xóa 854543)",
+      "startTime": "14:00",
+      "endTime": "17:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlr8rt0001e01peu9rl31pi",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l256m001504lgx4hkl3t8",
+    "employeeId": "cmr6l8yl4000004js81g9wcrm",
+    "date": "2026-09-08T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:44:06.468Z",
+    "updatedAt": "2026-09-03T16:44:06.468Z",
+    "employee": {
+      "id": "cmr6l8yl4000004js81g9wcrm",
+      "name": "Tạ Minh thuận",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l256m001504lgx4hkl3t8",
+      "name": "Ca 6 (đã xóa 845833)",
+      "startTime": "23:00",
+      "endTime": "01:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlr9llu001k01pe5smht5o9",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f7r002204lgmi6rs2fx",
+    "employeeId": "cmr6lbkij000604jssxxga1hu",
+    "date": "2026-09-08T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:44:45.090Z",
+    "updatedAt": "2026-09-03T16:44:45.090Z",
+    "employee": {
+      "id": "cmr6lbkij000604jssxxga1hu",
+      "name": "Lưu Gia Khánh",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f7r002204lgmi6rs2fx",
+      "name": "Ca 4 (đã xóa 058985)",
+      "startTime": "19:00",
+      "endTime": "21:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrcmkt001y01pekcy203cy",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f7e001u04lgzrokm9gr",
+    "employeeId": "cmr6la7qg000304jsm2i1blg5",
+    "date": "2026-09-09T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:47:06.317Z",
+    "updatedAt": "2026-09-03T16:47:06.317Z",
+    "employee": {
+      "id": "cmr6la7qg000304jsm2i1blg5",
+      "name": "Đỗ Như Ý",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f7e001u04lgzrokm9gr",
+      "name": "Ca 3 (đã xóa 055678)",
+      "startTime": "14:00",
+      "endTime": "17:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrjdaf002y01petkx2evds",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l2566000x04lgr8rhbih0",
+    "employeeId": "cmr6l7k17000004k0hxg4qpno",
+    "date": "2026-09-09T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:52:20.871Z",
+    "updatedAt": "2026-09-03T16:52:20.871Z",
+    "employee": {
+      "id": "cmr6l7k17000004k0hxg4qpno",
+      "name": "Lê Trần Anh Kiệt",
+      "position": "Nhân viên Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2566000x04lgr8rhbih0",
+      "name": "Ca 5 (đã xóa 848462)",
+      "startTime": "21:00",
+      "endTime": "23:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrk90u003101pebfn9rird",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f72001m04lgx8lm16n1",
+    "employeeId": "cmr6l7k17000004k0hxg4qpno",
+    "date": "2026-09-09T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:53:01.998Z",
+    "updatedAt": "2026-09-03T16:53:01.998Z",
+    "employee": {
+      "id": "cmr6l7k17000004k0hxg4qpno",
+      "name": "Lê Trần Anh Kiệt",
+      "position": "Nhân viên Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f72001m04lgx8lm16n1",
+      "name": "Ca 2 (đã xóa 051181)",
+      "startTime": "11:00",
+      "endTime": "14:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrc9ux001w01permlewdyi",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f7r002204lgmi6rs2fx",
+    "employeeId": "cmr6l9hub000004kzl11w8dro",
+    "date": "2026-09-09T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:46:49.833Z",
+    "updatedAt": "2026-09-03T16:46:49.833Z",
+    "employee": {
+      "id": "cmr6l9hub000004kzl11w8dro",
+      "name": "Nguyễn Thị Tường Vy",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f7r002204lgmi6rs2fx",
+      "name": "Ca 4 (đã xóa 058985)",
+      "startTime": "19:00",
+      "endTime": "21:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrd5oh002401pemb1uv1jg",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f6s001e04lg9xi8dxsd",
+    "employeeId": "cmr6lbkij000604jssxxga1hu",
+    "date": "2026-09-09T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:47:31.073Z",
+    "updatedAt": "2026-09-03T16:47:31.073Z",
+    "employee": {
+      "id": "cmr6lbkij000604jssxxga1hu",
+      "name": "Lưu Gia Khánh",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f6s001e04lg9xi8dxsd",
+      "name": "Ca 1 (đã xóa 046763)",
+      "startTime": "08:00",
+      "endTime": "11:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrer50002e01peawe3wpsm",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l255g000p04lgm8t6k1re",
+    "employeeId": "cmr6l7k17000004k0hxg4qpno",
+    "date": "2026-09-09T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:48:45.540Z",
+    "updatedAt": "2026-09-03T16:48:45.540Z",
+    "employee": {
+      "id": "cmr6l7k17000004k0hxg4qpno",
+      "name": "Lê Trần Anh Kiệt",
+      "position": "Nhân viên Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l255g000p04lgm8t6k1re",
+      "name": "Ca 4 (đã xóa 851841)",
+      "startTime": "19:00",
+      "endTime": "21:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrdrvl002601perh0h7k3r",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l254g000904lgkp8jkb6y",
+    "employeeId": "cmr6l8478000004jl8w4ztmfc",
+    "date": "2026-09-09T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:47:59.841Z",
+    "updatedAt": "2026-09-03T16:50:09.786Z",
+    "employee": {
+      "id": "cmr6l8478000004jl8w4ztmfc",
+      "name": "Hoàng Thị Quỳnh Như",
+      "position": "Trưởng nhóm Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l254g000904lgkp8jkb6y",
+      "name": "Ca 2 (đã xóa 857767)",
+      "startTime": "11:00",
+      "endTime": "14:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrhbxd002q01peeaf3a81z",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l254y000h04lgjcpkrdmj",
+    "employeeId": "cmr6l8yl4000004js81g9wcrm",
+    "date": "2026-09-09T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:50:45.793Z",
+    "updatedAt": "2026-09-03T16:50:45.793Z",
+    "employee": {
+      "id": "cmr6l8yl4000004js81g9wcrm",
+      "name": "Tạ Minh thuận",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l254y000h04lgjcpkrdmj",
+      "name": "Ca 3 (đã xóa 854543)",
+      "startTime": "14:00",
+      "endTime": "17:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrfweb002i01pep3o5di1e",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l4j7i000z04l1328d48bu",
+    "employeeId": "cmr6l8yl4000004js81g9wcrm",
+    "date": "2026-09-09T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:49:39.011Z",
+    "updatedAt": "2026-09-03T16:49:39.011Z",
+    "employee": {
+      "id": "cmr6l8yl4000004js81g9wcrm",
+      "name": "Tạ Minh thuận",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l4j7i000z04l1328d48bu",
+      "name": "Ca 5 (đã xóa 064515) (đã xóa 067012)",
+      "startTime": "21:00",
+      "endTime": "23:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrn5u5003m01pei7czfocz",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f7r002204lgmi6rs2fx",
+    "employeeId": "cmr6l9hub000004kzl11w8dro",
+    "date": "2026-09-10T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:55:17.837Z",
+    "updatedAt": "2026-09-03T16:55:17.837Z",
+    "employee": {
+      "id": "cmr6l9hub000004kzl11w8dro",
+      "name": "Nguyễn Thị Tường Vy",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f7r002204lgmi6rs2fx",
+      "name": "Ca 4 (đã xóa 058985)",
+      "startTime": "19:00",
+      "endTime": "21:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrnthg003s01peeq8y5f1b",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l4j7i000z04l1328d48bu",
+    "employeeId": "cmr6l7k17000004k0hxg4qpno",
+    "date": "2026-09-10T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:55:48.484Z",
+    "updatedAt": "2026-09-03T16:55:48.484Z",
+    "employee": {
+      "id": "cmr6l7k17000004k0hxg4qpno",
+      "name": "Lê Trần Anh Kiệt",
+      "position": "Nhân viên Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l4j7i000z04l1328d48bu",
+      "name": "Ca 5 (đã xóa 064515) (đã xóa 067012)",
+      "startTime": "21:00",
+      "endTime": "23:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrnw8v003u01pexojq8iw0",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l254g000904lgkp8jkb6y",
+    "employeeId": "cmr6l8yl4000004js81g9wcrm",
+    "date": "2026-09-10T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:55:52.063Z",
+    "updatedAt": "2026-09-03T16:55:52.063Z",
+    "employee": {
+      "id": "cmr6l8yl4000004js81g9wcrm",
+      "name": "Tạ Minh thuận",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l254g000904lgkp8jkb6y",
+      "name": "Ca 2 (đã xóa 857767)",
+      "startTime": "11:00",
+      "endTime": "14:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrnyht003w01pet9dqq3di",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l2566000x04lgr8rhbih0",
+    "employeeId": "cmr6l8yl4000004js81g9wcrm",
+    "date": "2026-09-10T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:55:54.977Z",
+    "updatedAt": "2026-09-03T16:55:54.977Z",
+    "employee": {
+      "id": "cmr6l8yl4000004js81g9wcrm",
+      "name": "Tạ Minh thuận",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2566000x04lgr8rhbih0",
+      "name": "Ca 5 (đã xóa 848462)",
+      "startTime": "21:00",
+      "endTime": "23:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrm27f003b01pevespd8cz",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f7e001u04lgzrokm9gr",
+    "employeeId": "cmr6la7qg000304jsm2i1blg5",
+    "date": "2026-09-10T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:54:26.475Z",
+    "updatedAt": "2026-09-03T16:54:26.475Z",
+    "employee": {
+      "id": "cmr6la7qg000304jsm2i1blg5",
+      "name": "Đỗ Như Ý",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f7e001u04lgzrokm9gr",
+      "name": "Ca 3 (đã xóa 055678)",
+      "startTime": "14:00",
+      "endTime": "17:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrm4oy003d01pea6800697",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l254y000h04lgjcpkrdmj",
+    "employeeId": "cmr6l8478000004jl8w4ztmfc",
+    "date": "2026-09-10T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:54:29.698Z",
+    "updatedAt": "2026-09-03T16:54:29.698Z",
+    "employee": {
+      "id": "cmr6l8478000004jl8w4ztmfc",
+      "name": "Hoàng Thị Quỳnh Như",
+      "position": "Trưởng nhóm Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l254y000h04lgjcpkrdmj",
+      "name": "Ca 3 (đã xóa 854543)",
+      "startTime": "14:00",
+      "endTime": "17:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrmamu003f01pe6y1l5cta",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f6s001e04lg9xi8dxsd",
+    "employeeId": "cmr6la7qg000304jsm2i1blg5",
+    "date": "2026-09-10T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:54:37.398Z",
+    "updatedAt": "2026-09-03T16:54:37.398Z",
+    "employee": {
+      "id": "cmr6la7qg000304jsm2i1blg5",
+      "name": "Đỗ Như Ý",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f6s001e04lg9xi8dxsd",
+      "name": "Ca 1 (đã xóa 046763)",
+      "startTime": "08:00",
+      "endTime": "11:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrmyt6003j01petq6280xx",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f72001m04lgx8lm16n1",
+    "employeeId": "cmr6l9hub000004kzl11w8dro",
+    "date": "2026-09-10T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:55:08.730Z",
+    "updatedAt": "2026-09-03T16:55:08.730Z",
+    "employee": {
+      "id": "cmr6l9hub000004kzl11w8dro",
+      "name": "Nguyễn Thị Tường Vy",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f72001m04lgx8lm16n1",
+      "name": "Ca 2 (đã xóa 051181)",
+      "startTime": "11:00",
+      "endTime": "14:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrn8qr003o01pe6i5mkvai",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l255g000p04lgm8t6k1re",
+    "employeeId": "cmr6l8478000004jl8w4ztmfc",
+    "date": "2026-09-10T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:55:21.603Z",
+    "updatedAt": "2026-09-03T16:55:21.603Z",
+    "employee": {
+      "id": "cmr6l8478000004jl8w4ztmfc",
+      "name": "Hoàng Thị Quỳnh Như",
+      "position": "Trưởng nhóm Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l255g000p04lgm8t6k1re",
+      "name": "Ca 4 (đã xóa 851841)",
+      "startTime": "19:00",
+      "endTime": "21:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlru04b004y01pejdhdpt0r",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l254g000904lgkp8jkb6y",
+    "employeeId": "cmr6l8yl4000004js81g9wcrm",
+    "date": "2026-09-11T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T17:00:37.019Z",
+    "updatedAt": "2026-09-03T17:00:37.019Z",
+    "employee": {
+      "id": "cmr6l8yl4000004js81g9wcrm",
+      "name": "Tạ Minh thuận",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l254g000904lgkp8jkb6y",
+      "name": "Ca 2 (đã xóa 857767)",
+      "startTime": "11:00",
+      "endTime": "14:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrv379005901pedziiilz2",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l2566000x04lgr8rhbih0",
+    "employeeId": "cmr6l8yl4000004js81g9wcrm",
+    "date": "2026-09-11T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T17:01:27.669Z",
+    "updatedAt": "2026-09-03T17:01:27.669Z",
+    "employee": {
+      "id": "cmr6l8yl4000004js81g9wcrm",
+      "name": "Tạ Minh thuận",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2566000x04lgr8rhbih0",
+      "name": "Ca 5 (đã xóa 848462)",
+      "startTime": "21:00",
+      "endTime": "23:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlruytm005701pe65fnjuoy",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l4j7i000z04l1328d48bu",
+    "employeeId": "cmr6l9hub000004kzl11w8dro",
+    "date": "2026-09-11T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T17:01:21.994Z",
+    "updatedAt": "2026-09-03T17:01:21.994Z",
+    "employee": {
+      "id": "cmr6l9hub000004kzl11w8dro",
+      "name": "Nguyễn Thị Tường Vy",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l4j7i000z04l1328d48bu",
+      "name": "Ca 5 (đã xóa 064515) (đã xóa 067012)",
+      "startTime": "21:00",
+      "endTime": "23:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlruph1005401petyiriib0",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f7r002204lgmi6rs2fx",
+    "employeeId": "cmr6l9hub000004kzl11w8dro",
+    "date": "2026-09-11T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T17:01:09.877Z",
+    "updatedAt": "2026-09-03T17:01:09.877Z",
+    "employee": {
+      "id": "cmr6l9hub000004kzl11w8dro",
+      "name": "Nguyễn Thị Tường Vy",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f7r002204lgmi6rs2fx",
+      "name": "Ca 4 (đã xóa 058985)",
+      "startTime": "19:00",
+      "endTime": "21:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrumxy005201pe4wzgqm7a",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l255g000p04lgm8t6k1re",
+    "employeeId": "cmr6l8478000004jl8w4ztmfc",
+    "date": "2026-09-11T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T17:01:06.598Z",
+    "updatedAt": "2026-09-03T17:01:06.598Z",
+    "employee": {
+      "id": "cmr6l8478000004jl8w4ztmfc",
+      "name": "Hoàng Thị Quỳnh Như",
+      "position": "Trưởng nhóm Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l255g000p04lgm8t6k1re",
+      "name": "Ca 4 (đã xóa 851841)",
+      "startTime": "19:00",
+      "endTime": "21:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlruk77005001pe9qh8sdox",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f6s001e04lg9xi8dxsd",
+    "employeeId": "cmr6l9hub000004kzl11w8dro",
+    "date": "2026-09-11T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T17:01:03.043Z",
+    "updatedAt": "2026-09-03T17:01:03.043Z",
+    "employee": {
+      "id": "cmr6l9hub000004kzl11w8dro",
+      "name": "Nguyễn Thị Tường Vy",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f6s001e04lg9xi8dxsd",
+      "name": "Ca 1 (đã xóa 046763)",
+      "startTime": "08:00",
+      "endTime": "11:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrtpv5004w01pejrd9bum7",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f72001m04lgx8lm16n1",
+    "employeeId": "cmr6la7qg000304jsm2i1blg5",
+    "date": "2026-09-11T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T17:00:23.729Z",
+    "updatedAt": "2026-09-03T17:00:23.729Z",
+    "employee": {
+      "id": "cmr6la7qg000304jsm2i1blg5",
+      "name": "Đỗ Như Ý",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f72001m04lgx8lm16n1",
+      "name": "Ca 2 (đã xóa 051181)",
+      "startTime": "11:00",
+      "endTime": "14:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrzval006201pejw18t0p9",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l4j7i000z04l1328d48bu",
+    "employeeId": "cmr6l7k17000004k0hxg4qpno",
+    "date": "2026-09-12T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T17:05:10.701Z",
+    "updatedAt": "2026-09-03T17:05:10.701Z",
+    "employee": {
+      "id": "cmr6l7k17000004k0hxg4qpno",
+      "name": "Lê Trần Anh Kiệt",
+      "position": "Nhân viên Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l4j7i000z04l1328d48bu",
+      "name": "Ca 5 (đã xóa 064515) (đã xóa 067012)",
+      "startTime": "21:00",
+      "endTime": "23:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlryfdn005t01peznm1l4gl",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l254g000904lgkp8jkb6y",
+    "employeeId": "cmr6lb93x000504k4spdxlwnd",
+    "date": "2026-09-12T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T17:04:03.419Z",
+    "updatedAt": "2026-09-03T17:04:03.419Z",
+    "employee": {
+      "id": "cmr6lb93x000504k4spdxlwnd",
+      "name": "Nguyễn Trung Hiếu",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l254g000904lgkp8jkb6y",
+      "name": "Ca 2 (đã xóa 857767)",
+      "startTime": "11:00",
+      "endTime": "14:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrz2et005w01pe55cfwklg",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f6s001e04lg9xi8dxsd",
+    "employeeId": "cmr6la7qg000304jsm2i1blg5",
+    "date": "2026-09-12T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T17:04:33.269Z",
+    "updatedAt": "2026-09-03T17:04:33.269Z",
+    "employee": {
+      "id": "cmr6la7qg000304jsm2i1blg5",
+      "name": "Đỗ Như Ý",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f6s001e04lg9xi8dxsd",
+      "name": "Ca 1 (đã xóa 046763)",
+      "startTime": "08:00",
+      "endTime": "11:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrwn2b005e01pe4nhrly8f",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f7r002204lgmi6rs2fx",
+    "employeeId": "cmr6l9hub000004kzl11w8dro",
+    "date": "2026-09-12T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T17:02:40.067Z",
+    "updatedAt": "2026-09-03T17:02:40.067Z",
+    "employee": {
+      "id": "cmr6l9hub000004kzl11w8dro",
+      "name": "Nguyễn Thị Tường Vy",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f7r002204lgmi6rs2fx",
+      "name": "Ca 4 (đã xóa 058985)",
+      "startTime": "19:00",
+      "endTime": "21:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrzy6k006401pen6qroale",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l2566000x04lgr8rhbih0",
+    "employeeId": "cmr6l8yl4000004js81g9wcrm",
+    "date": "2026-09-12T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T17:05:14.444Z",
+    "updatedAt": "2026-09-03T17:05:14.444Z",
+    "employee": {
+      "id": "cmr6l8yl4000004js81g9wcrm",
+      "name": "Tạ Minh thuận",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2566000x04lgr8rhbih0",
+      "name": "Ca 5 (đã xóa 848462)",
+      "startTime": "21:00",
+      "endTime": "23:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlryd1v005r01pec4two84r",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f72001m04lgx8lm16n1",
+    "employeeId": "cmr6l8478000004jl8w4ztmfc",
+    "date": "2026-09-12T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T17:04:00.403Z",
+    "updatedAt": "2026-09-03T17:04:00.403Z",
+    "employee": {
+      "id": "cmr6l8478000004jl8w4ztmfc",
+      "name": "Hoàng Thị Quỳnh Như",
+      "position": "Trưởng nhóm Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f72001m04lgx8lm16n1",
+      "name": "Ca 2 (đã xóa 051181)",
+      "startTime": "11:00",
+      "endTime": "14:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrzok8006001ped9oojltz",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l255g000p04lgm8t6k1re",
+    "employeeId": "cmr6l7k17000004k0hxg4qpno",
+    "date": "2026-09-12T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T17:05:01.976Z",
+    "updatedAt": "2026-09-03T17:05:01.976Z",
+    "employee": {
+      "id": "cmr6l7k17000004k0hxg4qpno",
+      "name": "Lê Trần Anh Kiệt",
+      "position": "Nhân viên Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l255g000p04lgm8t6k1re",
+      "name": "Ca 4 (đã xóa 851841)",
+      "startTime": "19:00",
+      "endTime": "21:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrpbvg004401pego0rs8d4",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l254g000904lgkp8jkb6y",
+    "employeeId": "cmr6lb93x000504k4spdxlwnd",
+    "date": "2026-09-13T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:56:58.972Z",
+    "updatedAt": "2026-09-03T16:56:58.972Z",
+    "employee": {
+      "id": "cmr6lb93x000504k4spdxlwnd",
+      "name": "Nguyễn Trung Hiếu",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l254g000904lgkp8jkb6y",
+      "name": "Ca 2 (đã xóa 857767)",
+      "startTime": "11:00",
+      "endTime": "14:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrsg8g004o01peyg2m10iv",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f7r002204lgmi6rs2fx",
+    "employeeId": "cmr6l7k17000004k0hxg4qpno",
+    "date": "2026-09-13T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:59:24.592Z",
+    "updatedAt": "2026-09-03T16:59:24.592Z",
+    "employee": {
+      "id": "cmr6l7k17000004k0hxg4qpno",
+      "name": "Lê Trần Anh Kiệt",
+      "position": "Nhân viên Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f7r002204lgmi6rs2fx",
+      "name": "Ca 4 (đã xóa 058985)",
+      "startTime": "19:00",
+      "endTime": "21:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrsazc004k01pel40hmz8v",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l255g000p04lgm8t6k1re",
+    "employeeId": "cmr6l8yl4000004js81g9wcrm",
+    "date": "2026-09-13T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:59:17.784Z",
+    "updatedAt": "2026-09-03T16:59:17.784Z",
+    "employee": {
+      "id": "cmr6l8yl4000004js81g9wcrm",
+      "name": "Tạ Minh thuận",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l255g000p04lgm8t6k1re",
+      "name": "Ca 4 (đã xóa 851841)",
+      "startTime": "19:00",
+      "endTime": "21:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrsdvf004m01pe5nmp8e8s",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l24xx000004lgbkkptb72",
+    "shiftTemplateId": "cmr6l2566000x04lgr8rhbih0",
+    "employeeId": "cmr6l8yl4000004js81g9wcrm",
+    "date": "2026-09-13T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:59:21.531Z",
+    "updatedAt": "2026-09-03T16:59:21.531Z",
+    "employee": {
+      "id": "cmr6l8yl4000004js81g9wcrm",
+      "name": "Tạ Minh thuận",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2566000x04lgr8rhbih0",
+      "name": "Ca 5 (đã xóa 848462)",
+      "startTime": "21:00",
+      "endTime": "23:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l24xx000004lgbkkptb72",
+      "store": {
+        "id": "cmr6l24xx000004lgbkkptb72",
+        "name": "SHOPEE FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrrdtd004g01peybjzmn6b",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l4j7i000z04l1328d48bu",
+    "employeeId": "cmr6lbkij000604jssxxga1hu",
+    "date": "2026-09-13T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:58:34.801Z",
+    "updatedAt": "2026-09-03T16:58:34.801Z",
+    "employee": {
+      "id": "cmr6lbkij000604jssxxga1hu",
+      "name": "Lưu Gia Khánh",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l4j7i000z04l1328d48bu",
+      "name": "Ca 5 (đã xóa 064515) (đã xóa 067012)",
+      "startTime": "21:00",
+      "endTime": "23:00",
+      "durationHours": 2,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrqf3f004c01pec0jg6a29",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f6s001e04lg9xi8dxsd",
+    "employeeId": "cmr6la7qg000304jsm2i1blg5",
+    "date": "2026-09-13T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:57:49.803Z",
+    "updatedAt": "2026-09-03T16:57:49.803Z",
+    "employee": {
+      "id": "cmr6la7qg000304jsm2i1blg5",
+      "name": "Đỗ Như Ý",
+      "position": "Nhân viên Livetream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f6s001e04lg9xi8dxsd",
+      "name": "Ca 1 (đã xóa 046763)",
+      "startTime": "08:00",
+      "endTime": "11:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  },
+  {
+    "id": "cmtlrptgp004601pebi823fn4",
+    "companyId": "tokyolife-hcm",
+    "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+    "shiftTemplateId": "cmr6l2f72001m04lgx8lm16n1",
+    "employeeId": "cmr6l8478000004jl8w4ztmfc",
+    "date": "2026-09-13T00:00:00.000Z",
+    "slotIndex": 0,
+    "isManual": true,
+    "createdAt": "2026-09-03T16:57:21.769Z",
+    "updatedAt": "2026-09-03T16:57:21.769Z",
+    "employee": {
+      "id": "cmr6l8478000004jl8w4ztmfc",
+      "name": "Hoàng Thị Quỳnh Như",
+      "position": "Trưởng nhóm Livestream"
+    },
+    "shiftTemplate": {
+      "id": "cmr6l2f72001m04lgx8lm16n1",
+      "name": "Ca 2 (đã xóa 051181)",
+      "startTime": "11:00",
+      "endTime": "14:00",
+      "durationHours": 3,
+      "isActive": false,
+      "storeId": "cmr6l2f2i001d04lgu2tdm3j4",
+      "store": {
+        "id": "cmr6l2f2i001d04lgu2tdm3j4",
+        "name": "TIKTOK FASHION"
+      }
+    },
+    "faults": []
+  }
+]
