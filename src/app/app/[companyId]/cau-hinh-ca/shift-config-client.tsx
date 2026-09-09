@@ -1492,7 +1492,7 @@ export default function ShiftConfigClient({
                   className="h-8 px-2.5 text-xs font-semibold gap-1.5"
                 >
                   <Copy className="h-3.5 w-3.5 text-slate-500" />
-                  <span>Sao chép bảng</span>
+                  <span>Sao chép ca</span>
                 </Button>
 
                 <Button
@@ -2231,7 +2231,7 @@ export default function ShiftConfigClient({
                 {addPeriodForm.isCopyMode ? (
                   <>
                     <Copy className="h-3.5 w-3.5" />
-                    <span>Sao chép bảng</span>
+                    <span>Sao chép ca</span>
                   </>
                 ) : (
                   <>

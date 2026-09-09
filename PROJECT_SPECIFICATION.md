@@ -291,9 +291,9 @@
     * **Ràng buộc tháng trực tiếp trên ô ngày**:
       * Khi tạo bảng mới: Ô "Từ ngày" và "Đến ngày" bị khóa cứng trong tháng đang xem (`selectedMonth`).
       * Khi ô "Từ ngày" đang ở tháng 11 thì ô "Đến ngày" tuyệt đối **không thể chọn tháng 12** (bị khóa điều hướng và chỉ chọn được từ ngày bắt đầu đến ngày cuối cùng của tháng 11).
-    * **Điều hướng linh hoạt khi Sao chép bảng (Copy Mode)**:
+    * **Điều hướng linh hoạt khi Sao chép ca (Copy Mode)**:
       * Không cần ô chọn tháng riêng biệt phức tạp; người dùng điều chỉnh trực tiếp từ ô "Từ ngày".
-      * Khi bấm "Sao chép bảng", người dùng có thể bấm nút chuyển tháng hoặc click trực tiếp vào dòng Tháng/Năm trên ô "Từ ngày" để sang tháng kế tiếp (ví dụ tháng 12).
+      * Khi bấm nút "Sao chép ca", người dùng có thể bấm nút chuyển tháng hoặc click trực tiếp vào dòng Tháng/Năm trên ô "Từ ngày" để sang tháng kế tiếp (ví dụ tháng 12).
       * Ngay khi người dùng click chọn 1 ngày trong tháng 12, ô "Đến ngày" sẽ **tự động nhảy theo sang tháng 12** (bảo lưu khoảng cách ngày tương ứng) và tự động khóa cứng phạm vi trong tháng 12 (tuyệt đối không chọn xuyên tháng từ tháng 11 sang tháng 12).
       * Tên bảng cấu hình tự động tính toán lại theo thứ tự tuần tự của tháng đích (ví dụ sang tháng 12 chưa có bảng nào thì tự động là "Đợt 1").
       * Sau khi sao chép thành công, hệ thống tự động điều hướng sang tháng mới và mở ngay bảng vừa tạo.
