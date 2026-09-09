@@ -217,7 +217,13 @@ export function buildAssignmentSlots(
     );
   }
 
+  const existingByShiftDate = new Map<string, typeof existing>();
   for (const assignment of existing) {
+    const key = `${assignment.storeId}|${assignment.shiftTemplateId}|${formatDateOnly(assignment.date)}`;
+    const list = existingByShiftDate.get(key) ?? [];
+    list.push(assignment);
+    existingByShiftDate.set(key, list);
+
     existingByKey.set(
       `${assignment.storeId}|${assignment.shiftTemplateId}|${formatDateOnly(assignment.date)}|${assignment.slotIndex}`,
       assignment
@@ -231,22 +237,30 @@ export function buildAssignmentSlots(
       const storeShifts = shiftsByStore.get(store.id) ?? [];
 
       for (const shift of storeShifts) {
+        const existingForShiftDate = existingByShiftDate.get(`${store.id}|${shift.id}|${dateStr}`) ?? [];
+        const hasExisting = existingForShiftDate.length > 0;
+
         // Kiểm tra xem ca làm này có áp dụng cho ngày này không
         if (shift.periodStartDate && shift.periodEndDate) {
           if (dateStr < shift.periodStartDate || dateStr > shift.periodEndDate) {
-            continue;
+            // Nếu ngày nằm ngoài kỳ cấu hình nhưng ĐÃ CÓ PHÂN CÔNG THỰC TẾ (dữ liệu lịch sử) -> Vẫn hiển thị
+            if (!hasExisting) {
+              continue;
+            }
           }
-        } else if (dateStr >= "2026-10-01") {
-          // Bắt đầu từ tháng 10/2026, ca không thuộc bảng cấu hình sẽ không hiển thị/sinh slot
+        } else if (dateStr >= "2026-10-01" && !hasExisting) {
+          // Bắt đầu từ tháng 10/2026, ca không thuộc bảng cấu hình sẽ không hiển thị/sinh slot trừ khi có phân công lịch sử
           continue;
         }
 
+        const maxExistingSlot = existingForShiftDate.reduce((max, e) => Math.max(max, e.slotIndex), -1);
         const required =
           overridesByKey.get(`${store.id}|${shift.id}|${dateStr}`) ??
           rulesByKey.get(`${store.id}|${shift.id}|${dayOfWeek}`) ??
           1;
+        const numSlots = Math.max(required, maxExistingSlot + 1);
 
-        for (let slotIndex = 0; slotIndex < required; slotIndex++) {
+        for (let slotIndex = 0; slotIndex < numSlots; slotIndex++) {
           const found = existingByKey.get(
             `${store.id}|${shift.id}|${dateStr}|${slotIndex}`
           );

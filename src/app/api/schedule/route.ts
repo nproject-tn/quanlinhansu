@@ -241,18 +241,25 @@ export async function GET(request: Request) {
         return [];
       });
 
-    const shiftsFormatted = shifts.map((s) => ({
-      id: s.id,
-      storeId: s.storeId,
-      periodId: s.periodId,
-      periodStartDate: s.period ? formatDateOnly(s.period.startDate) : null,
-      periodEndDate: s.period ? formatDateOnly(s.period.endDate) : null,
-      name: s.name.replace(/\s*\(đã xóa.*?\)/gi, "").trim(),
-      startTime: s.startTime,
-      endTime: s.endTime,
-      durationHours: s.durationHours,
-      sortOrder: s.sortOrder,
-    }));
+    const shiftsFormatted = shifts.map((s) => {
+      const isPeriodMismatch = s.period && (
+        formatDateOnly(s.period.endDate) < formatDateOnly(start) ||
+        formatDateOnly(s.period.startDate) > formatDateOnly(end)
+      );
+
+      return {
+        id: s.id,
+        storeId: s.storeId,
+        periodId: isPeriodMismatch ? null : s.periodId,
+        periodStartDate: (!s.period || isPeriodMismatch) ? null : formatDateOnly(s.period.startDate),
+        periodEndDate: (!s.period || isPeriodMismatch) ? null : formatDateOnly(s.period.endDate),
+        name: s.name.replace(/\s*\(đã xóa.*?\)/gi, "").trim(),
+        startTime: s.startTime,
+        endTime: s.endTime,
+        durationHours: s.durationHours,
+        sortOrder: s.sortOrder,
+      };
+    });
 
     const slotsRaw = buildAssignmentSlots(
       dates,
@@ -548,7 +555,7 @@ export async function POST(request: Request) {
       periodId: s.periodId,
       periodStartDate: s.period ? formatDateOnly(s.period.startDate) : null,
       periodEndDate: s.period ? formatDateOnly(s.period.endDate) : null,
-      name: s.name,
+      name: s.name.replace(/\s*\(đã xóa.*?\)/gi, "").trim(),
       startTime: s.startTime,
       endTime: s.endTime,
       durationHours: s.durationHours,
