@@ -241,13 +241,26 @@ export async function exportScheduleToExcel(data: ExportScheduleData) {
         });
       }
     }
-    const shiftGroups = Array.from(groupMap.values()).sort((a, b) => a.sortOrder - b.sortOrder);
-    const activeShiftGroups = shiftGroups.filter((g) =>
-      dates.some((dateStr) =>
-        filteredSlots.some((s) => s.storeId === store.id && g.shiftIds.includes(s.shiftTemplateId) && s.date.startsWith(dateStr))
-      )
+    const shiftGroups = Array.from(groupMap.values());
+
+    // Dynamic Shift Stacking: Gom các ca thực tế có slots cho từng ngày
+    const activeGroupsByDate = new Map<string, ShiftExcelGroup[]>();
+    for (const dateStr of dates) {
+      const activeForDate = shiftGroups
+        .filter((g) =>
+          filteredSlots.some(
+            (s) => s.storeId === store.id && g.shiftIds.includes(s.shiftTemplateId) && s.date.startsWith(dateStr)
+          )
+        )
+        .sort((a, b) => a.startTime.localeCompare(b.startTime) || a.sortOrder - b.sortOrder);
+      activeGroupsByDate.set(dateStr, activeForDate);
+    }
+
+    const maxDailyShifts = Math.max(
+      0,
+      ...dates.map((dateStr) => activeGroupsByDate.get(dateStr)?.length ?? 0)
     );
-    if (activeShiftGroups.length === 0) return;
+    if (maxDailyShifts === 0) return;
 
     // Store Section Header Banner
     wsMatrix.mergeCells(`A${currentRowIndex}`, `${getColumnLetter(3 + dates.length)}${currentRowIndex}`);
@@ -259,30 +272,49 @@ export async function exportScheduleToExcel(data: ExportScheduleData) {
     wsMatrix.getRow(currentRowIndex).height = 26;
     currentRowIndex++;
 
-    // For each Shift group in store
-    activeShiftGroups.forEach((shift, shiftIdx) => {
+    // Render maxDailyShifts rows
+    for (let r = 0; r < maxDailyShifts; r++) {
       const shiftRow = wsMatrix.getRow(currentRowIndex);
       shiftRow.height = 32;
+
+      const shiftsAtRow = dates
+        .map((d) => activeGroupsByDate.get(d)?.[r])
+        .filter(Boolean) as ShiftExcelGroup[];
+      const uniqueKeys = Array.from(new Set(shiftsAtRow.map((g) => g.key)));
+      const isUniform = uniqueKeys.length === 1;
+      const primaryGroup = shiftsAtRow[0];
+
+      const colB_title = isUniform ? primaryGroup?.name || `Ca thứ ${r + 1}` : `Ca thứ ${r + 1}`;
+      const colC_title = isUniform
+        ? `${primaryGroup?.startTime} - ${primaryGroup?.endTime}\n(${primaryGroup?.durationHours}h)`
+        : `Theo giờ từng ngày`;
 
       // Col A: Store Name
       const cellStore = shiftRow.getCell(1);
       cellStore.value = store.name;
-      styleDataCell(cellStore, { bold: true, color: "FF475569", bgColor: shiftIdx % 2 === 0 ? "FFF8FAFC" : "FFFFFFFF" });
+      styleDataCell(cellStore, { bold: true, color: "FF475569", bgColor: r % 2 === 0 ? "FFF8FAFC" : "FFFFFFFF" });
 
       // Col B: Shift Name
       const cellShift = shiftRow.getCell(2);
-      cellShift.value = shift.name;
-      styleDataCell(cellShift, { bold: true, color: "FF1E293B", bgColor: shiftIdx % 2 === 0 ? "FFF8FAFC" : "FFFFFFFF" });
+      cellShift.value = colB_title;
+      styleDataCell(cellShift, { bold: true, color: "FF1E293B", bgColor: r % 2 === 0 ? "FFF8FAFC" : "FFFFFFFF" });
 
       // Col C: Shift Time
       const cellTime = shiftRow.getCell(3);
-      cellTime.value = `${shift.startTime} - ${shift.endTime}\n(${shift.durationHours}h)`;
-      styleDataCell(cellTime, { color: "FF64748B", bgColor: shiftIdx % 2 === 0 ? "FFF8FAFC" : "FFFFFFFF" });
+      cellTime.value = colC_title;
+      styleDataCell(cellTime, { color: "FF64748B", bgColor: r % 2 === 0 ? "FFF8FAFC" : "FFFFFFFF" });
 
       // Date cells
       dates.forEach((dateStr, dIdx) => {
         const colIndex = 4 + dIdx;
         const cell = shiftRow.getCell(colIndex);
+        const shift = activeGroupsByDate.get(dateStr)?.[r];
+
+        if (!shift) {
+          cell.value = "—";
+          styleDataCell(cell, { color: "FFCBD5E1", bgColor: "FFFFFFFF" });
+          return;
+        }
 
         // Find slots for this date, store, shift group
         const matchingSlots = filteredSlots.filter(
@@ -296,6 +328,9 @@ export async function exportScheduleToExcel(data: ExportScheduleData) {
 
         if (matchingSlots.length > 0) {
           const lines: string[] = [];
+          if (!isUniform) {
+            lines.push(`[${shift.name} ${shift.startTime}-${shift.endTime}]`);
+          }
 
           matchingSlots.forEach((slot) => {
             if (slot.employeeId) {
@@ -356,7 +391,7 @@ export async function exportScheduleToExcel(data: ExportScheduleData) {
       });
 
       currentRowIndex++;
-    });
+    }
   });
 
   // Set column widths for Sheet 1

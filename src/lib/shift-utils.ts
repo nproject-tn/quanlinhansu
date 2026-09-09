@@ -1,3 +1,5 @@
+import { formatDateVN } from "./utils";
+
 /** Tính số giờ giữa hai mốc HH:mm */
 export function calcDurationHours(startTime: string, endTime: string): number {
   const [sh, sm] = startTime.split(":").map(Number);
@@ -107,3 +109,99 @@ export function getShiftContainmentError(
 
   return null;
 }
+
+/**
+ * Lấy tên gốc của bảng cấu hình (loại bỏ phần ngày trong ngoặc đơn nếu có)
+ * Ví dụ: "Đợt 2 (11/10/2026 - 20/10/2026)" => "Đợt 2"
+ *        "Đợt 1 (09/10/2026)" => "Đợt 1"
+ *        "Ca cuối tuần" => "Ca cuối tuần"
+ */
+export function getPeriodBaseName(name?: string | null): string {
+  if (!name) return "";
+  return name.replace(/\s*\(\s*\d{1,2}[\d\/\s\.-]*\)\s*$/, "").trim();
+}
+
+/**
+ * Tự động cập nhật phần ngày phía sau trong tên bảng cấu hình ca theo khoảng ngày được chọn.
+ * Ví dụ:
+ * - "Đợt 1 (01/10/2026 - 10/10/2026)" khi đổi sang 01/10 - 09/10 => "Đợt 1 (01/10/2026 - 09/10/2026)"
+ * - "Đợt 4 (10/10/2026 - 10/10/2026)" khi là 1 ngày 10/10 => "Đợt 4 (10/10/2026)"
+ * - "Đợt 1" khi chọn 01/10 - 09/10 => "Đợt 1 (01/10/2026 - 09/10/2026)"
+ */
+export function updatePeriodNameWithDates(
+  currentName: string,
+  startDate?: string,
+  endDate?: string,
+  fallbackPrefix = "Đợt"
+): string {
+  if (!startDate && !endDate) return currentName;
+
+  // Import dynamically or use date formatting
+  const startVN = startDate ? formatDateVN(startDate) : "";
+  const endVN = endDate ? formatDateVN(endDate) : "";
+
+  let rangeLabel = "";
+  if (startDate && endDate) {
+    rangeLabel = startDate === endDate ? startVN : `${startVN} - ${endVN}`;
+  } else {
+    rangeLabel = startVN || endVN;
+  }
+
+  if (!rangeLabel) return currentName;
+
+  // Loại bỏ phần đuôi ngày trong ngoặc đơn ở cuối chuỗi nếu có
+  // Khớp với (DD/MM/YYYY - DD/MM/YYYY), (DD/MM/YYYY), (DD - DD), v.v.
+  const cleanPrefix = getPeriodBaseName(currentName);
+  const prefix = cleanPrefix || fallbackPrefix;
+  return `${prefix} (${rangeLabel})`;
+}
+
+/**
+ * Tự động xác định tên theo thứ tự "Đợt N" cho bảng cấu hình mới trong một tháng.
+ * Quy tắc:
+ * - Đếm số lượng bảng cấu hình hiện có trong tháng (count).
+ * - Bảng tiếp theo luôn có số thứ tự là count + 1.
+ * - Cho dù bảng đầu tiên người dùng có đổi tên thành "Khai trương" hay tên gì khác, bảng thứ 2 vẫn luôn là "Đợt 2".
+ * - Nếu số thứ tự đã bị trùng thủ công, tự động tăng dần tìm số tiếp theo còn trống.
+ */
+export function getNextPeriodSequentialName(
+  existingPeriods: Array<{ name?: string | null }>
+): string {
+  const count = existingPeriods.length;
+  let nextNum = count + 1;
+
+  const existingNumbers = new Set<number>();
+  for (const p of existingPeriods) {
+    if (!p.name) continue;
+    const base = getPeriodBaseName(p.name);
+    const match = base.match(/^Đợt\s+(\d+)$/i);
+    if (match) {
+      existingNumbers.add(parseInt(match[1], 10));
+    }
+  }
+
+  while (existingNumbers.has(nextNum)) {
+    nextNum++;
+  }
+
+  return `Đợt ${nextNum}`;
+}
+
+/** Lấy ngày đầu tiên và ngày cuối cùng của tháng theo chuỗi YYYY-MM */
+export function getMonthDateLimits(monthStr: string): { minDate: string; maxDate: string } {
+  const [y, m] = monthStr.split("-").map(Number);
+  const minDate = `${monthStr}-01`;
+  const lastDay = new Date(y, m, 0).getDate();
+  const maxDate = `${monthStr}-${String(lastDay).padStart(2, "0")}`;
+  return { minDate, maxDate };
+}
+
+/** Lấy chuỗi tháng kế tiếp từ chuỗi YYYY-MM (ví dụ "2026-11" -> "2026-12") */
+export function getNextMonthStr(monthStr: string): string {
+  const [y, m] = monthStr.split("-").map(Number);
+  if (m === 12) {
+    return `${y + 1}-01`;
+  }
+  return `${y}-${String(m + 1).padStart(2, "0")}`;
+}
+

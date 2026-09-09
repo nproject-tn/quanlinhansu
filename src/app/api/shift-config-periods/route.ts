@@ -4,7 +4,7 @@ import { requireAuth } from "@/lib/api-auth";
 import { shiftConfigPeriodSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity-logger";
 import { formatDateOnly, parseDateOnly, formatDateVN } from "@/lib/utils";
-import { calcDurationHours, getDefaultShiftTime } from "@/lib/shift-utils";
+import { calcDurationHours, getDefaultShiftTime, getNextPeriodSequentialName } from "@/lib/shift-utils";
 import { getDateRange } from "@/lib/schedule-engine";
 
 export async function GET(request: Request) {
@@ -97,7 +97,19 @@ export async function POST(request: Request) {
     );
   }
 
-  // 1. Kiểm tra quy tắc chống trùng ngày tuyệt đối trong cùng cửa hàng
+  // 1. Bắt buộc khoảng ngày phải nằm trọn trong 1 tháng duy nhất (không xuyên tháng)
+  const startMonth = startStr.slice(0, 7);
+  const endMonth = endStr.slice(0, 7);
+  if (startMonth !== endMonth) {
+    return NextResponse.json(
+      {
+        error: `Khoảng ngày (${formatDateVN(startStr)} - ${formatDateVN(endStr)}) không hợp lệ. Bảng cấu hình ca phải nằm trọn trong 1 tháng duy nhất, không được chọn xuyên tháng.`,
+      },
+      { status: 400 }
+    );
+  }
+
+  // 2. Kiểm tra quy tắc chống trùng ngày tuyệt đối trong cùng cửa hàng
   // Điều kiện giao nhau giữa 2 khoảng [startDate, endDate] và [p.startDate, p.endDate]:
   // startDate <= p.endDate && p.startDate <= endDate
   const overlapping = await prisma.shiftConfigPeriod.findFirst({
@@ -119,12 +131,29 @@ export async function POST(request: Request) {
     );
   }
 
-  // 2. Tạo ShiftConfigPeriod
+  // 3. Tự động xác định tên theo thứ tự Đợt nếu chưa có tên
+  let finalName = name?.trim();
+  if (!finalName) {
+    const monthStart = parseDateOnly(`${startMonth}-01`);
+    const monthEnd = getDateRange("month", monthStart).end;
+    const existingInMonth = await prisma.shiftConfigPeriod.findMany({
+      where: {
+        companyId,
+        storeId,
+        startDate: { lte: monthEnd },
+        endDate: { gte: monthStart },
+      },
+      select: { name: true },
+    });
+    finalName = getNextPeriodSequentialName(existingInMonth);
+  }
+
+  // 4. Tạo ShiftConfigPeriod
   const period = await prisma.shiftConfigPeriod.create({
     data: {
       companyId,
       storeId,
-      name,
+      name: finalName,
       startDate,
       endDate,
     },

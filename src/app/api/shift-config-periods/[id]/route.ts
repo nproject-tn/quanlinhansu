@@ -42,6 +42,18 @@ export async function PUT(request: Request, { params }: Params) {
     );
   }
 
+  // Bắt buộc khoảng ngày phải nằm trọn trong 1 tháng duy nhất (không xuyên tháng)
+  const newStartStr = formatDateOnly(newStartDate);
+  const newEndStr = formatDateOnly(newEndDate);
+  if (newStartStr.slice(0, 7) !== newEndStr.slice(0, 7)) {
+    return NextResponse.json(
+      {
+        error: `Khoảng ngày (${formatDateVN(newStartStr)} - ${formatDateVN(newEndStr)}) không hợp lệ. Bảng cấu hình ca phải nằm trọn trong 1 tháng duy nhất, không được chọn xuyên tháng.`,
+      },
+      { status: 400 }
+    );
+  }
+
   // Kiểm tra chống trùng ngày với các bảng cấu hình khác của cửa hàng
   const overlapping = await prisma.shiftConfigPeriod.findFirst({
     where: {

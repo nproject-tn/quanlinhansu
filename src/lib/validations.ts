@@ -87,7 +87,7 @@ export const staffingOverrideSchema = z.object({
 export const scheduleDayNoteSchema = z.object({
   date: z.string(),
   note: z.string().trim().min(1).max(120),
-  colorKey: z.enum(["amber", "rose", "blue", "emerald", "violet", "slate"]),
+  colorKey: z.string().max(32).optional().default("none"),
 });
 
 export const scheduleGenerateSchema = z.object({

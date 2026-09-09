@@ -276,6 +276,30 @@
 * **Cấu hình Ca Đa Thời Kỳ & Phạm Vi Ngày Linh Hoạt (`ShiftConfigPeriod`)**:
   * **Hỗ trợ Nhiều Bảng Cấu Hình Ca Trong Tháng**: Cho phép người dùng thêm nhiều bảng cấu hình ca khác nhau cho 1 hoặc nhiều ngày cụ thể trong tháng (ví dụ: 10 ngày đầu tháng có 5 ca/ngày, 10 ngày tiếp theo cắt giảm còn 3 ca/ngày, 10 ngày cuối tháng tăng lên 6 ca/ngày, hoặc các ngày lễ/sự kiện đặc biệt chỉ có 1 ca riêng).
   * **Thay Đổi Mở Rộng / Thu Hẹp Khoảng Ngày (Date Range Adjustment)**: Người dùng có thể dễ dàng chỉnh sửa thêm hoặc bớt khoảng ngày (`startDate` - `endDate`) của bảng cấu hình đã tạo.
+  * **Tên Bảng Cấu Hình & Hậu Tố Khoảng Ngày Khóa Cố Định (Locked Date Range Suffix & Deduplication)**:
+    * **Tách biệt Tên cơ sở và Khoảng ngày**: Trong form đặt tên bảng cấu hình ca (ở cả Modal Thêm mới và Modal Chỉnh sửa khoảng ngày), ô nhập liệu được thiết kế dạng composite input group. Người dùng chỉ nhập/sửa phần tên cơ sở (ví dụ: `Đợt 1`, `Đợt 2`, `Cuối tuần`). Khi click vào ô nhập liệu, con trỏ chỉ nằm trong phần tên và người dùng **không thể can thiệp hay chỉnh sửa phần khoảng ngày**.
+    * **Hậu tố khoảng ngày tự động cập nhật thời gian thực**: Phần khoảng ngày được hệ thống tự động hiển thị dưới dạng badge cố định (`bg-slate-50`, font-mono) khóa ở bên phải ô nhập `(DD/MM/YYYY - DD/MM/YYYY)` hoặc `(DD/MM/YYYY)` khi chọn 1 ngày. Bất cứ khi nào người dùng điều chỉnh ngày ở các ô chọn ngày bên dưới, badge này tự động đồng bộ ngay lập tức.
+    * **Triệt tiêu lặp ngày trên Tab và Tiêu đề**: Tên bảng cấu hình lưu trữ độc lập với khoảng ngày; khi hiển thị trên các nút chọn bảng cấu hình (tab button) và tiêu đề trang, hệ thống tách biệt tên bảng và badge ngày mặc định (`[Tên bảng] [Khoảng ngày của hệ thống] [Số lượng ca]`), hàm `getPeriodBaseName` tự động lọc bỏ các ngoặc đơn ngày lịch sử để đảm bảo khoảng ngày chỉ xuất hiện đúng 1 lần duy nhất, không bị trùng lặp.
+  * **Giới Hạn Nghiêm Ngặt Trong 1 Tháng & Trải Nghiệm Lịch Cao Cấp (`DatePicker`)**:
+    * **Loại bỏ popup lịch mặc định thô kệch của trình duyệt**: Toàn bộ các ô nhập ngày ("Từ ngày", "Đến ngày") được chuyển sang sử dụng Popover lịch tùy chỉnh cao cấp chuẩn phong cách Apple/Vercel (`DatePicker`). Hỗ trợ hiển thị trực quan thứ trong tuần, đánh dấu ngày hôm nay, làm mờ các ngày ngoài phạm vi, hiệu ứng chuyển tháng mượt mà và hỗ trợ Dark Mode hoàn hảo.
+    * **Thanh tiêu đề Tháng & Năm tương tác trực tiếp (`Clickable Month/Year Header`)**:
+      * Ở đầu bảng lịch, dòng tháng và năm được phân tách thành 2 nút bấm riêng biệt: `[ Tháng MM ▾ ] , [ YYYY ▾ ]`.
+      * Bấm vào Tháng: Mở nhanh bảng lưới 12 tháng (`Tháng 1` - `Tháng 12`) kèm điều hướng năm `< Năm YYYY ▾ >`. Click chọn tháng bất kỳ sẽ lập tức chuyển lịch về tháng đó và quay lại xem ngày.
+      * Bấm vào Năm: Mở nhanh bảng lưới 12 năm liên tiếp kèm nút chuyển thập niên `< YYYY - YYYY >`. Click chọn năm sẽ lập tức cập nhật năm tương ứng.
+      * Footer tích hợp nút "Quay lại ngày" để thoát chế độ chọn tháng/năm bất kỳ lúc nào.
+    * **Phản hồi di chuột tức thì (`Ultra-fast Hover Transition - 50ms`)**: Các ô ngày trên lịch được tinh chỉnh thời gian hiệu ứng chuyển màu nền cực nhanh (`duration-50 ease-out active:scale-95`), giúp vệt di chuột đuổi kịp tốc độ rê chuột nhanh của người dùng mà không có cảm giác trễ hay giật khựng.
+    * **Ràng buộc tháng trực tiếp trên ô ngày**:
+      * Khi tạo bảng mới: Ô "Từ ngày" và "Đến ngày" bị khóa cứng trong tháng đang xem (`selectedMonth`).
+      * Khi ô "Từ ngày" đang ở tháng 11 thì ô "Đến ngày" tuyệt đối **không thể chọn tháng 12** (bị khóa điều hướng và chỉ chọn được từ ngày bắt đầu đến ngày cuối cùng của tháng 11).
+    * **Điều hướng linh hoạt khi Sao chép bảng (Copy Mode)**:
+      * Không cần ô chọn tháng riêng biệt phức tạp; người dùng điều chỉnh trực tiếp từ ô "Từ ngày".
+      * Khi bấm "Sao chép bảng", người dùng có thể bấm nút chuyển tháng hoặc click trực tiếp vào dòng Tháng/Năm trên ô "Từ ngày" để sang tháng kế tiếp (ví dụ tháng 12).
+      * Ngay khi người dùng click chọn 1 ngày trong tháng 12, ô "Đến ngày" sẽ **tự động nhảy theo sang tháng 12** (bảo lưu khoảng cách ngày tương ứng) và tự động khóa cứng phạm vi trong tháng 12 (tuyệt đối không chọn xuyên tháng từ tháng 11 sang tháng 12).
+      * Tên bảng cấu hình tự động tính toán lại theo thứ tự tuần tự của tháng đích (ví dụ sang tháng 12 chưa có bảng nào thì tự động là "Đợt 1").
+      * Sau khi sao chép thành công, hệ thống tự động điều hướng sang tháng mới và mở ngay bảng vừa tạo.
+  * **Tự Động Đặt Tên Tuần Tự "Đợt N" Chuẩn Xác (Sequential Auto-Naming)**:
+    * Tên bảng mới được tự động tính toán tuần tự dựa trên số lượng bảng hiện có trong tháng mục tiêu (`count + 1`).
+    * **Độc lập với tên người dùng đã sửa**: Cho dù bảng đầu tiên người dùng có đổi thành tên tự do nào (ví dụ: `Khai trương`, `FORMAT SHOPEE`), bảng thứ 2 được thêm vào tháng đó vẫn luôn tự động là **"Đợt 2"**. Nếu người dùng sao chép sang tháng kế tiếp đang trống (0 bảng), bảng đó sẽ tự động là **"Đợt 1"**.
   * **Quy Tắc Chống Trùng Ngày Tuyệt Đối (Strict No-Overlap Rule)**: Hệ thống tuyệt đối không cho phép 2 bảng cấu hình ca trong cùng một cửa hàng có khoảng ngày giao thoa / trùng nhau (`startDate <= other.endDate && other.startDate <= endDate`). Backend API (`POST/PUT /api/shift-config-periods`) và Frontend UI đều kiểm tra thời gian thực, hiển thị cảnh báo đỏ chi tiết tên bảng và khoảng ngày bị trùng, vô hiệu hóa nút Lưu khi có xung đột.
   * **Bảo Lưu Dữ Liệu Lịch Sử (Tháng 9/2026 Trở Về Trước)**: Dữ liệu ca và phân công từ tháng 9/2026 trở về trước được bảo toàn 100%, tự động bọc vào bảng cấu hình của tháng để người dùng vẫn có thể tiếp tục xem và chỉnh sửa theo tính năng mới.
   * **Khởi Tạo Trống Hoàn Toàn Từ Tháng 10/2026 Trở Đi**: Bắt đầu từ tháng 10/2026, các tháng mới sẽ hoàn toàn trống nếu người dùng chưa vào thiết lập (không tự sinh bảng mẫu). Khi người dùng vào tháng mới, hệ thống hiển thị màn hình trống thân thiện với nút `Thêm bảng cấu hình ca mới`.
@@ -305,6 +329,13 @@
   * **Hỗ trợ Giao diện Tối (Dark Mode) chuẩn xác**:
     * Các cột cố định bên trái (Ca, Giờ & Thao tác) và hàng tiêu đề/ghi chú ngày sử dụng màu nền đồng bộ (`dark:bg-[#252526]`), viền `dark:border-[#333333]`.
     * Màu đánh dấu ngày (Day Note Colors) hiển thị dưới dạng dải màu dịu nhẹ (`dark:bg-*-950/20 dark:border-*-900/40`), chữ hiển thị rõ nét, tương phản cao, triệt tiêu hiện tượng lóa trắng trên nền tối.
+  * **Bộ chọn màu ghi chú ngày phong cách Apple (`DayNoteColorPicker`)**:
+    * Nút kích hoạt dạng vòng tròn quang phổ với tâm hiển thị màu hiện tại (hoặc gạch chéo đỏ biểu thị không màu). Khoảng trống giữa vòng màu quang phổ bên ngoài và ô màu chính bên trong được thiết kế **100% trong suốt (Transparent Gap)** bằng CSS Masking, tự động hòa trộn mượt mà với nền giao diện (sáng hoặc tối) thay vì dùng viền đen cố định.
+    * Mặc định ghi chú ngày là không có màu (`none` - trong suốt), cho phép thêm ghi chú không kèm màu.
+    * Hỗ trợ 2 chế độ chọn: **Dạng Lưới (Grid Palette)** với 120 ô màu và **Dạng Quang Phổ (Spectrum Canvas)** kéo thả mượt mà.
+    * **Hiệu ứng rê chuột siêu nhạy (`Ultra-fast Hover Transition - 50ms`)**: Toàn bộ 120 ô màu trong bảng lưới và danh sách màu đã lưu sử dụng hiệu ứng tăng tốc phần cứng (`duration-50 ease-out transform-gpu`), giúp hiệu ứng phóng to hover lập tức bám sát con trỏ chuột khi lướt nhanh mà không có bất kỳ độ trễ nào.
+    * Đi kèm tính năng hút màu (**Eyedropper API**), danh sách màu yêu thích đã lưu (**Saved Colors** qua `localStorage`), và ô hiển thị màu đang chọn cỡ lớn.
+    * **Cơ chế chống giật lag (Draft State & Nút Lưu)**: Khi kéo thả hoặc click chọn màu, hệ thống lưu tạm vào `draftColor` nội bộ với tốc độ phản hồi tức thì 60fps mà không làm re-render bảng cấu hình ca đồ sộ. Chân popover tích hợp thanh thao tác gồm nút **Hủy** (đóng và hủy thay đổi) và nút **Lưu** (màu xanh dương nổi bật kèm icon Check) - chỉ khi bấm **Lưu**, màu mới được áp dụng và đồng bộ dữ liệu.
 
 ---
 
@@ -330,10 +361,16 @@
       * Cụm nút thao tác (Thêm lỗi `+`, Kéo thả `⠿`, Xóa `✕`) được gán `shrink-0`, cố định an toàn 100% bên trong khung thẻ, triệt tiêu hoàn toàn hiện tượng icon bị tràn ra ngoài viền khi co giãn cửa sổ.
     * **Lịch dạng bảng ngang (Horizontal Board)**:
       * Hỗ trợ cuộn ngang mượt mà kèm thanh kéo chuột tùy chỉnh và tính năng Pan bằng phím `R`.
-      * **Khử Trùng Ca & Hàng Ảo Giữa Các Kỳ Cấu Hình Ca (Shift Deduplication & Phantom Row Elimination)**:
+      * **Khử Trùng Ca & Hàng Ảo Giữa Các Kỳ Cấu Hình Ca (Shift Deduplication & Dynamic Shift Stacking)**:
         * Backend API (`/api/schedule`) tự động lọc ca theo khoảng ngày của bảng cấu hình (`period: { startDate <= end, endDate >= start }`) và chỉ tải các ca thuộc kỳ đang xem hoặc có phân công thực tế.
-        * Giao diện Bảng ngang (`schedule-calendar.tsx`), bộ xuất Excel (`schedule-excel-exporter.ts`), và bộ xuất Ảnh HD (`schedule-image-exporter.ts`) tự động nhóm các ca có cùng tên và khung giờ (`${name}|${startTime}|${endTime}`) từ các bảng cấu hình khác nhau thành một hàng duy nhất.
-        * Tự động loại bỏ hoàn toàn các hàng ca ảo (hàng 100% "Không có ca" không có bất kỳ ca làm việc nào trong khoảng ngày hiển thị), đảm bảo mỗi ca chỉ xuất hiện duy nhất 1 lần và bảng xếp ca luôn gọn gàng, trực quan.
+        * **Cơ chế Dồn Ca Động Theo Thứ Tự Trong Ngày (Dynamic Shift Stacking)**:
+          * Áp dụng đồng bộ trên Giao diện Bảng ngang (`schedule-calendar.tsx`), bộ xuất Excel (`schedule-excel-exporter.ts`), và bộ xuất Ảnh HD (`schedule-image-exporter.ts`).
+          * Mỗi cửa hàng hoạt động độc lập: Xác định số ca tối đa xuất hiện trong 1 ngày (`maxDailyShifts`) cho cửa hàng đó. Bảng chỉ sinh ra đúng `maxDailyShifts` hàng (thay vì tổng hợp toàn bộ các ca của cả tháng).
+          * Trên từng ngày, các ca được dồn lên trên theo thứ tự thời gian (`startTime` tăng dần).
+          * Cột đầu tiên (Sticky Header):
+            * **Trên Web (`schedule-calendar.tsx`)**: Tích hợp cơ chế **Inspector động theo vị trí cuộn chạy ngầm (Scroll-based Dynamic Header)**. Hệ thống tự động đồng bộ hóa trên mọi hình thức tương tác (cuộn bánh xe chuột, lướt trackpad 2 ngón, giữ phím `R` kéo rê chuột (Pan), bấm hoặc kéo thanh trượt cuộn ngang tùy chỉnh ở đáy bảng). Toàn bộ quá trình nhận diện ngày chạy ngầm 100% không hiển thị viền/ô xanh gây phân tâm, thanh tiêu đề ngày luôn giữ nền đục 100% (`bg-slate-50 dark:bg-[#1E1E1E]`) tuyệt đối không bị trong suốt làm lộ nội dung bên dưới khi cuộn dọc. Thuật toán Probe-Point (`stickyRight + 40px`) phát hiện chuẩn xác 100% cột ngày đang hiển thị ngay sau cột cố định (`currentInViewDate`), tiêu đề cột đầu ("Ca làm") tự động nhảy badge ngày `[dd/MM]`, và các hàng ca ở cột cố định của từng cửa hàng sẽ **tự động biến đổi mượt mà theo đúng Tên ca và Khung giờ thực tế của ngày đó** (ví dụ: ngày 01-10/10 hiện `Ca 1 08:00-11:00`, `Ca 2 11:00-14:00`, `Ca 3 14:00-17:00`; khi cuộn sang ngày 11-20/10 tự động biến đổi thành `Ca 1 08:00-11:00`, `Ca 2 12:00-14:00` và `Ca 3 17:00-20:00`).
+            * **Trên Excel & Ảnh HD**: Áp dụng dồn ca gọn gàng theo thứ tự trong ngày (`maxDailyShifts`), cột đầu hiển thị tên ca đồng nhất hoặc `Ca thứ i + 1` kèm badge tên ca trong từng ô, đảm bảo tính trực quan và toàn vẹn của tài liệu in ấn/tĩnh.
+          * Triệt tiêu hoàn toàn tình trạng các hàng rỗng "Không có ca" kéo dài hàng loạt ngày, bảng xếp ca luôn thu gọn tối đa và thoáng mắt.
   * **Menu Xuất Dữ Liệu Lịch Gộp Thông Minh (Export Popover Menu)**:
     * Nút bấm biểu tượng Download (`Download`) tinh gọn trên thanh Toolbar, khi click sẽ mở popup gồm **2 tùy chọn xuất chuyên nghiệp**:
       1. **Xuất File Excel (.xlsx) Đa Sheet Có Màu Sắc Định Dạng Cao Cấp (`schedule-excel-exporter.ts`)**:
@@ -351,7 +388,14 @@
 * **Vận hành Ca thực tế**:
   * **Tăng ca (`ShiftOvertime`)**: Đăng ký và duyệt làm thêm giờ kèm hệ số lương.
   * **Ghi nhận Vi phạm (`ShiftFault`)**: Ghi nhận đi trễ, về sớm, vắng mặt, số phút trễ, trừ điểm thi đua / tiền phạt.
-  * **Ghi chú ngày (`ScheduleDayNote`)**: Tạo ghi chú màu sắc nhắc việc trên từng ngày.
+  * **Ghi chú ngày (`ScheduleDayNote`)**: Tạo ghi chú nhắc việc trên từng ngày:
+    * **Mặc định không có màu**: Ghi chú mới hoặc chưa chọn màu mặc định là "Không màu" (trong suốt), không làm đổi màu nền của cột ngày và ô ca làm việc.
+    * **Nút mở chọn màu (Apple style)**: Nút tròn với viền quang phổ cầu vồng 360 độ (`conic-gradient`), viền đen ngăn cách, và lõi tròn hiển thị màu đang chọn (hoặc gạch chéo đỏ nếu không có màu).
+    * **Bảng chọn màu chuẩn Apple iOS / macOS**:
+      * Header: Công cụ hút màu (Pipette/EyeDropper), tiêu đề "Màu", nút đóng "✕".
+      * Hai tab chuyên biệt: **"Lưới"** (Ma trận bảng màu 12 cột x 10 hàng với hàng trên cùng là dải 12 sắc độ Grayscale từ trắng đến đen và 9 hàng sắc độ) và **"Quang phổ"** (Canvas 2D gradient quang phổ tương tác với vòng tròn định vị kéo thả).
+      * Bỏ hoàn toàn thanh trượt "Độ mờ".
+      * Thanh công cụ chân bảng: Ô vuông xem trước màu lớn ở góc trái, nút chọn nhanh "Không màu", hàng lưu các màu ưa thích kèm nút `+` lưu màu tùy chỉnh vào `localStorage`.
   * **Yêu cầu Phê duyệt (`ScheduleApprovalRequest`)**: Nhân viên gửi yêu cầu đổi ca cho nhau -> Quản lý duyệt -> Lịch tự động hoán đổi.
 
 ---

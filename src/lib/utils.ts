@@ -29,6 +29,15 @@ export function formatDateVN(dateStr?: string | null): string {
   return String(dateStr);
 }
 
+/** Format date range to DD/MM/YYYY or DD/MM/YYYY - DD/MM/YYYY (or single date if same) */
+export function formatDateRangeVN(startDateStr?: string | null, endDateStr?: string | null): string {
+  if (!startDateStr && !endDateStr) return "";
+  if (!startDateStr) return formatDateVN(endDateStr);
+  if (!endDateStr) return formatDateVN(startDateStr);
+  if (startDateStr === endDateStr) return formatDateVN(startDateStr);
+  return `${formatDateVN(startDateStr)} - ${formatDateVN(endDateStr)}`;
+}
+
 /** Format week range label: e.g. "20-26/07/2026" or "29/06 - 05/07/2026" */
 export function formatWeekRangeLabel(startDateStr?: string | null, endDateStr?: string | null): string {
   if (!startDateStr || !endDateStr) return "";

@@ -294,13 +294,26 @@ export async function exportScheduleToImage(data: ExportScheduleData) {
         });
       }
     }
-    const shiftGroups = Array.from(groupMap.values()).sort((a, b) => a.sortOrder - b.sortOrder);
-    const activeShiftGroups = shiftGroups.filter((g) =>
-      dates.some((dateStr) =>
-        filteredSlots.some((s) => s.storeId === store.id && g.shiftIds.includes(s.shiftTemplateId) && s.date.startsWith(dateStr))
-      )
+    const shiftGroups = Array.from(groupMap.values());
+
+    // Dynamic Shift Stacking: Gom các ca thực tế có slots cho từng ngày
+    const activeGroupsByDate = new Map<string, ShiftImageGroup[]>();
+    for (const dateStr of dates) {
+      const activeForDate = shiftGroups
+        .filter((g) =>
+          filteredSlots.some(
+            (s) => s.storeId === store.id && g.shiftIds.includes(s.shiftTemplateId) && s.date.startsWith(dateStr)
+          )
+        )
+        .sort((a, b) => a.startTime.localeCompare(b.startTime) || a.sortOrder - b.sortOrder);
+      activeGroupsByDate.set(dateStr, activeForDate);
+    }
+
+    const maxDailyShifts = Math.max(
+      0,
+      ...dates.map((dateStr) => activeGroupsByDate.get(dateStr)?.length ?? 0)
     );
-    if (activeShiftGroups.length === 0) return;
+    if (maxDailyShifts === 0) return;
 
     // Store Section Banner Row
     const storeBannerRow = document.createElement("tr");
@@ -319,10 +332,22 @@ export async function exportScheduleToImage(data: ExportScheduleData) {
     tbody.appendChild(storeBannerRow);
 
     // Shift rows
-    activeShiftGroups.forEach((shift, shiftIdx) => {
+    for (let r = 0; r < maxDailyShifts; r++) {
       const row = document.createElement("tr");
-      const isEven = shiftIdx % 2 === 0;
+      const isEven = r % 2 === 0;
       row.style.backgroundColor = isEven ? "#FFFFFF" : "#F8FAFC";
+
+      const shiftsAtRow = dates
+        .map((d) => activeGroupsByDate.get(d)?.[r])
+        .filter(Boolean) as ShiftImageGroup[];
+      const uniqueKeys = Array.from(new Set(shiftsAtRow.map((g) => g.key)));
+      const isUniform = uniqueKeys.length === 1;
+      const primaryGroup = shiftsAtRow[0];
+
+      const rowTitle = isUniform ? primaryGroup?.name || `Ca thứ ${r + 1}` : `Ca thứ ${r + 1}`;
+      const rowSubtitle = isUniform
+        ? `⏰ ${primaryGroup?.startTime} - ${primaryGroup?.endTime} (${primaryGroup?.durationHours} tiếng)`
+        : `⏰ Theo giờ từng ngày`;
 
       // Col 1: Shift info
       const tdShift = document.createElement("td");
@@ -335,8 +360,8 @@ export async function exportScheduleToImage(data: ExportScheduleData) {
       tdShift.style.minWidth = `${fixedColsWidth}px`;
       tdShift.style.maxWidth = `${fixedColsWidth}px`;
       tdShift.innerHTML = `
-        <div style="font-weight: 700; color: #0F172A; font-size: 13px;">${shift.name}</div>
-        <div style="font-size: 11px; color: #64748B; font-weight: 500; margin-top: 2px;">⏰ ${shift.startTime} - ${shift.endTime} (${shift.durationHours} tiếng)</div>
+        <div style="font-weight: 700; color: #0F172A; font-size: 13px;">${rowTitle}</div>
+        <div style="font-size: 11px; color: #64748B; font-weight: 500; margin-top: 2px;">${rowSubtitle}</div>
       `;
       row.appendChild(tdShift);
 
@@ -351,6 +376,13 @@ export async function exportScheduleToImage(data: ExportScheduleData) {
         tdCell.style.width = `${dateColWidth}px`;
         tdCell.style.minWidth = `${dateColWidth}px`;
         tdCell.style.maxWidth = `${dateColWidth}px`;
+
+        const shift = activeGroupsByDate.get(dateStr)?.[r];
+        if (!shift) {
+          tdCell.innerHTML = `<div style="text-align: center; color: #CBD5E1; font-size: 14px; padding: 12px 0;">—</div>`;
+          row.appendChild(tdCell);
+          return;
+        }
 
         const matchingSlots = filteredSlots.filter(
           (s) => s.storeId === store.id && shift.shiftIds.includes(s.shiftTemplateId) && s.date.startsWith(dateStr)
@@ -373,6 +405,18 @@ export async function exportScheduleToImage(data: ExportScheduleData) {
           cardBox.style.display = "flex";
           cardBox.style.flexDirection = "column";
           cardBox.style.gap = "6px";
+
+          // If shift name is not uniform across days, show shift badge inside cell
+          if (!isUniform) {
+            const shiftBadge = document.createElement("div");
+            shiftBadge.style.fontSize = "11px";
+            shiftBadge.style.fontWeight = "700";
+            shiftBadge.style.color = "#1E40AF";
+            shiftBadge.style.borderBottom = "1px dashed #DBEAFE";
+            shiftBadge.style.paddingBottom = "4px";
+            shiftBadge.innerText = `${shift.name} (${shift.startTime}-${shift.endTime})`;
+            cardBox.appendChild(shiftBadge);
+          }
 
           matchingSlots.forEach((slot) => {
             if (slot.employeeId) {
@@ -456,7 +500,7 @@ export async function exportScheduleToImage(data: ExportScheduleData) {
       });
 
       tbody.appendChild(row);
-    });
+    }
   });
 
   table.appendChild(tbody);

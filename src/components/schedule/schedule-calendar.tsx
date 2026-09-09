@@ -792,6 +792,7 @@ export function ScheduleCalendar({
   const [plannerContentWidth, setPlannerContentWidth] = useState(0);
   const [plannerViewportWidth, setPlannerViewportWidth] = useState(0);
   const [plannerScrollLeft, setPlannerScrollLeft] = useState(0);
+  const [activeScrollDate, setActiveScrollDate] = useState<string>("");
   const [flashSlots, setFlashSlots] = useState<Map<string, "success" | "error">>(new Map());
   const { notify } = useNotifications();
   const { confirm } = useConfirmDialog();
@@ -923,6 +924,65 @@ export function ScheduleCalendar({
     };
   }, []);
 
+  const syncFromMain = useCallback(() => {
+    const mainScroller = plannerScrollRef.current;
+    if (!mainScroller) return;
+
+    const scrollLeft = mainScroller.scrollLeft;
+    setPlannerScrollLeft(scrollLeft);
+    setPlannerViewportWidth(mainScroller.clientWidth);
+
+    // Tự động phát hiện ngày đang hiển thị ngay sát mép cột cố định bên trái (sticky column)
+    if (plannerTableRef.current) {
+      const stickyTh = plannerTableRef.current.querySelector("thead tr th:first-child") as HTMLElement | null;
+      const dateHeaders = plannerTableRef.current.querySelectorAll<HTMLElement>("thead tr th[data-date]");
+
+      let foundDate: string | null = null;
+
+      if (stickyTh && dateHeaders.length > 0) {
+        const stickyRect = stickyTh.getBoundingClientRect();
+        // Điểm thăm dò probeX: 40px bên phải mép phải cột sticky (cột ngày hiển thị chính yếu ngay sau cột cố định)
+        const probeX = stickyRect.right + 40;
+
+        for (let i = 0; i < dateHeaders.length; i++) {
+          const el = dateHeaders[i];
+          const rect = el.getBoundingClientRect();
+          if (rect.left <= probeX && rect.right > probeX) {
+            foundDate = el.getAttribute("data-date");
+            break;
+          }
+        }
+
+        // Dự phòng 1: Nếu probeX nằm ngoài phạm vi, tìm cột đầu tiên có hơn 40px còn hiển thị
+        if (!foundDate) {
+          for (let i = 0; i < dateHeaders.length; i++) {
+            const el = dateHeaders[i];
+            const rect = el.getBoundingClientRect();
+            if (rect.right > stickyRect.right + 40) {
+              foundDate = el.getAttribute("data-date");
+              break;
+            }
+          }
+        }
+      }
+
+      // Dự phòng 2: Tính toán dựa trên scrollLeft và offsetWidth của các cột ngày
+      if (!foundDate && dateHeaders.length > 0) {
+        const firstCol = dateHeaders[0];
+        const colWidth = firstCol ? firstCol.offsetWidth : 160;
+        const colIndex = Math.min(
+          Math.max(0, Math.floor((scrollLeft + 40) / (colWidth || 160))),
+          dateHeaders.length - 1
+        );
+        foundDate = dateHeaders[colIndex]?.getAttribute("data-date") || null;
+      }
+
+      if (foundDate) {
+        setActiveScrollDate((prev) => (prev !== foundDate ? foundDate : prev));
+      }
+    }
+  }, []);
+
   useEffect(() => {
     const handleMouseMove = (event: MouseEvent) => {
       if (!panStateRef.current || !plannerScrollRef.current) return;
@@ -931,11 +991,13 @@ export function ScheduleCalendar({
       const deltaY = event.clientY - panStateRef.current.startY;
       plannerScrollRef.current.scrollLeft = panStateRef.current.scrollLeft - deltaX;
       plannerScrollRef.current.scrollTop = panStateRef.current.scrollTop - deltaY;
+      syncFromMain();
     };
 
     const handleMouseUp = () => {
       panStateRef.current = null;
       setIsPanning(false);
+      syncFromMain();
     };
 
     window.addEventListener("mousemove", handleMouseMove);
@@ -944,13 +1006,14 @@ export function ScheduleCalendar({
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, []);
+  }, [syncFromMain]);
 
   useEffect(() => {
     const updatePlannerMetrics = () => {
       setPlannerContentWidth(plannerTableRef.current?.scrollWidth ?? 0);
       setPlannerViewportWidth(plannerScrollRef.current?.clientWidth ?? 0);
       setPlannerScrollLeft(plannerScrollRef.current?.scrollLeft ?? 0);
+      syncFromMain();
     };
 
     updatePlannerMetrics();
@@ -979,24 +1042,19 @@ export function ScheduleCalendar({
       resizeObserver?.disconnect();
       window.removeEventListener("resize", debouncedUpdate);
     };
-  }, [stores.length, shifts.length, slots.length, layoutMode]);
+  }, [stores.length, shifts.length, slots.length, layoutMode, syncFromMain]);
 
   useEffect(() => {
     const mainScroller = plannerScrollRef.current;
     if (!mainScroller) return;
 
-    const syncFromMain = () => {
-      setPlannerScrollLeft(mainScroller.scrollLeft);
-      setPlannerViewportWidth(mainScroller.clientWidth);
-    };
-
-    mainScroller.addEventListener("scroll", syncFromMain);
+    mainScroller.addEventListener("scroll", syncFromMain, { passive: true });
     syncFromMain();
 
     return () => {
       mainScroller.removeEventListener("scroll", syncFromMain);
     };
-  }, [plannerContentWidth, layoutMode]);
+  }, [syncFromMain, plannerContentWidth, layoutMode]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -1656,6 +1714,7 @@ export function ScheduleCalendar({
     );
 
     plannerScrollRef.current.scrollLeft = nextScrollLeft;
+    syncFromMain();
   }
 
   function handleScrollbarThumbPointerDown(event: ReactMouseEvent<HTMLDivElement>) {
@@ -1685,10 +1744,12 @@ export function ScheduleCalendar({
       const scrollDelta = (deltaX / usableTrack) * maxScrollLeft;
 
       plannerScrollRef.current.scrollLeft = scrollbarDragStateRef.current.scrollLeftStart + scrollDelta;
+      syncFromMain();
     };
 
     const handlePointerUp = () => {
       scrollbarDragStateRef.current = null;
+      syncFromMain();
     };
 
     window.addEventListener("mousemove", handlePointerMove);
@@ -1697,7 +1758,7 @@ export function ScheduleCalendar({
       window.removeEventListener("mousemove", handlePointerMove);
       window.removeEventListener("mouseup", handlePointerUp);
     };
-  }, [plannerContentWidth, plannerViewportWidth]);
+  }, [plannerContentWidth, plannerViewportWidth, syncFromMain]);
 
   if (slots.length === 0) {
     return (
@@ -1781,6 +1842,7 @@ export function ScheduleCalendar({
           <CardContent className="group px-0 py-0">
             <div
               ref={plannerScrollRef}
+              onScroll={syncFromMain}
               onMouseDown={handlePlannerMouseDown}
               className={cn(
                 "hover-scrollbars max-h-[calc(100vh-16rem)] overflow-auto",
@@ -1788,26 +1850,46 @@ export function ScheduleCalendar({
                 isPanning && "cursor-grabbing select-none"
               )}
             >
-              <table
-                ref={plannerTableRef}
-                className="w-max min-w-full border-separate border-spacing-0 text-sm"
-              >
-                <thead>
-                  <tr>
-                    <th className="sticky top-0 left-0 z-30 min-w-[180px] border-r border-b border-slate-200 bg-slate-100 px-4 py-2 text-left font-bold text-slate-900 dark:border-[#333333] dark:bg-[#252526] dark:text-white">
-                      Ca làm
-                    </th>
-                    {visibleDates.map((date) => {
-                      const note = dayNoteMap.get(date);
-                      const color = getDayNoteColor(note?.colorKey);
-                      return (
-                        <th
-                          key={date}
-                          className={cn(
-                            "sticky top-0 z-20 min-w-[240px] border-r border-b border-slate-200 px-3 py-2 align-top text-center dark:border-[#333333]",
-                            note ? color.softClass : "bg-slate-50 dark:bg-[#1E1E1E]"
-                          )}
-                        >
+              {(() => {
+                const currentInViewDate =
+                  activeScrollDate && visibleDates.includes(activeScrollDate)
+                    ? activeScrollDate
+                    : visibleDates[0];
+
+                return (
+                  <table
+                    ref={plannerTableRef}
+                    className="w-max min-w-full border-separate border-spacing-0 text-sm"
+                  >
+                    <thead>
+                      <tr>
+                        <th className="sticky top-0 left-0 z-30 min-w-[180px] border-r border-b border-slate-200 bg-slate-100 px-4 py-2 text-left font-bold text-slate-900 dark:border-[#333333] dark:bg-[#252526] dark:text-white">
+                          <div className="flex items-center justify-between gap-1.5">
+                            <span>Ca làm</span>
+                            {currentInViewDate && (
+                              <span
+                                title={`Đang hiển thị theo ca của ngày ${format(parseISO(currentInViewDate), "dd/MM/yyyy")}`}
+                                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 border border-blue-200 dark:border-blue-700/50 transition-all duration-150 shrink-0"
+                              >
+                                {format(parseISO(currentInViewDate), "dd/MM")}
+                              </span>
+                            )}
+                          </div>
+                        </th>
+                        {visibleDates.map((date) => {
+                          const note = dayNoteMap.get(date);
+                          const color = getDayNoteColor(note?.colorKey);
+                          return (
+                            <th
+                              key={date}
+                              data-date={date}
+                              onClick={() => setActiveScrollDate(date)}
+                              className={cn(
+                                "sticky top-0 z-20 min-w-[240px] border-r border-b border-slate-200 bg-slate-50 px-3 py-2 align-top text-center transition-colors dark:border-[#333333] dark:bg-[#1E1E1E]",
+                                note && !color.isNone && color.softClass
+                              )}
+                              style={note && !color.isNone ? color.softStyle : undefined}
+                            >
                           <div className="space-y-1">
                             <div className="min-h-[16px] text-xs font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-[#9D9D9D]">
                               {note?.note ?? ""}
@@ -1862,15 +1944,25 @@ export function ScheduleCalendar({
                       (a, b) => a.sortOrder - b.sortOrder
                     );
 
-                    // Chỉ hiển thị các hàng ca thực sự có ca làm việc trên ít nhất 1 ngày trong visibleDates
-                    const activeShiftGroups = shiftRowGroups.filter((group) =>
-                      visibleDates.some((date) =>
-                        group.shifts.some(
-                          (s) => (slotsByGroup.get(`${date}|${store.id}|${s.id}`) ?? []).length > 0
+                    // Trên mỗi ngày của visibleDates, tìm các nhóm ca thực sự có ca/slot trên ngày đó
+                    const activeGroupsByDate = new Map<string, ShiftRowGroup[]>();
+                    for (const date of visibleDates) {
+                      const activeForDate = shiftRowGroups
+                        .filter((group) =>
+                          group.shifts.some(
+                            (s) => (slotsByGroup.get(`${date}|${store.id}|${s.id}`) ?? []).length > 0
+                          )
                         )
-                      )
+                        .sort((a, b) => a.startTime.localeCompare(b.startTime) || a.sortOrder - b.sortOrder);
+                      activeGroupsByDate.set(date, activeForDate);
+                    }
+
+                    // Số hàng tối đa trong 1 ngày cho cửa hàng này (Dynamic Shift Stacking)
+                    const maxDailyShifts = Math.max(
+                      0,
+                      ...visibleDates.map((date) => activeGroupsByDate.get(date)?.length ?? 0)
                     );
-                    const hasAnySlotsForStore = activeShiftGroups.length > 0;
+                    const hasAnySlotsForStore = maxDailyShifts > 0;
 
                     return (
                       <Fragment key={store.id}>
@@ -1887,13 +1979,15 @@ export function ScheduleCalendar({
                           </td>
                           {visibleDates.map((date) => {
                             const note = dayNoteMap.get(date);
+                            const color = getDayNoteColor(note?.colorKey);
                             return (
                               <td
                                 key={`${store.id}-${date}-header`}
                                 className={cn(
                                   "sticky top-[78px] z-10 border-r border-b border-slate-200 px-3 py-2 dark:border-[#333333]",
-                                  note ? getDayNoteColor(note.colorKey).softClass : "bg-white dark:bg-[#1E1E1E]"
+                                  note && !color.isNone ? color.softClass : "bg-white dark:bg-[#1E1E1E]"
                                 )}
+                                style={note && !color.isNone ? color.softStyle : undefined}
                               >
                                 <div className="flex min-h-6 items-center justify-center">
                                   <StoreLogo
@@ -1930,36 +2024,90 @@ export function ScheduleCalendar({
                             </td>
                           </tr>
                         ) : (
-                          activeShiftGroups.map((group) => {
-                            const firstShift = group.shifts[0];
+                          Array.from({ length: maxDailyShifts }).map((_, r) => {
+                            const shiftOnActiveDate = activeGroupsByDate.get(currentInViewDate)?.[r];
+                            const shiftsAtRow = visibleDates
+                              .map((date) => activeGroupsByDate.get(date)?.[r])
+                              .filter(Boolean) as ShiftRowGroup[];
+                            const uniqueKeys = Array.from(
+                              new Set(shiftsAtRow.map((g) => `${g.name}|${g.startTime}|${g.endTime}`))
+                            );
+                            const isUniform = uniqueKeys.length === 1;
+                            const primaryGroup = shiftsAtRow[0];
+
+                            // Tự động biến đổi theo ca của ngày đang xem (currentInViewDate)
+                            const rowTitle = shiftOnActiveDate
+                              ? shiftOnActiveDate.name
+                              : isUniform
+                              ? primaryGroup?.name || `Ca thứ ${r + 1}`
+                              : `Ca thứ ${r + 1}`;
+
+                            const rowSubtitle = shiftOnActiveDate
+                              ? `${shiftOnActiveDate.startTime}-${shiftOnActiveDate.endTime}`
+                              : isUniform
+                              ? `${primaryGroup?.startTime}-${primaryGroup?.endTime}`
+                              : `(Nghỉ ca ngày ${format(parseISO(currentInViewDate), "dd/MM")})`;
+
                             return (
-                              <tr key={`${store.id}-${group.key}`}>
-                                <td className="sticky left-0 z-10 border-r border-b border-slate-200 bg-white px-4 py-2 align-top dark:border-[#333333] dark:bg-[#252526]">
-                                  <div className="font-bold text-slate-900 dark:text-white">{group.name}</div>
-                                  <div className="text-xs font-semibold font-mono text-slate-500 dark:text-[#CCCCCC]">
-                                    {group.startTime}-{group.endTime}
+                              <tr key={`${store.id}-row-${r}`}>
+                                <td className="sticky left-0 z-10 border-r border-b border-slate-200 bg-white px-4 py-2 align-top dark:border-[#333333] dark:bg-[#252526] transition-colors duration-150">
+                                  <div className="font-bold text-slate-900 dark:text-white truncate transition-all duration-150" title={rowTitle}>
+                                    {rowTitle}
+                                  </div>
+                                  <div
+                                    className={cn(
+                                      "text-xs font-semibold font-mono truncate transition-all duration-150",
+                                      shiftOnActiveDate
+                                        ? "text-slate-600 dark:text-[#CCCCCC]"
+                                        : "text-slate-400 dark:text-neutral-500 italic"
+                                    )}
+                                  >
+                                    {rowSubtitle}
                                   </div>
                                 </td>
                                 {visibleDates.map((date) => {
-                                  const daySlots = group.shifts.flatMap(
+                                  const groupForDate = activeGroupsByDate.get(date)?.[r];
+                                  const note = dayNoteMap.get(date);
+                                  const color = getDayNoteColor(note?.colorKey);
+
+                                  if (!groupForDate) {
+                                    return (
+                                      <td
+                                        key={`${store.id}-r${r}-${date}`}
+                                        className={cn(
+                                          "min-w-[240px] border-r border-b border-slate-200 align-top dark:border-[#333333]",
+                                          note && !color.isNone ? color.softClass : "bg-white dark:bg-[#1E1E1E]"
+                                        )}
+                                        style={note && !color.isNone ? color.softStyle : undefined}
+                                      >
+                                        <div className="space-y-1.5 p-1.5">
+                                          <div className="flex min-h-[48px] items-center justify-center rounded-lg border border-dashed border-slate-200/80 bg-slate-50/40 px-2 py-2 text-center text-xs text-slate-400 dark:border-neutral-800/60 dark:bg-neutral-900/20 dark:text-neutral-600">
+                                            —
+                                          </div>
+                                        </div>
+                                      </td>
+                                    );
+                                  }
+
+                                  const daySlots = groupForDate.shifts.flatMap(
                                     (s) => slotsByGroup.get(`${date}|${store.id}|${s.id}`) ?? []
                                   );
                                   const hasSelectedEmployeeInGroup =
                                     !hasEmployeeFilter ||
-                                    group.shifts.some((s) => visibleGroupKeys.has(`${date}|${store.id}|${s.id}`));
-                                  const note = dayNoteMap.get(date);
+                                    groupForDate.shifts.some((s) => visibleGroupKeys.has(`${date}|${store.id}|${s.id}`));
                                   const shiftForDate =
-                                    group.shifts.find(
+                                    groupForDate.shifts.find(
                                       (s) => (slotsByGroup.get(`${date}|${store.id}|${s.id}`) ?? []).length > 0
-                                    ) || firstShift;
+                                    ) || groupForDate.shifts[0];
 
                                   return (
                                     <td
-                                      key={`${store.id}-${group.key}-${date}`}
+                                      key={`${store.id}-r${r}-${date}`}
                                       className={cn(
                                         "min-w-[240px] border-r border-b border-slate-200 align-top dark:border-[#333333]",
-                                        note ? getDayNoteColor(note.colorKey).softClass : "bg-white dark:bg-[#1E1E1E]"
+                                        note && !color.isNone ? color.softClass : "bg-white dark:bg-[#1E1E1E]"
                                       )}
+                                      style={note && !color.isNone ? color.softStyle : undefined}
                                     >
                                       <div className="space-y-1.5 p-1.5">
                                         {daySlots.length > 0 && hasSelectedEmployeeInGroup ? (
@@ -1975,7 +2123,7 @@ export function ScheduleCalendar({
                                             overtimes={overtimes.filter(
                                               (ot) =>
                                                 ot.storeId === store.id &&
-                                                group.shifts.some((s) => s.id === ot.shiftTemplateId) &&
+                                                groupForDate.shifts.some((s) => s.id === ot.shiftTemplateId) &&
                                                 ot.date === date
                                             )}
                                             onAddOvertime={() => {
@@ -2002,8 +2150,8 @@ export function ScheduleCalendar({
                                         ) : hasEmployeeFilter ? (
                                           <div className="min-h-[112px]" />
                                         ) : (
-                                          <div className="rounded-md border border-dashed border-slate-200 bg-white/70 px-3 py-3 text-center text-xs text-slate-400 dark:border-neutral-800 dark:bg-neutral-900/50 dark:text-neutral-500">
-                                            Không có ca
+                                          <div className="flex min-h-[48px] items-center justify-center rounded-lg border border-dashed border-slate-200 bg-white/70 px-2 py-2 text-center text-xs text-slate-400 dark:border-neutral-800 dark:bg-neutral-900/50 dark:text-neutral-500">
+                                            —
                                           </div>
                                         )}
                                       </div>
@@ -2014,11 +2162,13 @@ export function ScheduleCalendar({
                             );
                           })
                         )}
-                    </Fragment>
+                      </Fragment>
                     );
                   })}
                 </tbody>
               </table>
+                );
+              })()}
             </div>
             <div className="px-3 pb-3 pt-1">
               <div
@@ -2055,28 +2205,33 @@ export function ScheduleCalendar({
                 />
               </CardHeader>
             </Card>
-            {visibleDates.map((date) => (
-              <Card
-                key={date}
-                className={cn(
-                  dayNoteMap.get(date) && getDayNoteColor(dayNoteMap.get(date)?.colorKey).softClass
-                )}
-              >
-                <CardHeader>
-                  <CardTitle className="flex flex-wrap items-center gap-2 capitalize">
-                    <span>{format(parseISO(date), "EEEE, dd/MM/yyyy", { locale: vi })}</span>
-                    {dayNoteMap.get(date) && (
-                      <span
-                        className={cn(
-                          "rounded-full border px-2.5 py-1 text-xs font-medium normal-case",
-                          getDayNoteColor(dayNoteMap.get(date)?.colorKey).chipClass
-                        )}
-                      >
-                        {dayNoteMap.get(date)?.note}
-                      </span>
-                    )}
-                  </CardTitle>
-                </CardHeader>
+            {visibleDates.map((date) => {
+              const note = dayNoteMap.get(date);
+              const color = getDayNoteColor(note?.colorKey);
+              return (
+                <Card
+                  key={date}
+                  className={cn(
+                    note && !color.isNone && color.softClass
+                  )}
+                  style={note && !color.isNone ? color.softStyle : undefined}
+                >
+                  <CardHeader>
+                    <CardTitle className="flex flex-wrap items-center gap-2 capitalize">
+                      <span>{format(parseISO(date), "EEEE, dd/MM/yyyy", { locale: vi })}</span>
+                      {note && (
+                        <span
+                          className={cn(
+                            "rounded-full border px-2.5 py-1 text-xs font-medium normal-case",
+                            color.chipClass
+                          )}
+                          style={!color.isNone ? color.chipStyle : undefined}
+                        >
+                          {note.note}
+                        </span>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
                 <CardContent className="p-3 sm:p-6">
                   <div className="grid gap-6 grid-cols-1 xl:grid-cols-2">
                     {visibleStores.map((store) => (
@@ -2164,8 +2319,9 @@ export function ScheduleCalendar({
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
+            );
+          })}
+        </div>
         )}
 
         <DragOverlay dropAnimation={null}>

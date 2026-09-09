@@ -20,12 +20,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { MonthPicker } from "@/components/ui/month-picker";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useConfirmDialog } from "@/components/confirm/confirm-dialog-provider";
 import { useNotifications } from "@/components/notifications/notification-center";
+import { DayNoteColorPicker } from "@/components/schedule/day-note-color-picker";
 import { getDayNoteColor, DAY_NOTE_COLORS } from "@/lib/day-note-colors";
-import { DAY_NAMES, formatDateOnly, parseDateOnly, formatDateVN, cn } from "@/lib/utils";
-import { calcDurationHours, getShiftContainmentError } from "@/lib/shift-utils";
+import { DAY_NAMES, formatDateOnly, parseDateOnly, formatDateVN, formatDateRangeVN, cn } from "@/lib/utils";
+import {
+  calcDurationHours,
+  getShiftContainmentError,
+  getPeriodBaseName,
+  getNextPeriodSequentialName,
+  getMonthDateLimits,
+  getNextMonthStr,
+} from "@/lib/shift-utils";
 import { getDateRange, getDaysInRange } from "@/lib/schedule-engine";
 
 type Store = { id: string; name: string; logoUrl?: string; shiftsPerDay?: number };
@@ -160,7 +169,11 @@ export default function ShiftConfigClient({
     initMode: "clone" as "clone" | "default" | "empty",
     cloneFromPeriodId: "",
     initialShiftsCount: 3,
+    targetMonth: "",
+    isCopyMode: false,
   });
+  const [targetMonthPeriods, setTargetMonthPeriods] = useState<ShiftConfigPeriod[]>([]);
+  const [loadingTargetMonth, setLoadingTargetMonth] = useState(false);
 
   const [editPeriodRangeForm, setEditPeriodRangeForm] = useState({
     name: "",
@@ -168,13 +181,9 @@ export default function ShiftConfigClient({
     endDate: "",
   });
 
-  // Day note color pickers
-  const [openColorPickerDate, setOpenColorPickerDate] = useState<string | null>(null);
   const [recentColorKeys, setRecentColorKeys] = useState<string[]>(
     DAY_NOTE_COLORS.slice(0, 4).map((color) => color.key)
   );
-
-  const colorPickerShellRef = useRef<HTMLDivElement | null>(null);
   const configScrollRef = useRef<HTMLDivElement | null>(null);
   const configTableRef = useRef<HTMLTableElement | null>(null);
   const configScrollbarTrackRef = useRef<HTMLDivElement | null>(null);
@@ -482,15 +491,6 @@ export default function ShiftConfigClient({
     setMessage(null);
   }, [message, notify]);
 
-  useEffect(() => {
-    const handlePointerDown = (event: MouseEvent) => {
-      if (!colorPickerShellRef.current?.contains(event.target as Node)) {
-        setOpenColorPickerDate(null);
-      }
-    };
-    document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, []);
 
   // Custom horizontal scrollbar tracking
   useEffect(() => {
@@ -603,7 +603,7 @@ export default function ShiftConfigClient({
       const current = items.find((item) => item.date === dateStr) ?? {
         date: dateStr,
         note: "",
-        colorKey: "amber",
+        colorKey: "none",
       };
       const rest = items.filter((item) => item.date !== dateStr);
       const next = { ...current, ...patch };
@@ -739,7 +739,7 @@ export default function ShiftConfigClient({
     const current = getDayNote(dateStr) ?? {
       date: dateStr,
       note: "",
-      colorKey: "amber",
+      colorKey: "none",
     };
 
     const next = { ...current, ...patch };
@@ -892,8 +892,17 @@ export default function ShiftConfigClient({
 
   // Period Modals & Actions
   function openAddPeriodModal(prefillDate?: string, cloneSourceId?: string) {
+    const isCopyMode = Boolean(cloneSourceId);
+    const targetMonth = selectedMonth;
+    setTargetMonthPeriods(periods);
+
     let start = prefillDate || "";
     let end = prefillDate || "";
+
+    if (cloneSourceId && activePeriod && activePeriod.id === cloneSourceId) {
+      start = activePeriod.startDate;
+      end = activePeriod.endDate;
+    }
 
     if (!start) {
       if (unconfiguredDays.length > 0) {
@@ -905,21 +914,96 @@ export default function ShiftConfigClient({
       }
     }
 
+    // Auto-name: sequential order in targetMonth (selectedMonth)
+    const defaultName = getNextPeriodSequentialName(periods);
+
     setAddPeriodForm({
-      name: `Đợt ${periods.length + 1} (${formatDateVN(start)} - ${formatDateVN(end)})`,
+      name: defaultName,
       isSingleDay: start === end,
       startDate: start,
       endDate: end,
       initMode: cloneSourceId || periods.length > 0 ? "clone" : "default",
       cloneFromPeriodId: cloneSourceId || activePeriod?.id || (periods[0]?.id ?? ""),
       initialShiftsCount: selectedStoreData?.shiftsPerDay || 3,
+      targetMonth,
+      isCopyMode,
     });
     setIsAddPeriodOpen(true);
+  }
+
+  async function handleStartDateChange(newStartDate: string) {
+    if (!newStartDate) return;
+    const oldStartDate = addPeriodForm.startDate;
+    const oldMonth = oldStartDate ? oldStartDate.slice(0, 7) : selectedMonth;
+    const newMonth = newStartDate.slice(0, 7);
+
+    let newEndDate = addPeriodForm.endDate;
+
+    if (addPeriodForm.isSingleDay) {
+      newEndDate = newStartDate;
+    } else if (newMonth !== oldMonth) {
+      // Khi chọn sang tháng mới (ví dụ từ tháng 11 sang tháng 12), ô đến ngày tự động nhảy theo sang tháng 12
+      let daysDiff = 0;
+      if (oldStartDate && addPeriodForm.endDate) {
+        const d1 = parseDateOnly(oldStartDate);
+        const d2 = parseDateOnly(addPeriodForm.endDate);
+        daysDiff = Math.max(0, Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24)));
+      }
+      const startParsed = parseDateOnly(newStartDate);
+      const calculatedEnd = new Date(startParsed.getTime() + daysDiff * 24 * 60 * 60 * 1000);
+      const newMonthLimits = getMonthDateLimits(newMonth);
+      const maxEndParsed = parseDateOnly(newMonthLimits.maxDate);
+      const clampedEnd = calculatedEnd > maxEndParsed ? maxEndParsed : calculatedEnd;
+      newEndDate = formatDateOnly(clampedEnd);
+    } else {
+      if (!newEndDate || newEndDate < newStartDate) {
+        newEndDate = newStartDate;
+      }
+    }
+
+    // Nếu đổi tháng, tải danh sách bảng của tháng mới để kiểm tra xung đột và đặt tên tuần tự
+    let fetchedPeriods = periods;
+    if (newMonth !== selectedMonth) {
+      setLoadingTargetMonth(true);
+      try {
+        const res = await fetch(
+          `/api/shift-config-periods?storeId=${selectedStore}&month=${newMonth}`
+        );
+        const data = await readJsonSafely<ShiftConfigPeriod[]>(res, []);
+        fetchedPeriods = Array.isArray(data) ? data : [];
+        setTargetMonthPeriods(fetchedPeriods);
+      } catch {
+        fetchedPeriods = [];
+        setTargetMonthPeriods([]);
+      } finally {
+        setLoadingTargetMonth(false);
+      }
+    } else {
+      setTargetMonthPeriods(periods);
+    }
+
+    const sequentialName = getNextPeriodSequentialName(fetchedPeriods);
+
+    setAddPeriodForm((prev) => ({
+      ...prev,
+      startDate: newStartDate,
+      endDate: newEndDate,
+      targetMonth: newMonth,
+      name: sequentialName,
+    }));
+  }
+
+  function handleEndDateChange(newEndDate: string) {
+    setAddPeriodForm((prev) => ({
+      ...prev,
+      endDate: newEndDate,
+    }));
   }
 
   async function handleCreatePeriod() {
     const startStr = addPeriodForm.startDate;
     const endStr = addPeriodForm.isSingleDay ? addPeriodForm.startDate : addPeriodForm.endDate;
+    const targetMonth = addPeriodForm.targetMonth || selectedMonth;
 
     if (!startStr || !endStr) {
       setMessage("Vui lòng chọn ngày bắt đầu và kết thúc");
@@ -931,22 +1015,36 @@ export default function ShiftConfigClient({
       return;
     }
 
-    const conflict = findConflictingPeriod(startStr, endStr);
+    // Single-month boundary restriction: cannot span cross months
+    if (startStr.slice(0, 7) !== endStr.slice(0, 7)) {
+      setMessage("Khoảng ngày cấu hình chỉ được nằm trọn trong 1 tháng duy nhất (không được chọn xuyên tháng)");
+      return;
+    }
+
+    if (startStr.slice(0, 7) !== targetMonth) {
+      setMessage(`Khoảng ngày phải nằm trong tháng ${targetMonth}`);
+      return;
+    }
+
+    const periodsToCheck = targetMonth === selectedMonth ? periods : targetMonthPeriods;
+    const conflict = periodsToCheck.find((p) => startStr <= p.endDate && p.startDate <= endStr);
     if (conflict) {
       setMessage(
-        `Khoảng ngày bị trùng với bảng "${conflict.name}" (${formatDateVN(conflict.startDate)} - ${formatDateVN(conflict.endDate)}). Vui lòng chọn ngày khác.`
+        `Khoảng ngày bị trùng với bảng "${getPeriodBaseName(conflict.name)}" (${formatDateRangeVN(conflict.startDate, conflict.endDate)}). Vui lòng chọn ngày khác.`
       );
       return;
     }
 
     setLoading(true);
     try {
+      const defaultName = getNextPeriodSequentialName(periodsToCheck);
+      const baseName = getPeriodBaseName(addPeriodForm.name).trim() || defaultName;
       const res = await fetch("/api/shift-config-periods", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           storeId: selectedStore,
-          name: addPeriodForm.name.trim() || `Bảng ${formatDateVN(startStr)} - ${formatDateVN(endStr)}`,
+          name: baseName,
           startDate: startStr,
           endDate: endStr,
           cloneFromPeriodId:
@@ -963,8 +1061,19 @@ export default function ShiftConfigClient({
       }
 
       setIsAddPeriodOpen(false);
-      await loadPeriodsAndConfig(selectedStore, selectedMonth, data.id);
-      setMessage("Đã tạo bảng cấu hình ca mới thành công");
+
+      if (targetMonth !== selectedMonth) {
+        setSelectedMonth(targetMonth);
+        await loadPeriodsAndConfig(selectedStore, targetMonth, data.id);
+        setMessage(`Đã sao chép bảng sang tháng ${targetMonth} thành công`);
+      } else {
+        await loadPeriodsAndConfig(selectedStore, selectedMonth, data.id);
+        setMessage(
+          addPeriodForm.isCopyMode
+            ? "Đã sao chép bảng cấu hình ca thành công"
+            : "Đã tạo bảng cấu hình ca mới thành công"
+        );
+      }
     } catch {
       setMessage("Lỗi tạo bảng cấu hình ca");
     } finally {
@@ -975,7 +1084,7 @@ export default function ShiftConfigClient({
   function openEditPeriodRangeModal() {
     if (!activePeriod) return;
     setEditPeriodRangeForm({
-      name: activePeriod.name,
+      name: getPeriodBaseName(activePeriod.name),
       startDate: activePeriod.startDate,
       endDate: activePeriod.endDate,
     });
@@ -998,21 +1107,27 @@ export default function ShiftConfigClient({
       return;
     }
 
+    if (startStr.slice(0, 7) !== endStr.slice(0, 7)) {
+      setMessage("Khoảng ngày cấu hình chỉ được nằm trọn trong 1 tháng duy nhất");
+      return;
+    }
+
     const conflict = findConflictingPeriod(startStr, endStr, activePeriod.id);
     if (conflict) {
       setMessage(
-        `Khoảng ngày bị trùng với bảng "${conflict.name}" (${formatDateVN(conflict.startDate)} - ${formatDateVN(conflict.endDate)}). Vui lòng chọn ngày khác.`
+        `Khoảng ngày bị trùng với bảng "${getPeriodBaseName(conflict.name)}" (${formatDateRangeVN(conflict.startDate, conflict.endDate)}). Vui lòng chọn ngày khác.`
       );
       return;
     }
 
     setLoading(true);
     try {
+      const baseName = getPeriodBaseName(editPeriodRangeForm.name).trim() || getPeriodBaseName(activePeriod.name) || "Đợt";
       const res = await fetch(`/api/shift-config-periods/${activePeriod.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: editPeriodRangeForm.name.trim() || activePeriod.name,
+          name: baseName,
           startDate: startStr,
           endDate: endStr,
         }),
@@ -1038,8 +1153,8 @@ export default function ShiftConfigClient({
     if (!activePeriod) return;
 
     const approved = await confirm({
-      title: `Xóa bảng cấu hình "${activePeriod.name}"?`,
-      description: `Bảng cấu hình ca áp dụng cho khoảng ngày ${formatDateVN(activePeriod.startDate)} - ${formatDateVN(activePeriod.endDate)} sẽ bị xóa hoàn toàn. Các ngày này sẽ trở về trạng thái trống trên Lịch xếp ca.`,
+      title: `Xóa bảng cấu hình "${getPeriodBaseName(activePeriod.name)}"?`,
+      description: `Bảng cấu hình ca áp dụng cho khoảng ngày ${formatDateRangeVN(activePeriod.startDate, activePeriod.endDate)} sẽ bị xóa hoàn toàn. Các ngày này sẽ trở về trạng thái trống trên Lịch xếp ca.`,
       confirmLabel: "Xóa bảng này",
       cancelLabel: "Giữ lại",
       tone: "destructive",
@@ -1112,8 +1227,23 @@ export default function ShiftConfigClient({
   const addPeriodConflict = useMemo(() => {
     const startStr = addPeriodForm.startDate;
     const endStr = addPeriodForm.isSingleDay ? addPeriodForm.startDate : addPeriodForm.endDate;
-    return findConflictingPeriod(startStr, endStr);
-  }, [addPeriodForm.startDate, addPeriodForm.endDate, addPeriodForm.isSingleDay, findConflictingPeriod]);
+    const periodsToCheck =
+      addPeriodForm.targetMonth === selectedMonth ? periods : targetMonthPeriods;
+    if (!startStr || !endStr) return null;
+    return (
+      periodsToCheck.find((p) => {
+        return startStr <= p.endDate && p.startDate <= endStr;
+      }) ?? null
+    );
+  }, [
+    addPeriodForm.startDate,
+    addPeriodForm.endDate,
+    addPeriodForm.isSingleDay,
+    addPeriodForm.targetMonth,
+    selectedMonth,
+    periods,
+    targetMonthPeriods,
+  ]);
 
   const editPeriodConflict = useMemo(() => {
     if (!activePeriod) return null;
@@ -1123,6 +1253,16 @@ export default function ShiftConfigClient({
       activePeriod.id
     );
   }, [editPeriodRangeForm.startDate, editPeriodRangeForm.endDate, activePeriod, findConflictingPeriod]);
+
+  const monthLimits = useMemo(() => {
+    const m = addPeriodForm.targetMonth || selectedMonth;
+    return getMonthDateLimits(m);
+  }, [addPeriodForm.targetMonth, selectedMonth]);
+
+  const editMonthLimits = useMemo(() => {
+    if (!activePeriod) return getMonthDateLimits(selectedMonth);
+    return getMonthDateLimits(activePeriod.startDate.slice(0, 7));
+  }, [activePeriod, selectedMonth]);
 
   return (
     <div className="space-y-6">
@@ -1231,7 +1371,7 @@ export default function ShiftConfigClient({
                       : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-[#252526] dark:text-slate-300 dark:hover:bg-[#2D2D30] font-medium"
                   )}
                 >
-                  <span>{period.name}</span>
+                  <span>{getPeriodBaseName(period.name)}</span>
                   <span
                     className={cn(
                       "text-[10px] font-mono px-1.5 py-0.5 rounded",
@@ -1240,7 +1380,7 @@ export default function ShiftConfigClient({
                         : "bg-slate-200 text-slate-600 dark:bg-[#333333] dark:text-slate-400"
                     )}
                   >
-                    {formatDateVN(period.startDate)} - {formatDateVN(period.endDate)}
+                    {formatDateRangeVN(period.startDate, period.endDate)}
                   </span>
                   <span
                     className={cn(
@@ -1317,10 +1457,10 @@ export default function ShiftConfigClient({
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <CardTitle className="text-base md:text-lg font-bold">
-                  {activePeriod.name}
+                  {getPeriodBaseName(activePeriod.name)}
                 </CardTitle>
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700 dark:bg-[#252526] dark:text-slate-300 font-mono">
-                  📅 {formatDateVN(activePeriod.startDate)} - {formatDateVN(activePeriod.endDate)} (
+                  📅 {formatDateRangeVN(activePeriod.startDate, activePeriod.endDate)} (
                   {periodDays.length} ngày)
                 </span>
               </div>
@@ -1426,23 +1566,26 @@ export default function ShiftConfigClient({
                           <th className="h-[52px] px-2.5 sticky top-0 left-[60px] z-30 bg-white dark:bg-[#252526] text-slate-800 dark:text-[#E0E0E0] w-[175px] min-w-[175px] max-w-[175px] border-r border-b border-slate-200 dark:border-[#333333] font-bold text-xs">
                             Giờ & Thao tác
                           </th>
-                          {periodDays.map((day) => (
-                            <th
-                              key={formatDateOnly(day)}
-                              className={cn(
-                                "h-[52px] px-1 text-center text-slate-800 dark:text-[#E0E0E0] sticky top-0 z-20 bg-white dark:bg-[#252526] border-b border-slate-200 dark:border-[#333333]",
-                                hasVisibleDayNote(formatDateOnly(day))
-                                  ? getDayNoteColor(getDayNote(formatDateOnly(day))?.colorKey)
-                                      .softClass
-                                  : ""
-                              )}
-                            >
-                              <div>{day.getUTCDate()}</div>
-                              <div className="text-[11px] font-normal text-slate-500 dark:text-[#9D9D9D]">
-                                {DAY_NAMES[day.getUTCDay()].replace("Thứ ", "T")}
-                              </div>
-                            </th>
-                          ))}
+                          {periodDays.map((day) => {
+                            const dateStr = formatDateOnly(day);
+                            const hasNote = hasVisibleDayNote(dateStr);
+                            const dayColor = getDayNoteColor(getDayNote(dateStr)?.colorKey);
+                            return (
+                              <th
+                                key={dateStr}
+                                className={cn(
+                                  "h-[52px] px-1 text-center text-slate-800 dark:text-[#E0E0E0] sticky top-0 z-20 bg-white dark:bg-[#252526] border-b border-slate-200 dark:border-[#333333]",
+                                  hasNote && !dayColor.isNone ? dayColor.softClass : ""
+                                )}
+                                style={hasNote && !dayColor.isNone ? dayColor.softStyle : undefined}
+                              >
+                                <div>{day.getUTCDate()}</div>
+                                <div className="text-[11px] font-normal text-slate-500 dark:text-[#9D9D9D]">
+                                  {DAY_NAMES[day.getUTCDay()].replace("Thứ ", "T")}
+                                </div>
+                              </th>
+                            );
+                          })}
                         </tr>
 
                         <tr className="align-top">
@@ -1459,102 +1602,41 @@ export default function ShiftConfigClient({
                                 key={`note-${dateStr}`}
                                 className={cn(
                                   "px-1 py-2.5 sticky top-[52px] z-10 bg-slate-50 dark:bg-[#1E1E1E] border-b border-slate-200 dark:border-[#333333]",
-                                  note?.note.trim() ? color.softClass : ""
+                                  note?.note.trim() && !color.isNone ? color.softClass : ""
                                 )}
+                                style={note?.note.trim() && !color.isNone ? color.softStyle : undefined}
                               >
-                                <div
-                                  ref={openColorPickerDate === dateStr ? colorPickerShellRef : null}
-                                  className="relative space-y-2"
-                                >
-                                  <div className="relative">
+                                <div className="relative space-y-2">
+                                  <div className="relative flex items-center">
                                     <Input
                                       value={note?.note ?? ""}
                                       onChange={(e) => {
                                         const value = e.target.value;
                                         upsertLocalDayNote(dateStr, {
                                           note: value,
-                                          colorKey: note?.colorKey ?? "amber",
+                                          colorKey: note?.colorKey ?? "none",
                                         });
                                       }}
                                       onBlur={(e) =>
                                         updateDayNote(dateStr, { note: e.target.value })
                                       }
                                       placeholder="Ghi chú"
-                                      className="h-8 min-w-[120px] pr-10 text-xs disabled:opacity-100 disabled:text-slate-800 dark:disabled:text-[#E0E0E0]"
+                                      className="h-8 min-w-[120px] pr-9 text-xs disabled:opacity-100 disabled:text-slate-800 dark:disabled:text-[#E0E0E0]"
                                       disabled={!canEdit}
                                     />
-                                    <button
-                                      type="button"
-                                      aria-label="Chon mau"
-                                      className="absolute top-1/2 right-1 h-6 w-6 -translate-y-1/2 rounded-md border border-slate-300 shadow-sm transition-transform hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed dark:border-[#3C3C3C]"
-                                      style={{ backgroundColor: color.swatch }}
-                                      onClick={() =>
-                                        setOpenColorPickerDate((current) =>
-                                          current === dateStr ? null : dateStr
-                                        )
-                                      }
-                                      disabled={!canEdit}
-                                    />
-                                  </div>
-
-                                  {openColorPickerDate === dateStr && (
-                                    <div className="absolute left-1/2 top-10 z-20 w-44 -translate-x-1/2 rounded-xl border border-slate-200 bg-white p-3 text-left shadow-xl dark:border-[#333333] dark:bg-[#252526]">
-                                      <p className="text-[11px] font-medium text-slate-500 dark:text-[#9D9D9D]">
-                                        Bảng màu
-                                      </p>
-                                      <div className="mt-2 grid grid-cols-3 gap-2">
-                                        {DAY_NOTE_COLORS.map((option) => (
-                                          <button
-                                            key={option.key}
-                                            type="button"
-                                            className={cn(
-                                              "h-8 rounded-lg border",
-                                              option.key === (note?.colorKey ?? "amber")
-                                                ? "border-slate-900 ring-2 ring-slate-300 dark:border-white dark:ring-neutral-500"
-                                                : "border-slate-200 dark:border-[#3C3C3C]"
-                                            )}
-                                            style={{ backgroundColor: option.swatch }}
-                                            onClick={() => {
-                                              upsertLocalDayNote(dateStr, { colorKey: option.key });
-                                              setOpenColorPickerDate(null);
-                                              if (note?.note.trim()) {
-                                                void updateDayNote(dateStr, {
-                                                  colorKey: option.key,
-                                                });
-                                              }
-                                            }}
-                                            aria-label={option.label}
-                                          />
-                                        ))}
-                                      </div>
-                                      <div className="mt-3 border-t border-slate-100 pt-3 dark:border-[#333333]">
-                                        <p className="text-[11px] font-medium text-slate-500 dark:text-[#9D9D9D]">
-                                          Gần đây
-                                        </p>
-                                        <div className="mt-2 flex flex-wrap gap-2">
-                                          {recentColorKeys.map((colorKey) => {
-                                            const recentColor = getDayNoteColor(colorKey);
-                                            return (
-                                              <button
-                                                key={`${dateStr}-${colorKey}`}
-                                                type="button"
-                                                className="h-7 w-7 rounded-md border border-slate-200 dark:border-slate-700"
-                                                style={{ backgroundColor: recentColor.swatch }}
-                                                onClick={() => {
-                                                  upsertLocalDayNote(dateStr, { colorKey });
-                                                  setOpenColorPickerDate(null);
-                                                  if (note?.note.trim()) {
-                                                    void updateDayNote(dateStr, { colorKey });
-                                                  }
-                                                }}
-                                                aria-label={`Mau ${recentColor.label}`}
-                                              />
-                                            );
-                                          })}
-                                        </div>
-                                      </div>
+                                    <div className="absolute right-1 top-1/2 -translate-y-1/2">
+                                      <DayNoteColorPicker
+                                        value={note?.colorKey ?? "none"}
+                                        disabled={!canEdit}
+                                        onChange={(newColorKey) => {
+                                          upsertLocalDayNote(dateStr, { colorKey: newColorKey });
+                                          if (note?.note.trim()) {
+                                            void updateDayNote(dateStr, { colorKey: newColorKey });
+                                          }
+                                        }}
+                                      />
                                     </div>
-                                  )}
+                                  </div>
 
                                   {canEdit && (
                                     <Select
@@ -1701,16 +1783,17 @@ export default function ShiftConfigClient({
 
                             {periodDays.map((day) => {
                               const dateStr = formatDateOnly(day);
-                              return (
-                                <td
-                                  key={`${shift.id}-${dateStr}`}
-                                  className={cn(
-                                    "px-1 py-2 text-center align-middle border-b border-slate-100 dark:border-[#333333]/80",
-                                    hasVisibleDayNote(dateStr)
-                                      ? getDayNoteColor(getDayNote(dateStr)?.colorKey).softClass
-                                      : ""
-                                  )}
-                                >
+                                const hasNote = hasVisibleDayNote(dateStr);
+                                const dayColor = getDayNoteColor(getDayNote(dateStr)?.colorKey);
+                                return (
+                                  <td
+                                    key={`${shift.id}-${dateStr}`}
+                                    className={cn(
+                                      "px-1 py-2 text-center align-middle border-b border-slate-100 dark:border-[#333333]/80",
+                                      hasNote && !dayColor.isNone ? dayColor.softClass : ""
+                                    )}
+                                    style={hasNote && !dayColor.isNone ? dayColor.softStyle : undefined}
+                                  >
                                   <Select
                                     value={String(getDailyStaff(shift.id, dateStr))}
                                     onChange={(e) =>
@@ -1858,15 +1941,19 @@ export default function ShiftConfigClient({
         </Card>
       ) : null}
 
-      {/* 5. Modal: Add New Period */}
+      {/* 5. Modal: Add New Period / Copy Period */}
       {isAddPeriodOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="relative w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-[#3C3C3C] dark:bg-[#1E1E1E]">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 dark:border-[#333333]">
               <div className="flex items-center gap-2">
-                <Layers className="h-5 w-5 text-slate-800 dark:text-white" />
+                {addPeriodForm.isCopyMode ? (
+                  <Copy className="h-5 w-5 text-slate-800 dark:text-white" />
+                ) : (
+                  <Layers className="h-5 w-5 text-slate-800 dark:text-white" />
+                )}
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                  Thêm bảng cấu hình ca mới
+                  {addPeriodForm.isCopyMode ? "Sao chép bảng cấu hình ca" : "Thêm bảng cấu hình ca mới"}
                 </h3>
               </div>
               <button
@@ -1883,14 +1970,23 @@ export default function ShiftConfigClient({
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                   Tên bảng cấu hình ca
                 </label>
-                <Input
-                  value={addPeriodForm.name}
-                  onChange={(e) =>
-                    setAddPeriodForm({ ...addPeriodForm, name: e.target.value })
-                  }
-                  placeholder="Ví dụ: Đợt 1 (01 - 10), Cuối tuần..."
-                  className="mt-1 text-xs"
-                />
+                <div className="mt-1 flex items-center rounded-lg border border-slate-200 bg-white focus-within:border-slate-900 focus-within:ring-1 focus-within:ring-slate-900 dark:border-[#3C3C3C] dark:bg-[#1E1E1E] dark:focus-within:border-white dark:focus-within:ring-white transition-all overflow-hidden">
+                  <input
+                    type="text"
+                    value={addPeriodForm.name}
+                    onChange={(e) =>
+                      setAddPeriodForm({ ...addPeriodForm, name: e.target.value })
+                    }
+                    placeholder="Ví dụ: Đợt 1, Cuối tuần..."
+                    className="min-w-0 flex-1 bg-transparent px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 outline-hidden dark:text-slate-100"
+                  />
+                  <div
+                    title="Khoảng ngày tự động áp dụng theo lựa chọn bên dưới"
+                    className="shrink-0 px-2.5 py-2 text-xs font-semibold text-slate-500 bg-slate-50 border-l border-slate-200 select-none dark:bg-[#252526] dark:text-slate-400 dark:border-[#3C3C3C] font-mono flex items-center gap-1"
+                  >
+                    <span>({formatDateRangeVN(addPeriodForm.startDate, addPeriodForm.isSingleDay ? addPeriodForm.startDate : addPeriodForm.endDate)})</span>
+                  </div>
+                </div>
               </div>
 
               {/* Mode Selection: Single Day or Date Range */}
@@ -1901,12 +1997,12 @@ export default function ShiftConfigClient({
                 <div className="mt-1.5 grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() =>
+                    onClick={() => {
                       setAddPeriodForm({
                         ...addPeriodForm,
                         isSingleDay: false,
-                      })
-                    }
+                      });
+                    }}
                     className={cn(
                       "flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border text-xs font-semibold transition-all",
                       !addPeriodForm.isSingleDay
@@ -1919,13 +2015,14 @@ export default function ShiftConfigClient({
                   </button>
                   <button
                     type="button"
-                    onClick={() =>
+                    onClick={() => {
+                      const singleDate = addPeriodForm.startDate;
                       setAddPeriodForm({
                         ...addPeriodForm,
                         isSingleDay: true,
-                        endDate: addPeriodForm.startDate,
-                      })
-                    }
+                        endDate: singleDate,
+                      });
+                    }}
                     className={cn(
                       "flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border text-xs font-semibold transition-all",
                       addPeriodForm.isSingleDay
@@ -1939,24 +2036,21 @@ export default function ShiftConfigClient({
                 </div>
               </div>
 
-              {/* Date Inputs */}
+              {/* Date Pickers */}
               {addPeriodForm.isSingleDay ? (
                 <div>
                   <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                     Chọn ngày áp dụng
                   </label>
-                  <Input
-                    type="date"
-                    value={addPeriodForm.startDate}
-                    onChange={(e) =>
-                      setAddPeriodForm({
-                        ...addPeriodForm,
-                        startDate: e.target.value,
-                        endDate: e.target.value,
-                      })
-                    }
-                    className="mt-1 text-xs"
-                  />
+                  <div className="mt-1">
+                    <DatePicker
+                      value={addPeriodForm.startDate}
+                      onChange={handleStartDateChange}
+                      minDate={addPeriodForm.isCopyMode ? undefined : `${selectedMonth}-01`}
+                      maxDate={addPeriodForm.isCopyMode ? undefined : monthLimits.maxDate}
+                      lockMonth={!addPeriodForm.isCopyMode}
+                    />
+                  </div>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-3">
@@ -1964,33 +2058,33 @@ export default function ShiftConfigClient({
                     <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                       Từ ngày
                     </label>
-                    <Input
-                      type="date"
-                      value={addPeriodForm.startDate}
-                      onChange={(e) =>
-                        setAddPeriodForm({
-                          ...addPeriodForm,
-                          startDate: e.target.value,
-                        })
-                      }
-                      className="mt-1 text-xs"
-                    />
+                    <div className="mt-1">
+                      <DatePicker
+                        value={addPeriodForm.startDate}
+                        onChange={handleStartDateChange}
+                        minDate={addPeriodForm.isCopyMode ? undefined : `${selectedMonth}-01`}
+                        maxDate={addPeriodForm.isCopyMode ? undefined : monthLimits.maxDate}
+                        lockMonth={!addPeriodForm.isCopyMode}
+                      />
+                    </div>
                   </div>
                   <div>
                     <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                       Đến ngày
                     </label>
-                    <Input
-                      type="date"
-                      value={addPeriodForm.endDate}
-                      onChange={(e) =>
-                        setAddPeriodForm({
-                          ...addPeriodForm,
-                          endDate: e.target.value,
-                        })
-                      }
-                      className="mt-1 text-xs"
-                    />
+                    <div className="mt-1">
+                      <DatePicker
+                        value={addPeriodForm.endDate}
+                        onChange={handleEndDateChange}
+                        minDate={addPeriodForm.startDate}
+                        maxDate={
+                          getMonthDateLimits(
+                            addPeriodForm.startDate ? addPeriodForm.startDate.slice(0, 7) : selectedMonth
+                          ).maxDate
+                        }
+                        lockMonth={true}
+                      />
+                    </div>
                   </div>
                 </div>
               )}
@@ -2002,8 +2096,8 @@ export default function ShiftConfigClient({
                   <div className="space-y-0.5">
                     <p className="font-bold">Không thể thêm do trùng ngày:</p>
                     <p>
-                      Khoảng ngày này bị trùng với bảng <strong>&quot;{addPeriodConflict.name}&quot;</strong> (
-                      {formatDateVN(addPeriodConflict.startDate)} - {formatDateVN(addPeriodConflict.endDate)}).
+                      Khoảng ngày này bị trùng với bảng <strong>&quot;{getPeriodBaseName(addPeriodConflict.name)}&quot;</strong> (
+                      {formatDateRangeVN(addPeriodConflict.startDate, addPeriodConflict.endDate)}).
                     </p>
                     <p className="text-[11px] text-rose-600 dark:text-rose-400">
                       Mỗi ngày trong cửa hàng chỉ thuộc duy nhất một bảng cấu hình ca.
@@ -2046,7 +2140,7 @@ export default function ShiftConfigClient({
                           >
                             {periods.map((p) => (
                               <option key={p.id} value={p.id}>
-                                {p.name} ({formatDateVN(p.startDate)} - {formatDateVN(p.endDate)}) -{" "}
+                                {getPeriodBaseName(p.name)} ({formatDateRangeVN(p.startDate, p.endDate)}) -{" "}
                                 {p.shiftTemplates?.length ?? 0} ca
                               </option>
                             ))}
@@ -2130,12 +2224,21 @@ export default function ShiftConfigClient({
               <Button
                 type="button"
                 size="sm"
-                disabled={Boolean(addPeriodConflict) || loading}
+                disabled={Boolean(addPeriodConflict) || loading || loadingTargetMonth}
                 onClick={handleCreatePeriod}
                 className="h-8 text-xs font-semibold gap-1.5"
               >
-                <Plus className="h-3.5 w-3.5" />
-                <span>Tạo bảng cấu hình</span>
+                {addPeriodForm.isCopyMode ? (
+                  <>
+                    <Copy className="h-3.5 w-3.5" />
+                    <span>Sao chép bảng</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>Tạo bảng cấu hình</span>
+                  </>
+                )}
               </Button>
             </div>
           </div>
@@ -2167,16 +2270,26 @@ export default function ShiftConfigClient({
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                   Tên bảng cấu hình
                 </label>
-                <Input
-                  value={editPeriodRangeForm.name}
-                  onChange={(e) =>
-                    setEditPeriodRangeForm({
-                      ...editPeriodRangeForm,
-                      name: e.target.value,
-                    })
-                  }
-                  className="mt-1 text-xs"
-                />
+                <div className="mt-1 flex items-center rounded-lg border border-slate-200 bg-white focus-within:border-slate-900 focus-within:ring-1 focus-within:ring-slate-900 dark:border-[#3C3C3C] dark:bg-[#1E1E1E] dark:focus-within:border-white dark:focus-within:ring-white transition-all overflow-hidden">
+                  <input
+                    type="text"
+                    value={editPeriodRangeForm.name}
+                    onChange={(e) =>
+                      setEditPeriodRangeForm({
+                        ...editPeriodRangeForm,
+                        name: e.target.value,
+                      })
+                    }
+                    placeholder="Ví dụ: Đợt 1, Cuối tuần..."
+                    className="min-w-0 flex-1 bg-transparent px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 outline-hidden dark:text-slate-100"
+                  />
+                  <div
+                    title="Khoảng ngày tự động áp dụng theo lựa chọn bên dưới"
+                    className="shrink-0 px-2.5 py-2 text-xs font-semibold text-slate-500 bg-slate-50 border-l border-slate-200 select-none dark:bg-[#252526] dark:text-slate-400 dark:border-[#3C3C3C] font-mono flex items-center gap-1"
+                  >
+                    <span>({formatDateRangeVN(editPeriodRangeForm.startDate, editPeriodRangeForm.endDate)})</span>
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -2184,33 +2297,40 @@ export default function ShiftConfigClient({
                   <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                     Từ ngày
                   </label>
-                  <Input
-                    type="date"
-                    value={editPeriodRangeForm.startDate}
-                    onChange={(e) =>
-                      setEditPeriodRangeForm({
-                        ...editPeriodRangeForm,
-                        startDate: e.target.value,
-                      })
-                    }
-                    className="mt-1 text-xs"
-                  />
+                  <div className="mt-1">
+                    <DatePicker
+                      value={editPeriodRangeForm.startDate}
+                      onChange={(newStart) => {
+                        setEditPeriodRangeForm((prev) => ({
+                          ...prev,
+                          startDate: newStart,
+                          endDate: prev.endDate && prev.endDate < newStart ? newStart : prev.endDate,
+                        }));
+                      }}
+                      minDate={editMonthLimits.minDate}
+                      maxDate={editMonthLimits.maxDate}
+                      lockMonth={true}
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                     Đến ngày
                   </label>
-                  <Input
-                    type="date"
-                    value={editPeriodRangeForm.endDate}
-                    onChange={(e) =>
-                      setEditPeriodRangeForm({
-                        ...editPeriodRangeForm,
-                        endDate: e.target.value,
-                      })
-                    }
-                    className="mt-1 text-xs"
-                  />
+                  <div className="mt-1">
+                    <DatePicker
+                      value={editPeriodRangeForm.endDate}
+                      onChange={(newEnd) => {
+                        setEditPeriodRangeForm((prev) => ({
+                          ...prev,
+                          endDate: newEnd,
+                        }));
+                      }}
+                      minDate={editPeriodRangeForm.startDate || editMonthLimits.minDate}
+                      maxDate={editMonthLimits.maxDate}
+                      lockMonth={true}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -2221,15 +2341,15 @@ export default function ShiftConfigClient({
                   <div className="space-y-0.5">
                     <p className="font-bold">Không thể lưu do trùng ngày:</p>
                     <p>
-                      Khoảng ngày này bị trùng với bảng <strong>&quot;{editPeriodConflict.name}&quot;</strong> (
-                      {formatDateVN(editPeriodConflict.startDate)} - {formatDateVN(editPeriodConflict.endDate)}).
+                      Khoảng ngày này bị trùng với bảng <strong>&quot;{getPeriodBaseName(editPeriodConflict.name)}&quot;</strong> (
+                      {formatDateRangeVN(editPeriodConflict.startDate, editPeriodConflict.endDate)}).
                     </p>
                   </div>
                 </div>
               )}
 
               <p className="text-[11px] text-slate-500 dark:text-[#9D9D9D]">
-                Thao tác mở rộng hoặc thu hẹp khoảng ngày sẽ cập nhật phạm vi áp dụng của các ca trong bảng này.
+                Khoảng ngày chỉ được chỉnh trong phạm vi tháng này. Thao tác mở rộng hoặc thu hẹp khoảng ngày sẽ cập nhật phạm vi áp dụng của các ca trong bảng này.
               </p>
             </div>
 
