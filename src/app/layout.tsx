@@ -13,6 +13,13 @@ export const metadata: Metadata = {
 const themeScript = `
   (function() {
     try {
+      var path = window.location.pathname || '';
+      if (path === '/' || path === '/home-apexflow' || path.indexOf('/home-apexflow') === 0) {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.setAttribute('data-theme', 'light');
+        document.documentElement.style.colorScheme = 'light';
+        return;
+      }
       var saved = localStorage.getItem('apexflow-theme') || 'system';
       var isDark = saved === 'dark' || (saved === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
       if (isDark) {

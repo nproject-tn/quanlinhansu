@@ -190,23 +190,27 @@ export function WorkspaceListClient({
           }
         }}
         className={cn(
-          "group relative bg-white dark:bg-[#18181B] rounded-2xl p-6 shadow-sm border transition-all cursor-pointer",
-          isSelectMode && isOwned ? (isSelected ? "border-red-500 ring-2 ring-red-500/20" : "border-slate-200 dark:border-neutral-800 hover:border-slate-300") : "border-slate-200/80 dark:border-neutral-800 hover:shadow-md hover:border-slate-400 dark:hover:border-neutral-600"
+          "group relative bg-white dark:bg-[#1E1E22] rounded-2xl p-6 shadow-xs border transition-all cursor-pointer",
+          isSelectMode && isOwned
+            ? (isSelected
+                ? "border-red-500 ring-2 ring-red-500/20"
+                : "border-slate-200 dark:border-neutral-800 hover:border-slate-300 dark:hover:border-neutral-700")
+            : "border-slate-200/80 dark:border-neutral-800 hover:shadow-md hover:border-slate-400 dark:hover:border-neutral-600"
         )}
       >
         {isSelectMode && isOwned && (
-          <div className="absolute -top-3 -right-3 z-10 bg-white rounded-full">
+          <div className="absolute -top-3 -right-3 z-10 bg-white dark:bg-[#1E1E22] rounded-full">
             {isSelected ? (
-              <CheckCircle2 className="h-7 w-7 text-red-500 fill-white" />
+              <CheckCircle2 className="h-7 w-7 text-red-500 fill-white dark:fill-[#1E1E22]" />
             ) : (
-              <Circle className="h-7 w-7 text-slate-300" />
+              <Circle className="h-7 w-7 text-slate-300 dark:text-neutral-600" />
             )}
           </div>
         )}
         
         <div className="flex items-start justify-between mb-4">
           <div className="relative group/logo">
-            <div className="h-12 w-12 rounded-xl bg-slate-100 dark:bg-neutral-800 border border-slate-200/80 dark:border-neutral-700 flex items-center justify-center overflow-hidden">
+            <div className="h-12 w-12 rounded-xl bg-slate-100 dark:bg-[#28282C] border border-slate-200/80 dark:border-neutral-700 flex items-center justify-center overflow-hidden">
               {uploadingLogoId === membership.company.id ? (
                 <Loader2 className="h-5 w-5 text-slate-600 dark:text-neutral-300 animate-spin" />
               ) : membership.company.logo && !failedLogos[membership.company.id] ? (
@@ -217,7 +221,7 @@ export function WorkspaceListClient({
                   onError={() => setFailedLogos(prev => ({ ...prev, [membership.company.id]: true }))}
                 />
               ) : (
-                <span className="font-bold text-xl uppercase text-slate-800 dark:text-neutral-100">
+                <span className="font-bold text-xl uppercase text-slate-800 dark:text-white">
                   {membership.company.name.charAt(0)}
                 </span>
               )}
@@ -238,7 +242,7 @@ export function WorkspaceListClient({
                   <button
                     type="button"
                     title="Xoá logo"
-                    className="delete-logo-btn absolute -top-2 -right-2 bg-red-100 text-red-600 rounded-full p-1 opacity-0 group-hover/logo:opacity-100 transition-opacity hover:bg-red-500 hover:text-white shadow-sm border border-red-200 z-10"
+                    className="delete-logo-btn absolute -top-2 -right-2 bg-red-100 dark:bg-red-950/80 text-red-600 dark:text-red-400 rounded-full p-1 opacity-0 group-hover/logo:opacity-100 transition-opacity hover:bg-red-500 hover:text-white dark:hover:bg-red-600 shadow-sm border border-red-200 dark:border-red-900 z-10"
                     onClick={(e) => handleDeleteLogo(e, membership.company.id)}
                     disabled={uploadingLogoId === membership.company.id}
                   >
@@ -249,7 +253,7 @@ export function WorkspaceListClient({
             )}
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="text-xs font-medium bg-slate-100 dark:bg-neutral-800 text-slate-600 dark:text-neutral-300 px-2.5 py-1 rounded-full border border-slate-200/60 dark:border-neutral-700">
+            <span className="text-xs font-medium bg-slate-100 dark:bg-[#28282C] text-slate-600 dark:text-neutral-200 px-2.5 py-1 rounded-full border border-slate-200/60 dark:border-neutral-700">
               {membership.role === "OWNER" ? "Chủ sở hữu" : membership.role === "ADMIN" ? "Quản trị viên" : membership.role === "SCHEDULER" ? "Quản lý lịch" : "Nhân viên"}
             </span>
             {isOwned && !isSelectMode && (
@@ -262,7 +266,7 @@ export function WorkspaceListClient({
                   setCompanyToRename(membership.company);
                   setRenamingName(membership.company.name);
                 }}
-                className="rename-company-btn p-1.5 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 dark:hover:bg-neutral-800 dark:hover:text-white transition-colors"
+                className="rename-company-btn p-1.5 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 dark:text-neutral-400 dark:hover:text-white dark:hover:bg-[#28282C] transition-colors"
               >
                 <Pencil className="h-3.5 w-3.5" />
               </button>
@@ -276,7 +280,7 @@ export function WorkspaceListClient({
                   e.stopPropagation();
                   setCompanyToLeave(membership.company);
                 }}
-                className="leave-company-btn p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 dark:hover:text-rose-400 transition-colors"
+                className="leave-company-btn p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:text-neutral-400 dark:hover:text-rose-400 dark:hover:bg-rose-950/40 transition-colors"
               >
                 <LogOut className="h-3.5 w-3.5" />
               </button>
@@ -303,7 +307,7 @@ export function WorkspaceListClient({
             </button>
           )}
         </div>
-        <div className="flex items-center gap-4 text-sm text-slate-500 mt-4">
+        <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-neutral-400 mt-4">
           {isOwned && membership.company._count ? (
             <>
               <span>{membership.company._count.stores} chi nhánh</span>
@@ -322,8 +326,12 @@ export function WorkspaceListClient({
     <>
       <main className="max-w-6xl mx-auto px-4 py-12 relative z-10">
         <div className="mb-12 text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 mb-3">Không gian làm việc</h1>
-          <p className="text-slate-500">Chọn doanh nghiệp để bắt đầu quản lý nhân sự và lịch làm việc</p>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white mb-3">
+            Không gian làm việc
+          </h1>
+          <p className="text-slate-500 dark:text-neutral-400">
+            Chọn doanh nghiệp để bắt đầu quản lý nhân sự và lịch làm việc
+          </p>
         </div>
 
         <div className="space-y-12">
@@ -331,7 +339,7 @@ export function WorkspaceListClient({
           <section>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Building2 className="h-5 w-5 text-slate-800 dark:text-neutral-200" />
+                <Building2 className="h-5 w-5 text-slate-700 dark:text-neutral-300" />
                 Doanh nghiệp của bạn
               </h2>
               <div className="flex items-center gap-3">
@@ -339,7 +347,7 @@ export function WorkspaceListClient({
                   <>
                     {isSelectMode ? (
                       <>
-                        <Button variant="ghost" onClick={toggleSelectMode} className="text-slate-500">
+                        <Button variant="ghost" onClick={toggleSelectMode} className="text-slate-500 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white">
                           Hủy
                         </Button>
                         <Button 
@@ -351,7 +359,7 @@ export function WorkspaceListClient({
                         </Button>
                       </>
                     ) : (
-                      <Button variant="outline" onClick={toggleSelectMode} className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200">
+                      <Button variant="outline" onClick={toggleSelectMode} className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 dark:border-red-900/60 dark:bg-transparent dark:text-red-400 dark:hover:bg-red-950/40">
                         Giải tán
                       </Button>
                     )}
@@ -369,9 +377,9 @@ export function WorkspaceListClient({
             </div>
             
             {ownedCompanies.length === 0 ? (
-              <div className="bg-white dark:bg-[#18181B] border border-dashed border-slate-300 dark:border-neutral-800 rounded-2xl p-12 text-center">
-                <div className="mx-auto h-12 w-12 rounded-2xl bg-slate-100 dark:bg-neutral-800 flex items-center justify-center mb-4 border border-slate-200/80 dark:border-neutral-700">
-                  <Building2 className="h-6 w-6 text-slate-800 dark:text-neutral-200" />
+              <div className="bg-white dark:bg-[#1E1E22] border border-dashed border-slate-300 dark:border-neutral-800 rounded-2xl p-12 text-center">
+                <div className="mx-auto h-12 w-12 rounded-2xl bg-slate-100 dark:bg-[#28282C] flex items-center justify-center mb-4 border border-slate-200/80 dark:border-neutral-700">
+                  <Building2 className="h-6 w-6 text-slate-800 dark:text-white" />
                 </div>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Chưa có doanh nghiệp nào</h3>
                 <p className="text-slate-500 dark:text-neutral-400 mb-6 max-w-sm mx-auto">Bạn có thể tạo doanh nghiệp mới để quản lý chuỗi cửa hàng và nhân viên của mình.</p>
@@ -389,8 +397,8 @@ export function WorkspaceListClient({
           {/* Doanh nghiệp được phụ trách */}
           {assignedCompanies.length > 0 && (
             <section>
-              <h2 className="text-xl font-semibold text-slate-900 flex items-center gap-2 mb-6">
-                <Building2 className="h-5 w-5 text-slate-400" />
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-6">
+                <Building2 className="h-5 w-5 text-slate-700 dark:text-neutral-300" />
                 Doanh nghiệp được phụ trách
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -403,21 +411,21 @@ export function WorkspaceListClient({
 
       {/* Dialog Giải tán Doanh nghiệp (Dành cho Chủ sở hữu) */}
       <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
-        <AlertDialogContent>
+        <AlertDialogContent className="bg-white dark:bg-[#1E1E22] border-slate-200 dark:border-neutral-800">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-red-600">Bạn có chắc chắn muốn giải tán doanh nghiệp?</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-700">
+            <AlertDialogTitle className="text-red-600 dark:text-red-400">Bạn có chắc chắn muốn giải tán doanh nghiệp?</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-700 dark:text-neutral-300">
               Bạn đang chọn giải tán <strong>{selectedIds.length}</strong> doanh nghiệp. 
               <br/><br/>
-              <span className="text-red-500 font-medium text-sm">Tất cả dữ liệu sẽ bị xoá vĩnh viễn và không thể khôi phục.</span>
+              <span className="text-red-500 dark:text-red-400 font-medium text-sm">Tất cả dữ liệu sẽ bị xoá vĩnh viễn và không thể khôi phục.</span>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDisbanding}>Hủy</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDisbanding} className="dark:bg-[#28282C] dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-[#323238]">Hủy</AlertDialogCancel>
             <AlertDialogAction 
               onClick={(e) => { e.preventDefault(); handleDisband(); }} 
               disabled={isDisbanding}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-red-600 hover:bg-red-700 text-white font-bold"
             >
               {isDisbanding ? "Đang xử lý..." : "Đồng ý giải tán"}
             </AlertDialogAction>
@@ -427,15 +435,15 @@ export function WorkspaceListClient({
 
       {/* Dialog Rời Doanh nghiệp (Dành cho Thành viên không phải Chủ sở hữu) */}
       <AlertDialog open={!!companyToLeave} onOpenChange={(open) => !open && setCompanyToLeave(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="bg-white dark:bg-[#1E1E22] border-slate-200 dark:border-neutral-800">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-rose-600">Rời khỏi doanh nghiệp {companyToLeave?.name}?</AlertDialogTitle>
+            <AlertDialogTitle className="text-rose-600 dark:text-rose-400">Rời khỏi doanh nghiệp {companyToLeave?.name}?</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-700 dark:text-neutral-300">
               Bạn sẽ mất toàn bộ quyền truy cập vào doanh nghiệp này và cần được Quản trị viên mời lại nếu muốn tham gia tiếp.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isLeavingCompany}>Hủy</AlertDialogCancel>
+            <AlertDialogCancel disabled={isLeavingCompany} className="dark:bg-[#28282C] dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-[#323238]">Hủy</AlertDialogCancel>
             <AlertDialogAction 
               onClick={(e) => { e.preventDefault(); handleLeaveCompany(); }} 
               disabled={isLeavingCompany}
@@ -454,7 +462,7 @@ export function WorkspaceListClient({
           onClick={() => !isRenaming && setCompanyToRename(null)}
         >
           <div 
-            className="bg-white dark:bg-[#18181B] border border-slate-200 dark:border-neutral-800 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4"
+            className="bg-white dark:bg-[#1E1E22] border border-slate-200 dark:border-neutral-800 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between">
@@ -482,7 +490,7 @@ export function WorkspaceListClient({
                   value={renamingName}
                   onChange={(e) => setRenamingName(e.target.value)}
                   placeholder="Ví dụ: Tokyolife Miền Nam..."
-                  className="w-full text-sm h-10"
+                  className="w-full text-sm h-10 dark:bg-[#28282C] dark:border-neutral-700 dark:text-white"
                   autoFocus
                   disabled={isRenaming}
                 />

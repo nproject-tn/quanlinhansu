@@ -136,11 +136,11 @@ export function OtpInput({
             onKeyDown={(e) => handleKeyDown(e, index)}
             onPaste={handlePaste}
             onFocus={(e) => e.target.select()}
-            className={`w-11 h-12 sm:w-12 sm:h-13 text-center text-lg sm:text-xl font-bold font-mono rounded-lg sm:rounded-xl border transition-all outline-none bg-white ${
+            className={`w-11 h-12 sm:w-12 sm:h-13 text-center text-lg sm:text-xl font-bold font-mono rounded-lg sm:rounded-xl border transition-all outline-none bg-white dark:bg-[#202024] ${
               isFilled
-                ? "border-slate-900 text-slate-900 bg-slate-50/40 shadow-xs"
-                : "border-slate-200 text-slate-700 hover:border-slate-300"
-            } focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 focus:bg-white`}
+                ? "border-slate-900 text-slate-900 bg-slate-50/40 shadow-xs dark:border-white dark:text-white dark:bg-[#2A2A2E]"
+                : "border-slate-200 text-slate-700 hover:border-slate-300 dark:border-neutral-700 dark:text-neutral-300 dark:hover:border-neutral-500"
+            } focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 focus:bg-white dark:focus:border-white dark:focus:ring-white/15 dark:focus:bg-[#202024]`}
           />
         );
       })}

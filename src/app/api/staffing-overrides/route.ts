@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
+import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/api-auth";
 import { formatDateOnly, parseDateOnly } from "@/lib/utils";
 import { staffingOverrideSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity-logger";
+import { hasPermission } from "@/lib/permissions";
 
 export async function GET(request: Request) {
   const { error, companyId } = await requireAuth(["OWNER"], [
@@ -54,14 +56,20 @@ export async function POST(request: Request) {
   const authCheck = await requireAuth(["OWNER"], { module: "shift_config", action: "EDIT" });
   if (authCheck.error || !authCheck.companyId) return authCheck.error;
 
-  const { companyId, user } = authCheck;
+  const { companyId, user, permissions } = authCheck;
   const body = await request.json();
+
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const canEditPast = user?.role === "OWNER" || user?.role === "ADMIN" || hasPermission(user?.role || "", permissions, "shift_config", "EDIT_PAST");
 
   if (Array.isArray(body)) {
     const operations = [];
     for (const item of body) {
       const parsed = staffingOverrideSchema.safeParse(item);
       if (!parsed.success) continue;
+      // Skip past dates if user cannot edit past
+      if (!canEditPast && parsed.data.date < todayStr) continue;
+
       operations.push(
         prisma.staffingOverride.upsert({
           where: {
@@ -110,6 +118,13 @@ export async function POST(request: Request) {
   const parsed = staffingOverrideSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
+
+  if (!canEditPast && parsed.data.date < todayStr) {
+    return NextResponse.json(
+      { error: "Bạn không có quyền chỉnh sửa định biên ca cho các ngày trong quá khứ." },
+      { status: 403 }
+    );
   }
 
   const override = await prisma.staffingOverride.upsert({

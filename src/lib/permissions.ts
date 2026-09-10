@@ -45,7 +45,7 @@ export function hasPermission(
   role: string,
   permissions: any,
   module: string,
-  action: "VIEW" | "EDIT" | "APPROVE" | "REQUEST" | "EDIT_FREE" | "DELETE" | "VIEW_LIST" | "VIEW_HOURS"
+  action: "VIEW" | "EDIT" | "APPROVE" | "REQUEST" | "EDIT_FREE" | "DELETE" | "VIEW_LIST" | "VIEW_HOURS" | "EDIT_PAST"
 ): boolean {
   if (role === "OWNER") return true;
 
@@ -89,6 +89,7 @@ export function hasPermission(
         if (action === "EDIT_FREE") return perm.editFree === true;
         if (action === "APPROVE") return perm.approve === true;
         if (action === "REQUEST") return perm.edit === true;
+        if (action === "EDIT_PAST") return perm.editPast === true;
         return false;
       }
       
@@ -101,7 +102,15 @@ export function hasPermission(
         return false;
       }
 
-      // Generic logic for store, shift_config, settings, products, revenue, etc.
+      if (module === "shift_config") {
+        if (action === "VIEW") return perm.view === true || perm.edit === true || perm.delete === true;
+        if (action === "EDIT") return perm.edit === true || perm.delete === true;
+        if (action === "DELETE") return perm.delete === true;
+        if (action === "EDIT_PAST") return perm.editPast === true;
+        return false;
+      }
+
+      // Generic logic for store, settings, products, revenue, etc.
       if (action === "VIEW") return perm.view === true || perm.edit === true || perm.delete === true;
       if (action === "EDIT") return perm.edit === true || perm.delete === true;
       if (action === "DELETE") return perm.delete === true;
@@ -113,7 +122,10 @@ export function hasPermission(
 
   // Fallback for default base roles when NO custom permissions have been configured (permissions is null or undefined)
   if (role === "ADMIN") return true;
-  if (role === "SCHEDULER" && (module === "schedule" || module === "shift_config")) return true;
+  if (role === "SCHEDULER" && (module === "schedule" || module === "shift_config")) {
+    if (action === "EDIT_PAST") return false;
+    return true;
+  }
   if (role === "EMPLOYEE" && module === "schedule" && action === "VIEW") return true;
 
   return false;
@@ -151,9 +163,10 @@ export function summarizePermissionsInVietnamese(
   // 1. schedule
   const sch = permissions.schedule;
   if (sch) {
-    if (sch === "APPROVER" || sch.approve) moduleList.push("Lịch xếp ca: Toàn quyền & Duyệt yêu cầu");
-    else if (sch === "EDIT_FREE" || sch.editFree) moduleList.push("Lịch xếp ca: Toàn quyền xếp ca");
-    else if (sch === "EDIT" || sch.edit) moduleList.push("Lịch xếp ca: Chỉnh sửa");
+    const pastSuffix = sch.editPast ? " (gồm lịch sử)" : "";
+    if (sch === "APPROVER" || sch.approve) moduleList.push(`Lịch xếp ca: Toàn quyền & Duyệt yêu cầu${pastSuffix}`);
+    else if (sch === "EDIT_FREE" || sch.editFree) moduleList.push(`Lịch xếp ca: Toàn quyền xếp ca${pastSuffix}`);
+    else if (sch === "EDIT" || sch.edit) moduleList.push(`Lịch xếp ca: Chỉnh sửa${pastSuffix}`);
     else if (sch === "VIEW" || sch.view) moduleList.push("Lịch xếp ca: Chỉ xem");
   }
 
@@ -196,8 +209,9 @@ export function summarizePermissionsInVietnamese(
   // 6. shift_config
   const sc = permissions.shift_config;
   if (sc) {
-    if (sc.delete) moduleList.push("Cấu hình ca: Xem, Sửa & Xoá ca");
-    else if (sc.edit || sc === "EDIT") moduleList.push("Cấu hình ca: Xem & Sửa ca");
+    const pastSuffix = sc.editPast ? " (gồm lịch sử)" : "";
+    if (sc.delete) moduleList.push(`Cấu hình ca: Xem, Sửa & Xoá ca${pastSuffix}`);
+    else if (sc.edit || sc === "EDIT") moduleList.push(`Cấu hình ca: Xem & Sửa ca${pastSuffix}`);
     else if (sc.view || sc === "VIEW") moduleList.push("Cấu hình ca: Chỉ xem");
   }
 

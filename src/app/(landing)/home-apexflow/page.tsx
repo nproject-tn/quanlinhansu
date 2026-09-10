@@ -14,7 +14,7 @@ export default function LandingPage() {
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-4">
         <div className="mx-auto max-w-7xl">
-          <div className="glass-control flex items-center justify-between rounded-full px-6 py-3 border border-white/60 bg-white/60 shadow-sm backdrop-blur-md supports-[backdrop-filter]:bg-white/40">
+          <div className="flex items-center justify-between rounded-full px-6 py-3 border border-slate-200/80 bg-white/80 shadow-md backdrop-blur-md supports-[backdrop-filter]:bg-white/70">
             <div className="flex items-center gap-2">
               <img src="/logo-shape.svg" alt="ApexFlow" className="h-7 w-7 object-contain grayscale" />
               <span className="text-xl font-bold text-slate-900 tracking-tight">ApexFlow</span>

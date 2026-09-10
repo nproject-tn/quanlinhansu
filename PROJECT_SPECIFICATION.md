@@ -72,6 +72,16 @@
 * **Toast Thông báo**: Sử dụng `useNotifications` (hỗ trợ `tone: "success" | "error" | "info"`).
 * **Hộp thoại Xác nhận**: Sử dụng `useConfirmDialog` (hỗ trợ `title`, `description`, `confirmLabel`, `tone: "destructive"`).
 * **Dữ liệu Thời gian thực**: Tích hợp **SWR** (`useSWR`) tự động fetch, cache và mutate tức thì khi thao tác dữ liệu.
+* **DatePicker (Bộ chọn Ngày - Tháng - Năm chuẩn)**:
+  * Nút tiêu đề gộp Tháng và Năm thành một cụm duy nhất (`Tháng MM, yyyy` kèm icon `ChevronDown`).
+  * Khi click vào cụm Tháng - Năm sẽ chuyển mượt mà sang bảng lưới chọn 12 tháng của năm hiện tại; khi click tiếp vào Năm sẽ bung bảng chọn Năm.
+  * Khi ở chế độ chọn Tháng / Năm, nút `<` bên trái đóng vai trò là nút **Quay lại (Back)** về màn hình chọn ngày, đồng thời ẩn nút `>` bên phải để giao diện trực quan và cân đối.
+* **MonthPicker (Bộ chọn Tháng - Năm chuẩn trên toàn hệ thống)**:
+  * Ở màn hình chọn Tháng (cấp 1): Tiêu đề Năm ở giữa (`viewYear ⌄`) là nút bấm tương tác, click vào sẽ bung bảng lưới chọn Năm (cấp 2).
+  * Ở màn hình chọn Năm (cấp 2): Nút mũi tên `<` bên trái trở thành nút **Quay lại (Back)** về bảng chọn tháng, đồng thời ẩn nút `>` bên phải để giao diện tinh gọn. Khi người dùng click chọn một năm mới, hệ thống tự động gán năm đó và trở về bảng chọn tháng.
+* **DayNoteColorPicker (Bảng chỉnh màu ghi chú)**:
+  * Thiết kế theo phong cách Apple HIG hiện đại, hỗ trợ chuẩn xác cả hai chế độ Light Mode (nền trắng `bg-white`, tab `bg-slate-100`, viền `slate-200`, chữ `slate-900`) và Dark Mode (`bg-[#1E1E1E]`, tab `bg-[#2C2C2E]`, viền `#3A3A3C`).
+  * Các ô chọn màu tròn (No-color, Saved colors, Thêm màu) được thiết kế kích thước tối ưu `26px` với khoảng đệm thở (`py-2 px-1.5 min-h-[44px]`), đảm bảo vòng ring viền nổi bật (`ring-2 ring-offset-2`) khi chọn màu hiển thị trọn vẹn 100%, không bị cắt lẹm viền.
 
 ### 1.4. Bố cục Toàn màn hình & Tối ưu Màn hình lớn (Fluid Full-Width Responsive Canvas)
 * **Khung chứa Động (Fluid Main Content Container)**:
@@ -150,7 +160,9 @@
 * **Giao diện Đăng nhập Floating Rounded Showcase Split UI (`/dang-nhap`)**:
   * Thiết kế hiện đại chuẩn phong cách Magnific/AI Canvas:
     * **Cột trái (50% Desktop - Floating Dark Showcase Card)**: Khung canvas nền đen sâu lơ lửng được bo góc tinh tế (`rounded-lg lg:rounded-xl`) với viền đệm cách điệu thanh mảnh (`p-1.5 sm:p-2 lg:p-2`), bóng mờ `shadow-md`, chứa hệ thống 3D Feature Cards và thanh điều hướng tab tương tác.
-    * **Cột phải (50% Desktop - Clean Minimalist Auth)**: Nền trắng phẳng tối giản, logo ApexFlow căn giữa, tiêu đề gọn gàng, hỗ trợ sẵn sàng cho Dark Mode trong tương lai.
+    * **Cột phải (50% Desktop - Clean Minimalist Auth)**: Hỗ trợ hoàn hảo cả 2 chế độ:
+      * **Light Mode**: Nền trắng phẳng tối giản (`bg-white`), logo ApexFlow căn giữa, nút và ô nhập sắc nét.
+      * **Dark Mode**: Nền xám than cao cấp (`dark:bg-[#18181B]`), thẻ tài khoản `dark:bg-[#202024]`, chữ trắng nổi bật (`dark:text-white`), viền mảnh tinh tế (`dark:border-neutral-800`), đồng bộ liền mạch 100% với cột trái showcase.
   * **Cơ chế Điều hướng Đăng nhập & Chuyển đổi Tài khoản Linh hoạt (Account Switching & Session Continuity)**:
     * Người dùng từ Landing Page (`/home-apexflow`) khi bấm *Đăng nhập* hoặc truy cập `/dang-nhap` sẽ **luôn luôn được hiển thị trang đăng nhập** mà không bị hệ thống tự động cưỡng chế chuyển hướng thẳng vào Workspaces.
     * **Khung Thẻ Tài khoản Đang Đăng nhập (Active Session Card)**:
@@ -174,10 +186,14 @@
        * Cho phép người dùng nhập Họ và Tên chính thức (lưu qua API `/api/users/update-profile`) trước khi chuyển tiếp vào Không gian làm việc.
        * Từ lần đăng nhập thứ 2 trở đi, hệ thống tự động nhận diện và vào thẳng Không gian làm việc ngay sau khi xác thực OTP.
 * **Trang chọn Không gian làm việc (`/workspaces`)**:
-  * Thiết kế tối giản theo hệ màu Trắng / Đen / Slate chuẩn mực, loại bỏ các gam màu tím/indigo rực rỡ ở chế độ sáng để đảm bảo tính đồng bộ và chuyên nghiệp cao cấp.
+  * Thiết kế tối giản theo hệ màu Trắng / Đen / Slate chuẩn mực.
+  * **Nút Chuyển đổi Giao diện (ThemeToggle)**: Đặt ngay bên trái dòng *"Xin chào, [Tên người dùng]"* trên thanh Header, cho phép người dùng chuyển nhanh giữa Sáng (Light), Tối (Dark), và Theo hệ thống (System).
+  * **Hệ màu Chế độ Tối (Dark Mode) chuẩn xác**: Sử dụng nền than ấm dịu mắt (`#141416`), Header kính mờ (`#18181C`), thẻ doanh nghiệp (`#1E1E22`), tiêu đề chữ trắng sắc nét (`text-white`), thông tin phụ trợ rõ ràng (`text-neutral-400`), khắc phục hoàn toàn hiện tượng nhòe/chìm màu.
   * Hiển thị danh sách tất cả các công ty/chuỗi cửa hàng mà tài khoản đang tham gia.
   * Tùy chọn tạo công ty mới hoặc tham gia bằng mã mời (Invite Code).
   * Chuyển đổi nhanh giữa các Workspace mà không cần đăng nhập lại.
+* **Trang Giới thiệu Sản phẩm (`/home-apexflow`)**:
+  * **Khóa Chế độ Sáng Tuyệt Đối (Pure Light Mode Lock)**: Trang landing page được cấu hình luôn hiển thị ở Light Mode nguyên bản (thanh điều hướng trắng trong suốt mờ ảo, chữ đen sắc nét, hiệu ứng gradient sáng), không bị ảnh hưởng bởi cài đặt dark mode của hệ điều hành hay dark mode trong workspace.
   * Đường dẫn ứng dụng gắn liền với slug: `/app/[companyId]/...` (ví dụ: `/app/tokyolife-hcm/...`).
   * **Quản lý Logo & Phục vụ Tệp tải lên Động (`Dynamic Uploads & Resilient Logo Display`)**:
     * Hỗ trợ tải lên logo doanh nghiệp trực tiếp từ thẻ Workspace hoặc trang Cài đặt. Tự động nén và tối ưu hóa ảnh bằng thư viện `sharp` (chuyển sang WebP chất lượng cao, crop vuông 256x256).
@@ -192,7 +208,11 @@
   * **Mobile Drawer**: Khi mở trên điện thoại (`isMobileOpen`), Sidebar hiển thị dưới dạng ngăn kéo trượt (Slide-out Drawer `max-md:z-[90]`) với nền kính mờ `backdrop-blur-xl` (`z-[80]`), tự động hiển thị đầy đủ 100% logo thương hiệu, tên mục điều hướng, thông tin tài khoản người dùng, và thanh công cụ Đăng xuất / Đổi giao diện Sáng - Tối / Chuyển doanh nghiệp ở dạng hàng ngang tinh tế.
   * **Chuẩn hóa phân tầng z-index toàn hệ thống**: Chuông thông báo (`z-40`), Sidebar Desktop (`z-30`), Table sticky header/column (`z-10` đến `z-30`), Toàn bộ Modal/Dialog/Sheet backdrop (`z-[100]`), Hộp thoại xác nhận nguy hiểm (`z-[120]`). Khi bất kỳ Modal nào mở ra, toàn bộ Sidebar Desktop và Chuông thông báo đều tự động chìm xuống sau lớp kính mờ làm mờ tối màu chuẩn xác.
 * **Phân quyền RBAC & Quản lý Quyền hạn Động (Dynamic Permissions & Role Inheritance)**:
-  * Phân quyền theo ma trận: `Module` (`schedule`, `employees`, `stores`, `products`, `shift_config`, `settings`) × `Action` (`VIEW`, `EDIT`, `DELETE`, `APPROVE`, `EDIT_FREE`, `VIEW_LIST`, `VIEW_HOURS`).
+  * Phân quyền theo ma trận: `Module` (`schedule`, `employees`, `stores`, `products`, `shift_config`, `settings`, `revenue`, `logs`) × `Action` (`VIEW`, `EDIT`, `DELETE`, `APPROVE`, `EDIT_FREE`, `VIEW_LIST`, `VIEW_HOURS`, `EDIT_PAST`).
+  * **Quyền "Chỉnh sửa lịch sử ca làm" (`EDIT_PAST`)**:
+    * Được trang bị độc lập trên 2 phân hệ: **Cấu hình ca** (`shift_config.EDIT_PAST`) và **Lịch xếp ca** (`schedule.EDIT_PAST`).
+    * **Chặn sửa quá khứ**: Người dùng chỉ có quyền sửa thông thường (`EDIT`) nhưng không có `EDIT_PAST` sẽ bị khóa read-only tất cả các ngày trước ngày hiện tại (`date < today`). Chỉ được phép thêm/sửa/xoá/gán ca từ ngày hôm nay trở về tương lai (`date >= today`).
+    * **Toàn quyền quá khứ**: Chủ sở hữu (`OWNER`), Quản trị viên (`ADMIN`) hoặc tài khoản được cấp quyền `EDIT_PAST` được phép chỉnh sửa lịch sử ca làm và cấu hình ca của các ngày trong quá khứ.
   * **Kế thừa quyền linh hoạt**: Hợp nhất quyền hạn từ vai trò tùy biến (`CompanyRole`) và quyền ghi đè theo từng thành viên (`CompanyMember.permissions`).
   * **Kiểm soát hiển thị Sidebar & Dashboard tuyệt đối**: Mỗi tab điều hướng và các nút liên kết trực tiếp trên trang Tổng quan (`/app/[companyId]`) (bao gồm nút *Xem lịch xếp ca*) được kiểm tra nghiêm ngặt thông qua hàm `hasPermission`. Khi người dùng không có quyền xem lịch ca, nút điều hướng sẽ tự động ẩn và hiển thị thông báo hướng dẫn liên hệ quản trị viên, triệt tiêu hoàn toàn lỗi 404.
   * `requireAuth` helper kiểm tra quyền chặt chẽ trên từng API endpoint, cho phép nhân viên được phân quyền hợp lệ thao tác đầy đủ mà không bị lỗi 403 Forbidden.
@@ -312,6 +332,13 @@
     * **Chặn tạo 2 ca có giờ làm giống hệt nhau hoặc lọt lòng trong nhau trong cùng một bảng cấu hình**: Hệ thống tuyệt đối không cho phép tạo hoặc chỉnh sửa 2 ca làm việc có cùng giờ bắt đầu/kết thúc, hoặc ca này nằm lọt lòng hoàn toàn / bao trọn ca kia trong cùng một bảng cấu hình (ví dụ: Ca 1 từ `08:00 - 11:00` thì Ca 2 KHÔNG THỂ là `09:00 - 11:00`, `08:00 - 10:00`, `08:30 - 10:30` hay `07:00 - 12:00`). Áp dụng nghiêm ngặt ở cả giao diện `shift-config-client.tsx` và API `POST/PUT /api/shift-templates`.
     * **Bảo lưu logic giao nhau giữa các ca (Overlapping Shifts)**: Các ca làm việc vẫn được phép giao thoa/gối đầu nhau 1 tiếng hoặc nhiều tiếng (ví dụ: Ca 1 từ `08:00 - 11:00` và Ca 2 từ `09:00 - 12:00` giao nhau 2 tiếng) để phục vụ nhu cầu bàn giao ca hoặc tăng cường nhân sự giờ cao điểm.
     * **Bộ sinh khung giờ mặc định tuần tự 24/7**: Khi tạo ca làm việc mới, hệ thống tự động sinh các khung giờ kế tiếp nhau chia đều vòng tròn 24 tiếng mà không bị lặp lại khung giờ sáng.
+  * **Cơ Chế Xoá An Toàn & Triệt Tiêu Ca Vô Hình (Safe Cascade Cleanup & Ghost Shift Prevention)**:
+    * **Cảnh báo khi có nhân viên đã xếp ca**: Khi xoá ca làm việc mẫu (`DELETE /api/shift-templates/[id]`) hoặc xoá bảng cấu hình ca (`DELETE /api/shift-config-periods/[id]`) mà các ca đó đã có nhân viên được xếp trong Lịch Xếp Ca (`ShiftAssignment`), hệ thống sẽ **không tự ý xoá ngầm hay ẩn mềm (soft-delete)**.
+    * **Phản hồi 409 Conflict & Hộp thoại Xác nhận Huỷ Ca**: Backend đếm chính xác số lượng ca làm việc bị ảnh hưởng và trả về mã lỗi `409 Conflict` kèm thông điệp cảnh báo rõ ràng: *"Đã có X ca được xếp trong lịch làm việc. Nếu xoá, toàn bộ các ca xếp này sẽ bị xoá vĩnh viễn khỏi lịch xếp ca."*
+    * **Xoá triệt để (Hard Delete Cascade)**: Khi người dùng đồng ý xác nhận, hệ thống xoá sạch toàn bộ các bản ghi phân công (`ShiftAssignment`), định biên (`StaffingRule`), ngoại lệ (`StaffingOverride`) và xoá đứt điểm ca làm mẫu/bảng cấu hình khỏi cơ sở dữ liệu (`prisma.shiftTemplate.delete`).
+    * **Thu hẹp khoảng ngày bảng cấu hình (Period Date Range Shrinking)**: Khi người dùng chỉnh sửa ngày bắt đầu hoặc kết thúc của bảng cấu hình ca khiến các ca đã xếp rơi ra ngoài phạm vi mới (`PUT /api/shift-config-periods/[id]`), hệ thống kiểm tra và cảnh báo số lượng ca bị mồ côi (`orphanedAssignmentsCount`) kèm danh sách ngày cụ thể bị cắt bỏ. Chỉ khi người dùng xác nhận đồng ý (`confirmDeleteAssignments: true`), hệ thống mới dọn dẹp các ca ngoài phạm vi và cập nhật khoảng ngày mới.
+    * **Kiểm soát quyền sửa quá khứ trên Bảng cấu hình ca**: Khi người dùng không có quyền `EDIT_PAST` (`Chỉnh sửa lịch sử ca làm`) thực hiện chỉnh sửa khoảng ngày chạm vào các ngày trước ngày hiện tại (`< today`) và bấm **"Lưu thay đổi"**, bảng chỉnh sửa khoảng ngày lập tức chuyển đổi thành bảng thông báo lỗi chuyên biệt: *"Lưu không thành công vì bạn không có quyền chỉnh sửa bảng cấu hình ca trong quá khứ."* kèm nút **"Đóng"** duy nhất để người dùng đóng bảng.
+    * **Triệt tiêu hoàn toàn lỗi "ca vô hình"**: Không còn tình trạng ca bị gắn cờ `isActive: false` nhưng dữ liệu phân công cũ vẫn trỏ tới ca đó gây lệch số giờ làm thực tế và xung đột giờ với các ca mới.
 * **Quy tắc Định biên & Ngoại lệ**:
   * `StaffingRule`: Số lượng nhân sự tối thiểu của từng ca theo các thứ trong tuần (Thứ 2 -> Chủ Nhật).
   * `StaffingOverride`: Tăng cường định biên cho các dịp khuyến mãi Black Friday, Tết, Khai trương... hỗ trợ áp dụng nhanh cho toàn bộ đợt hoặc từng ngày trong đợt.

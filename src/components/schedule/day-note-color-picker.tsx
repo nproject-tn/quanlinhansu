@@ -456,23 +456,23 @@ export function DayNoteColorPicker({
               left: `${popoverCoords.left}px`,
               zIndex: 99999,
             }}
-            className="w-[320px] max-w-[calc(100vw-24px)] rounded-[20px] border border-[#3A3A3C] bg-[#1E1E1E] p-3 text-white shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 select-none"
+            className="w-[320px] max-w-[calc(100vw-24px)] rounded-[20px] border border-slate-200 bg-white dark:border-[#3A3A3C] dark:bg-[#1E1E1E] p-3 text-slate-900 dark:text-white shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 select-none"
           >
             {/* Header: Eyedropper, Title, Close Button */}
-            <div className="flex items-center justify-between pb-2 border-b border-neutral-800/80">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200/80 dark:border-neutral-800/80">
               <button
                 type="button"
                 onClick={handleEyedropper}
-                className="flex h-7 w-7 items-center justify-center rounded-full text-neutral-300 hover:bg-neutral-800 hover:text-white transition-colors"
+                className="flex h-7 w-7 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-white transition-colors"
                 title="Lấy màu từ màn hình"
               >
                 <Pipette className="h-4 w-4" />
               </button>
-              <h3 className="text-sm font-semibold text-neutral-100 tracking-wide">Màu</h3>
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-neutral-100 tracking-wide">Màu</h3>
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="flex h-7 w-7 items-center justify-center rounded-full text-neutral-400 hover:bg-neutral-800 hover:text-white transition-colors"
+                className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white transition-colors"
                 title="Đóng"
               >
                 <X className="h-4 w-4" />
@@ -480,14 +480,14 @@ export function DayNoteColorPicker({
             </div>
 
             {/* Segmented Control Tabs (Lưới / Quang phổ) */}
-            <div className="mt-2.5 flex items-center rounded-xl bg-[#2C2C2E] p-1 border border-neutral-800">
+            <div className="mt-2.5 flex items-center rounded-xl bg-slate-100 p-1 border border-slate-200/80 dark:bg-[#2C2C2E] dark:border-neutral-800">
               <button
                 type="button"
                 onClick={() => setActiveTab("grid")}
                 className={`flex-1 rounded-lg py-1 text-xs font-semibold transition-all ${
                   activeTab === "grid"
-                    ? "bg-[#636366] text-white shadow-sm"
-                    : "text-neutral-400 hover:text-neutral-200"
+                    ? "bg-white text-slate-900 shadow-sm dark:bg-[#636366] dark:text-white"
+                    : "text-slate-500 hover:text-slate-900 dark:text-neutral-400 dark:hover:text-neutral-200"
                 }`}
               >
                 Lưới
@@ -497,8 +497,8 @@ export function DayNoteColorPicker({
                 onClick={() => setActiveTab("spectrum")}
                 className={`flex-1 rounded-lg py-1 text-xs font-semibold transition-all ${
                   activeTab === "spectrum"
-                    ? "bg-[#636366] text-white shadow-sm"
-                    : "text-neutral-400 hover:text-neutral-200"
+                    ? "bg-white text-slate-900 shadow-sm dark:bg-[#636366] dark:text-white"
+                    : "text-slate-500 hover:text-slate-900 dark:text-neutral-400 dark:hover:text-neutral-200"
                 }`}
               >
                 Quang phổ
@@ -507,7 +507,7 @@ export function DayNoteColorPicker({
 
             {/* Tab 1: Lưới (Grid Palette - Image 3) */}
             {activeTab === "grid" && (
-              <div className="mt-2.5 rounded-xl border border-neutral-800 overflow-hidden bg-black/40 p-1">
+              <div className="mt-2.5 rounded-xl border border-slate-200 dark:border-neutral-800 overflow-hidden bg-slate-50 dark:bg-black/40 p-1">
                 <div className="grid grid-cols-12 gap-[1.5px]">
                   {GRID_PALETTE.map((row, rIdx) =>
                     row.map((hex, cIdx) => {
@@ -539,7 +539,7 @@ export function DayNoteColorPicker({
 
             {/* Tab 2: Quang phổ (Spectrum Canvas - Image 2) */}
             {activeTab === "spectrum" && (
-              <div className="relative mt-2.5 rounded-xl border border-neutral-800 overflow-hidden bg-black/40">
+              <div className="relative mt-2.5 rounded-xl border border-slate-200 dark:border-neutral-800 overflow-hidden bg-slate-50 dark:bg-black/40">
                 <canvas
                   ref={(el) => {
                     canvasRef.current = el;
@@ -572,15 +572,15 @@ export function DayNoteColorPicker({
             )}
 
             {/* Bottom Bar (Image 2 & 3): Large Selected Color Preview, No-Color Option, Saved Colors + Add Button */}
-            <div className="mt-3 flex items-center gap-2.5 pt-2 border-t border-neutral-800/80">
+            <div className="mt-3 flex items-center gap-2.5 pt-2 border-t border-slate-200/80 dark:border-neutral-800/80">
               {/* Large Current Color Preview Box */}
               <div
-                className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-neutral-700 shadow-inner overflow-hidden"
+                className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-slate-300 dark:border-neutral-700 shadow-inner overflow-hidden"
                 style={{ backgroundColor: isDraftNone ? "transparent" : draftSwatch }}
                 title={isDraftNone ? "Không màu" : `Màu đang chọn: ${currentDraftObj.label}`}
               >
                 {isDraftNone && (
-                  <div className="relative h-full w-full bg-neutral-800 flex items-center justify-center">
+                  <div className="relative h-full w-full bg-slate-100 dark:bg-neutral-800 flex items-center justify-center">
                     <div className="absolute w-[140%] h-[2px] bg-red-500 -rotate-45" />
                     <span className="sr-only">Không màu</span>
                   </div>
@@ -588,19 +588,19 @@ export function DayNoteColorPicker({
               </div>
 
               {/* No Color & Saved Colors container */}
-              <div className="flex-1 flex flex-wrap items-center gap-1.5 overflow-x-auto py-1 max-h-[72px]">
+              <div className="flex-1 flex flex-wrap items-center gap-2 py-2 px-1.5 min-h-[44px] max-h-[76px] overflow-y-auto hover-scrollbars">
                 {/* Quick No-Color Button */}
                 <button
                   type="button"
                   onClick={() => setDraftColor("none")}
-                  className={`relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition-all ${
+                  className={`relative flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full border transition-all ${
                     isDraftNone
-                      ? "ring-2 ring-blue-500 ring-offset-2 ring-offset-[#1E1E1E] border-white"
-                      : "border-neutral-700 hover:border-neutral-500 bg-neutral-800"
+                      ? "ring-2 ring-blue-500 ring-offset-2 ring-offset-white dark:ring-offset-[#1E1E1E] border-slate-400 dark:border-white"
+                      : "border-slate-300 hover:border-slate-400 bg-slate-100 dark:border-neutral-700 dark:hover:border-neutral-500 dark:bg-neutral-800"
                   }`}
                   title="Không màu (trong suốt)"
                 >
-                  <div className="relative h-5 w-5 rounded-full bg-neutral-900 overflow-hidden flex items-center justify-center border border-neutral-700">
+                  <div className="relative h-4 w-4 rounded-full bg-white dark:bg-neutral-900 overflow-hidden flex items-center justify-center border border-slate-300 dark:border-neutral-700">
                     <div className="absolute w-[140%] h-[1.5px] bg-red-500 -rotate-45" />
                   </div>
                 </button>
@@ -619,10 +619,10 @@ export function DayNoteColorPicker({
                       <button
                         type="button"
                         onClick={() => setDraftColor(colorHex)}
-                        className={`h-8 w-8 shrink-0 rounded-full border transition-transform duration-50 ease-out hover:scale-110 active:scale-95 transform-gpu ${
+                        className={`h-[26px] w-[26px] shrink-0 rounded-full border transition-transform duration-50 ease-out hover:scale-110 active:scale-95 transform-gpu ${
                           isSelected
-                            ? "ring-2 ring-emerald-400 ring-offset-2 ring-offset-[#1E1E1E] border-white"
-                            : "border-neutral-700"
+                            ? "ring-2 ring-emerald-500 ring-offset-2 ring-offset-white dark:ring-offset-[#1E1E1E] border-white shadow-sm"
+                            : "border-slate-300 dark:border-neutral-700"
                         }`}
                         style={{ backgroundColor: colorHex }}
                         title={colorHex}
@@ -631,7 +631,7 @@ export function DayNoteColorPicker({
                       <button
                         type="button"
                         onClick={(e) => handleRemoveSavedColor(colorHex, e)}
-                        className="absolute -top-1 -right-1 hidden h-3.5 w-3.5 items-center justify-center rounded-full bg-neutral-900 text-neutral-400 hover:text-white group-hover:flex shadow-xs text-[9px]"
+                        className="absolute -top-1 -right-1 hidden h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-200 text-slate-600 hover:bg-slate-300 hover:text-slate-900 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:text-white group-hover:flex shadow-xs text-[9px]"
                         title="Xóa màu đã lưu"
                       >
                         ×
@@ -645,20 +645,20 @@ export function DayNoteColorPicker({
                   type="button"
                   onClick={() => handleSaveColor(currentDraftObj.swatch)}
                   disabled={isDraftNone}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-neutral-700 bg-neutral-800 text-neutral-300 hover:bg-neutral-700 hover:text-white transition-all disabled:opacity-40 disabled:hover:bg-neutral-800 disabled:cursor-not-allowed shadow-xs"
+                  className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full border border-slate-300 bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:hover:text-white transition-all disabled:opacity-40 disabled:hover:bg-slate-100 dark:disabled:hover:bg-neutral-800 disabled:cursor-not-allowed shadow-xs"
                   title={isDraftNone ? "Chọn một màu để lưu vào danh sách yêu thích" : "Thêm vào danh sách màu yêu thích"}
                 >
-                  <Plus className="h-4 w-4" />
+                  <Plus className="h-3.5 w-3.5" />
                 </button>
               </div>
             </div>
 
             {/* Footer Action Bar: Hủy & Lưu */}
-            <div className="mt-3 pt-2.5 border-t border-neutral-800/80 flex items-center justify-between gap-2">
+            <div className="mt-3 pt-2.5 border-t border-slate-200/80 dark:border-neutral-800/80 flex items-center justify-between gap-2">
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="flex-1 py-1.5 px-3 rounded-xl border border-neutral-700/80 bg-neutral-800/80 hover:bg-neutral-700/80 active:bg-neutral-850 text-neutral-300 hover:text-white text-xs font-medium transition-colors text-center"
+                className="flex-1 py-1.5 px-3 rounded-xl border border-slate-300 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 hover:text-slate-900 dark:border-neutral-700/80 dark:bg-neutral-800/80 dark:hover:bg-neutral-700/80 dark:text-neutral-300 dark:hover:text-white text-xs font-semibold transition-colors text-center"
               >
                 Hủy
               </button>

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Building2, Plus, ArrowRight, ShieldCheck, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SignOutButton } from "@/components/layout/sign-out-button";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { WorkspaceListClient } from "./workspace-list-client";
 
 export default async function WorkspacesPage() {
@@ -84,23 +85,25 @@ export default async function WorkspacesPage() {
   const assignedCompanies = memberships.filter((m) => m.role !== "OWNER");
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#121212] relative overflow-hidden">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#141416] relative overflow-hidden transition-colors">
       <div className="absolute top-0 -left-64 h-[500px] w-[500px] rounded-full bg-slate-300/20 dark:bg-slate-700/10 blur-[120px] mix-blend-multiply pointer-events-none"></div>
       <div className="absolute bottom-0 -right-64 h-[500px] w-[500px] rounded-full bg-slate-200/20 dark:bg-slate-800/10 blur-[120px] mix-blend-multiply pointer-events-none"></div>
       
-      <header className="bg-white/80 dark:bg-[#181818]/80 backdrop-blur-md border-b border-slate-200 dark:border-neutral-800 sticky top-0 z-50">
+      <header className="bg-white/85 dark:bg-[#18181C]/85 backdrop-blur-md border-b border-slate-200/80 dark:border-neutral-800 sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <img src="/logo-shape.svg" alt="Apexflow HR" className="h-8 w-auto object-contain grayscale dark:invert" />
             <span className="font-bold text-slate-900 dark:text-white tracking-tight text-lg hidden sm:block">ApexFlow</span>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="text-sm font-medium text-slate-700 dark:text-neutral-300 hidden sm:block">
+          <div className="flex items-center gap-3 sm:gap-4">
+            {/* Theme Toggle placed right to the left of "Xin chào, ..." */}
+            <ThemeToggle />
+            <div className="text-sm font-medium text-slate-700 dark:text-neutral-200 hidden sm:block">
               Xin chào, {session.user.name}
             </div>
             {session.user.isSuperAdmin && (
               <Link href="/admin">
-                <Button variant="outline" size="sm" className="gap-2 dark:bg-[#242428] dark:border-neutral-700 dark:text-neutral-200">
+                <Button variant="outline" size="sm" className="gap-2 dark:bg-[#202024] dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-[#2A2A2E]">
                   <ShieldCheck className="h-4 w-4" />
                   Admin Panel
                 </Button>

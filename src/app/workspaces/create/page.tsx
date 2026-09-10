@@ -29,16 +29,16 @@ export default function CreateWorkspacePage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
-      <div className="absolute top-0 -left-64 h-[500px] w-[500px] rounded-full bg-slate-300/20 blur-[120px] mix-blend-multiply pointer-events-none"></div>
-      <div className="absolute bottom-0 -right-64 h-[500px] w-[500px] rounded-full bg-slate-200/20 blur-[120px] mix-blend-multiply pointer-events-none"></div>
+    <div className="min-h-screen bg-slate-50 dark:bg-[#141416] flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden transition-colors">
+      <div className="absolute top-0 -left-64 h-[500px] w-[500px] rounded-full bg-slate-300/20 dark:bg-slate-700/10 blur-[120px] mix-blend-multiply pointer-events-none"></div>
+      <div className="absolute bottom-0 -right-64 h-[500px] w-[500px] rounded-full bg-slate-200/20 dark:bg-slate-800/10 blur-[120px] mix-blend-multiply pointer-events-none"></div>
       
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
-        <Link href="/workspaces" className="inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-700 mb-6 group">
+        <Link href="/workspaces" className="inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-700 dark:text-neutral-400 dark:hover:text-white mb-6 group transition-colors">
           <ArrowLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
           Quay lại danh sách
         </Link>
-        <div className="bg-white py-8 px-4 shadow-xl shadow-slate-200/40 sm:rounded-2xl sm:px-10 border border-slate-100">
+        <div className="bg-white dark:bg-[#1E1E22] py-8 px-4 shadow-xl shadow-slate-200/40 dark:shadow-none sm:rounded-2xl sm:px-10 border border-slate-100 dark:border-neutral-800">
           <div className="text-center mb-8">
             <div className="mx-auto h-12 w-12 rounded-2xl bg-slate-100 dark:bg-neutral-800 flex items-center justify-center mb-4 border border-slate-200/80 dark:border-neutral-700">
               <Building2 className="h-6 w-6 text-slate-900 dark:text-white" />

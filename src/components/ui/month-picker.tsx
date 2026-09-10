@@ -9,7 +9,7 @@ import {
   type ButtonHTMLAttributes,
 } from "react";
 import { createPortal } from "react-dom";
-import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const MONTH_OPTIONS = Array.from({ length: 12 }, (_, index) => ({
@@ -71,7 +71,9 @@ export function MonthPicker({
   const selectedYear = getYearFromMonth(value);
   const selectedMonth = getMonthPart(value);
   const [open, setOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"months" | "years">("months");
   const [viewYear, setViewYear] = useState(selectedYear);
+  const [yearPageBase, setYearPageBase] = useState(() => Math.floor(Number(selectedYear) / 12) * 12);
   const [panelPosition, setPanelPosition] = useState<PanelPosition>({
     left: 0,
     top: 0,
@@ -81,6 +83,17 @@ export function MonthPicker({
   const shellRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      setViewMode("months");
+    }
+  }, [open]);
+
+  useEffect(() => {
+    const yr = Number(viewYear) || new Date().getFullYear();
+    setYearPageBase(Math.floor(yr / 12) * 12);
+  }, [viewYear]);
 
   const label = useMemo(
     () => `tháng ${Number(selectedMonth)} năm ${selectedYear}`,
@@ -124,6 +137,7 @@ export function MonthPicker({
     const current = getCurrentMonthValue();
     onChange(current);
     setViewYear(getYearFromMonth(current));
+    setViewMode("months");
     setOpen(false);
   }
 
@@ -164,7 +178,7 @@ export function MonthPicker({
     });
 
     return () => window.cancelAnimationFrame(frameId);
-  }, [open, viewYear, value]);
+  }, [open, viewYear, viewMode, value]);
 
   return (
     <div ref={shellRef} className="relative">
@@ -204,54 +218,124 @@ export function MonthPicker({
                 className="hover-scrollbars relative z-10 overflow-y-auto"
                 style={{ maxHeight: panelPosition.maxHeight }}
               >
+                {/* Header: Chevrons + Year */}
                 <div className="mb-4 flex items-center justify-between gap-3">
-                  <MonthButton
-                    onClick={() => setViewYear((current) => String(Number(current) - 1))}
-                    aria-label="Năm trước"
-                  >
-                    <ChevronLeft className="h-4 w-4 dark:text-neutral-300" />
-                  </MonthButton>
-                  <div className="rounded-xl bg-white/65 px-4 py-2 text-sm font-semibold text-slate-800 dark:bg-neutral-800/80 dark:text-neutral-100">
-                    {viewYear}
+                  {viewMode === "months" ? (
+                    <MonthButton
+                      onClick={() => setViewYear((current) => String(Number(current) - 1))}
+                      aria-label="Năm trước"
+                      title="Năm trước"
+                    >
+                      <ChevronLeft className="h-4 w-4 dark:text-neutral-300" />
+                    </MonthButton>
+                  ) : (
+                    <MonthButton
+                      onClick={() => setViewMode("months")}
+                      aria-label="Quay lại chọn tháng"
+                      title="Quay lại chọn tháng"
+                    >
+                      <ChevronLeft className="h-4 w-4 dark:text-neutral-300" />
+                    </MonthButton>
+                  )}
+
+                  {/* Header Center Title */}
+                  {viewMode === "months" ? (
+                    <button
+                      type="button"
+                      onClick={() => setViewMode("years")}
+                      className="group flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-bold text-slate-800 transition-colors duration-75 hover:bg-slate-100 dark:text-neutral-100 dark:hover:bg-neutral-800 cursor-pointer"
+                      title="Bấm để chọn năm khác"
+                    >
+                      <span>{viewYear}</span>
+                      <ChevronDown className="h-3.5 w-3.5 text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-transform duration-75" />
+                    </button>
+                  ) : (
+                    <div className="text-sm font-bold text-slate-800 dark:text-neutral-100 select-none">
+                      {yearPageBase} – {yearPageBase + 11}
+                    </div>
+                  )}
+
+                  {viewMode === "months" ? (
+                    <MonthButton
+                      onClick={() => setViewYear((current) => String(Number(current) + 1))}
+                      aria-label="Năm sau"
+                      title="Năm sau"
+                    >
+                      <ChevronRight className="h-4 w-4 dark:text-neutral-300" />
+                    </MonthButton>
+                  ) : (
+                    <div className="h-9 w-9 shrink-0" aria-hidden="true" />
+                  )}
+                </div>
+
+                {/* Body: Months or Years Grid */}
+                {viewMode === "months" ? (
+                  <div className="grid grid-cols-4 gap-2">
+                    {MONTH_OPTIONS.map((month) => {
+                      const isActive = month.value === selectedMonth && viewYear === selectedYear;
+
+                      return (
+                        <button
+                          key={month.value}
+                          type="button"
+                          onClick={() => selectMonth(viewYear, month.value)}
+                          className={cn(
+                            "rounded-xl px-2 py-3 text-sm transition-colors",
+                            isActive
+                              ? "bg-slate-900 font-semibold text-white shadow-[0_12px_26px_rgba(15,23,42,0.28)] dark:bg-neutral-100 dark:text-neutral-900 dark:shadow-[0_12px_26px_rgba(0,0,0,0.6)]"
+                              : "bg-white/10 text-slate-700 hover:bg-slate-900/10 hover:text-slate-900 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
+                          )}
+                        >
+                          {month.label}
+                        </button>
+                      );
+                    })}
                   </div>
-                  <MonthButton
-                    onClick={() => setViewYear((current) => String(Number(current) + 1))}
-                    aria-label="Năm sau"
-                  >
-                    <ChevronRight className="h-4 w-4 dark:text-neutral-300" />
-                  </MonthButton>
-                </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2 py-1">
+                    {Array.from({ length: 12 }, (_, i) => yearPageBase + i).map((yr) => {
+                      const isCurrent = Number(viewYear) === yr;
 
-                <div className="grid grid-cols-4 gap-2">
-                  {MONTH_OPTIONS.map((month) => {
-                    const isActive = month.value === selectedMonth && viewYear === selectedYear;
+                      return (
+                        <button
+                          key={yr}
+                          type="button"
+                          onClick={() => {
+                            setViewYear(String(yr));
+                            setViewMode("months");
+                          }}
+                          className={cn(
+                            "flex h-11 items-center justify-center rounded-xl text-sm font-semibold transition-colors duration-50 ease-out select-none active:scale-95",
+                            isCurrent
+                              ? "bg-slate-900 font-bold text-white shadow-md shadow-slate-900/25 dark:bg-neutral-100 dark:text-neutral-900 dark:shadow-[0_12px_26px_rgba(0,0,0,0.6)]"
+                              : "bg-white/10 text-slate-700 hover:bg-slate-900/10 hover:text-slate-900 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
+                          )}
+                        >
+                          {yr}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
 
-                    return (
-                      <button
-                        key={month.value}
-                        type="button"
-                        onClick={() => selectMonth(viewYear, month.value)}
-                        className={cn(
-                          "rounded-xl px-2 py-3 text-sm transition-colors",
-                          isActive
-                            ? "bg-slate-900 font-semibold text-white shadow-[0_12px_26px_rgba(15,23,42,0.28)] dark:bg-neutral-100 dark:text-neutral-900 dark:shadow-[0_12px_26px_rgba(0,0,0,0.6)]"
-                            : "bg-white/10 text-slate-700 hover:bg-slate-900/10 hover:text-slate-900 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
-                        )}
-                      >
-                        {month.label}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="mt-4 flex items-center justify-between border-t border-white/35 dark:border-neutral-800/80 pt-3">
-                  <button
-                    type="button"
-                    onClick={() => setOpen(false)}
-                    className="text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-neutral-400 dark:hover:text-neutral-200"
-                  >
-                    Đóng
-                  </button>
+                <div className="mt-4 flex items-center justify-between border-t border-slate-100 dark:border-neutral-800/80 pt-3">
+                  {viewMode === "years" ? (
+                    <button
+                      type="button"
+                      onClick={() => setViewMode("months")}
+                      className="text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-neutral-400 dark:hover:text-neutral-200"
+                    >
+                      Quay lại
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setOpen(false)}
+                      className="text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-neutral-400 dark:hover:text-neutral-200"
+                    >
+                      Đóng
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={selectCurrentMonth}

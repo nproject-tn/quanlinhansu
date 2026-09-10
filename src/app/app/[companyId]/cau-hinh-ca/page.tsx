@@ -17,6 +17,7 @@ export default async function ShiftConfigPage(props: {
   }
 
   const canEdit = hasPermission(access.role, permissions, "shift_config", "EDIT");
+  const canEditPast = access.role === "OWNER" || access.role === "ADMIN" || hasPermission(access.role, permissions, "shift_config", "EDIT_PAST");
 
-  return <ShiftConfigClient canEdit={canEdit} companyId={companyId} />;
+  return <ShiftConfigClient canEdit={canEdit} canEditPast={canEditPast} companyId={companyId} />;
 }

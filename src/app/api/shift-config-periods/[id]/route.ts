@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
+import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/api-auth";
 import { shiftConfigPeriodUpdateSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity-logger";
-import { formatDateOnly, parseDateOnly, formatDateVN } from "@/lib/utils";
+import { formatDateOnly, parseDateOnly, formatDateVN, formatDateRangeVN } from "@/lib/utils";
+import { hasPermission } from "@/lib/permissions";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function PUT(request: Request, { params }: Params) {
-  const { error, companyId, user } = await requireAuth(["OWNER"], {
+  const { error, companyId, user, permissions } = await requireAuth(["OWNER"], {
     module: "shift_config",
     action: "EDIT",
   });
@@ -21,11 +23,17 @@ export async function PUT(request: Request, { params }: Params) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const existingPeriod = await prisma.shiftConfigPeriod.findUnique({
+  const existingPeriod = await prisma.shiftConfigPeriod.findFirst({
     where: { id, companyId },
   });
   if (!existingPeriod) {
     return NextResponse.json({ error: "Bảng cấu hình ca không tồn tại" }, { status: 404 });
+  }
+
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const canEditPast = user?.role === "OWNER" || user?.role === "ADMIN" || hasPermission(user?.role || "", permissions, "shift_config", "EDIT_PAST");
+  if (!canEditPast && (formatDateOnly(existingPeriod.startDate) < todayStr || (parsed.data.startDate && parsed.data.startDate < todayStr) || formatDateOnly(existingPeriod.endDate) < todayStr || (parsed.data.endDate && parsed.data.endDate < todayStr))) {
+    return NextResponse.json({ error: "Lưu không thành công vì bạn không có quyền chỉnh sửa bảng cấu hình ca trong quá khứ." }, { status: 403 });
   }
 
   const newStartDate = parsed.data.startDate
@@ -75,6 +83,71 @@ export async function PUT(request: Request, { params }: Params) {
     );
   }
 
+  // Kiểm tra nếu thu hẹp hoặc dịch khoảng ngày khiến có các ca đã xếp rơi ra ngoài
+  const orphanedAssignmentsCount = await prisma.shiftAssignment.count({
+    where: {
+      companyId,
+      shiftTemplate: { periodId: id },
+      OR: [
+        { date: { lt: newStartDate } },
+        { date: { gt: newEndDate } },
+      ],
+    },
+  });
+
+  const confirmDeleteAssignments = Boolean(body.confirmDeleteAssignments);
+  if (orphanedAssignmentsCount > 0 && !confirmDeleteAssignments) {
+    const cutOffParts: string[] = [];
+    if (newStartDate > existingPeriod.startDate) {
+      const prevEnd = new Date(newStartDate);
+      prevEnd.setDate(prevEnd.getDate() - 1);
+      cutOffParts.push(`${formatDateVN(formatDateOnly(existingPeriod.startDate))} đến ${formatDateVN(formatDateOnly(prevEnd))}`);
+    }
+    if (newEndDate < existingPeriod.endDate) {
+      const nextStart = new Date(newEndDate);
+      nextStart.setDate(nextStart.getDate() + 1);
+      cutOffParts.push(`${formatDateVN(formatDateOnly(nextStart))} đến ${formatDateVN(formatDateOnly(existingPeriod.endDate))}`);
+    }
+    const cutOffStr = cutOffParts.length > 0 ? ` (các ngày bị cắt bỏ: ${cutOffParts.join(", ")})` : "";
+
+    return NextResponse.json(
+      {
+        warning: true,
+        requiresConfirmation: true,
+        assignmentCount: orphanedAssignmentsCount,
+        orphanedCount: orphanedAssignmentsCount,
+        cutOffDates: cutOffParts.join(", "),
+        message: `Có ${orphanedAssignmentsCount} lượt xếp ca của nhân viên nằm ngoài khoảng ngày mới (${formatDateRangeVN(newStartStr, newEndStr)})${cutOffStr}. Nếu tiếp tục, toàn bộ ${orphanedAssignmentsCount} ca này sẽ bị xóa hoàn toàn khỏi "Lịch xếp ca" để tránh ca vô hình. Bạn có chắc chắn muốn tiếp tục?`,
+      },
+      { status: 409 }
+    );
+  }
+
+  // Nếu người dùng đã đồng ý xoá các ca rơi ra ngoài khoảng ngày mới
+  if (orphanedAssignmentsCount > 0 && confirmDeleteAssignments) {
+    await prisma.shiftAssignment.deleteMany({
+      where: {
+        companyId,
+        shiftTemplate: { periodId: id },
+        OR: [
+          { date: { lt: newStartDate } },
+          { date: { gt: newEndDate } },
+        ],
+      },
+    });
+
+    await prisma.staffingOverride.deleteMany({
+      where: {
+        companyId,
+        shiftTemplate: { periodId: id },
+        OR: [
+          { date: { lt: newStartDate } },
+          { date: { gt: newEndDate } },
+        ],
+      },
+    });
+  }
+
   const updated = await prisma.shiftConfigPeriod.update({
     where: { id },
     data: {
@@ -109,6 +182,7 @@ export async function PUT(request: Request, { params }: Params) {
         oldEndDate: formatDateOnly(existingPeriod.endDate),
         newStartDate: formatDateOnly(newStartDate),
         newEndDate: formatDateOnly(newEndDate),
+        cleanedOrphanedAssignments: orphanedAssignmentsCount,
       },
     });
   }
@@ -120,11 +194,12 @@ export async function PUT(request: Request, { params }: Params) {
       startDate: formatDateOnly(updated.startDate),
       endDate: formatDateOnly(updated.endDate),
     },
+    cleanedAssignmentsCount: orphanedAssignmentsCount,
   });
 }
 
-export async function DELETE(_request: Request, { params }: Params) {
-  const { error, companyId, user } = await requireAuth(["OWNER"], {
+export async function DELETE(request: Request, { params }: Params) {
+  const { error, companyId, user, permissions } = await requireAuth(["OWNER"], {
     module: "shift_config",
     action: "EDIT",
   });
@@ -138,6 +213,63 @@ export async function DELETE(_request: Request, { params }: Params) {
     return NextResponse.json({ error: "Bảng cấu hình ca không tồn tại" }, { status: 404 });
   }
 
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const canEditPast = user?.role === "OWNER" || user?.role === "ADMIN" || hasPermission(user?.role || "", permissions, "shift_config", "EDIT_PAST");
+  if (!canEditPast && formatDateOnly(existingPeriod.endDate) < todayStr) {
+    return NextResponse.json({ error: "Bạn không có quyền xoá bảng cấu hình ca hoàn toàn trong quá khứ." }, { status: 403 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  let confirmCascade = searchParams.get("confirmCascade") === "true";
+
+  if (!confirmCascade) {
+    try {
+      const cloned = request.clone();
+      const body = await cloned.json();
+      if (body?.confirmCascade) confirmCascade = true;
+    } catch {
+      // ignore
+    }
+  }
+
+  const assignmentCount = await prisma.shiftAssignment.count({
+    where: {
+      companyId,
+      shiftTemplate: { periodId: id },
+    },
+  });
+
+  if (assignmentCount > 0 && !confirmCascade) {
+    return NextResponse.json(
+      {
+        warning: true,
+        requiresConfirmation: true,
+        assignmentCount,
+        message: `Bảng cấu hình ca "${existingPeriod.name}" đang có ${assignmentCount} lượt phân công nhân viên trên Lịch xếp ca trong khoảng ngày ${formatDateVN(formatDateOnly(existingPeriod.startDate))} - ${formatDateVN(formatDateOnly(existingPeriod.endDate))}. Nếu bạn xoá bảng này, toàn bộ ${assignmentCount} ca đã xếp sẽ bị xoá hoàn toàn khỏi Lịch xếp ca để tránh lỗi ca vô hình. Bạn có chắc chắn muốn xoá?`,
+      },
+      { status: 409 }
+    );
+  }
+
+  // Delete assignments for all templates in this period
+  if (assignmentCount > 0) {
+    await prisma.shiftAssignment.deleteMany({
+      where: {
+        companyId,
+        shiftTemplate: { periodId: id },
+      },
+    });
+  }
+
+  // Delete staffing overrides for all templates in this period
+  await prisma.staffingOverride.deleteMany({
+    where: {
+      companyId,
+      shiftTemplate: { periodId: id },
+    },
+  });
+
+  // Delete period (cascades to delete shiftTemplates and staffingRules)
   await prisma.shiftConfigPeriod.delete({
     where: { id },
   });
@@ -154,12 +286,17 @@ export async function DELETE(_request: Request, { params }: Params) {
       targetType: "ShiftConfigPeriod",
       targetId: id,
       targetName: existingPeriod.name,
-      description: `Đã xóa bảng cấu hình ca "${existingPeriod.name}"`,
+      description: assignmentCount > 0
+        ? `Đã xóa bảng cấu hình ca "${existingPeriod.name}" và làm sạch ${assignmentCount} lượt xếp ca trên lịch`
+        : `Đã xóa bảng cấu hình ca "${existingPeriod.name}"`,
     });
   }
 
   return NextResponse.json({
     success: true,
-    message: `Đã xóa bảng cấu hình ca "${existingPeriod.name}"`,
+    message: assignmentCount > 0
+      ? `Đã xóa bảng cấu hình ca "${existingPeriod.name}" và làm sạch ${assignmentCount} ca đã xếp tương ứng.`
+      : `Đã xóa bảng cấu hình ca "${existingPeriod.name}"`,
+    deletedAssignmentsCount: assignmentCount,
   });
 }

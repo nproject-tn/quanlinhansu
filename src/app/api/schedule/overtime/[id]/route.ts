@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
+import { format } from "date-fns";
 import { requireAuth } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { createScheduleApprovalRequest } from "@/lib/schedule-approval";
 import type { Prisma } from "@/generated/prisma/client";
+import { hasPermission } from "@/lib/permissions";
+import { formatDateOnly } from "@/lib/utils";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function PUT(request: Request, { params }: Params) {
-  const { session, error, companyId } = await requireAuth(["OWNER"], { module: "schedule", action: "EDIT" });
+  const { session, permissions, error, companyId } = await requireAuth(["OWNER"], { module: "schedule", action: "EDIT" });
   if (error || !companyId) return error;
 
   const { id } = await params;
@@ -18,11 +21,17 @@ export async function PUT(request: Request, { params }: Params) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
+  const existing = await prisma.shiftOvertime.findUnique({ where: { id, companyId } });
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const canEditPast = session!.user.role === "OWNER" || session!.user.role === "ADMIN" || hasPermission(session!.user.role, permissions, "schedule", "EDIT_PAST");
+  if (!canEditPast && formatDateOnly(existing.date) < todayStr) {
+    return NextResponse.json({ error: "Bạn không có quyền chỉnh sửa giờ làm thêm trong quá khứ." }, { status: 403 });
+  }
+
   // If SCHEDULER, require approval
   if (session!.user.role === "SCHEDULER") {
-    const existing = await prisma.shiftOvertime.findUnique({ where: { id, companyId } });
-    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
     const approvalReq = await createScheduleApprovalRequest({
       companyId,
       actionType: "UPDATE_OVERTIME",
@@ -63,16 +72,22 @@ export async function PUT(request: Request, { params }: Params) {
 }
 
 export async function DELETE(request: Request, { params }: Params) {
-  const { session, error, companyId } = await requireAuth(["OWNER"], { module: "schedule", action: "EDIT" });
+  const { session, permissions, error, companyId } = await requireAuth(["OWNER"], { module: "schedule", action: "EDIT" });
   if (error || !companyId) return error;
 
   const { id } = await params;
 
+  const existing = await prisma.shiftOvertime.findUnique({ where: { id, companyId } });
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const canEditPast = session!.user.role === "OWNER" || session!.user.role === "ADMIN" || hasPermission(session!.user.role, permissions, "schedule", "EDIT_PAST");
+  if (!canEditPast && formatDateOnly(existing.date) < todayStr) {
+    return NextResponse.json({ error: "Bạn không có quyền xoá giờ làm thêm trong quá khứ." }, { status: 403 });
+  }
+
   // If SCHEDULER, require approval
   if (session!.user.role === "SCHEDULER") {
-    const existing = await prisma.shiftOvertime.findUnique({ where: { id, companyId } });
-    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
     const approvalReq = await createScheduleApprovalRequest({
       companyId,
       actionType: "DELETE_OVERTIME",

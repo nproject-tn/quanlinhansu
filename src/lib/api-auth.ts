@@ -7,7 +7,7 @@ import { hasPermission } from "@/lib/permissions";
 
 export async function requireAuth(
   allowedRoles?: UserRole[], 
-  requiredPermissions?: { module: string; action: "VIEW" | "EDIT" | "APPROVE" | "REQUEST" | "EDIT_FREE" | "DELETE" | "VIEW_LIST" | "VIEW_HOURS" } | { module: string; action: "VIEW" | "EDIT" | "APPROVE" | "REQUEST" | "EDIT_FREE" | "DELETE" | "VIEW_LIST" | "VIEW_HOURS" }[]
+  requiredPermissions?: { module: string; action: "VIEW" | "EDIT" | "APPROVE" | "REQUEST" | "EDIT_FREE" | "DELETE" | "VIEW_LIST" | "VIEW_HOURS" | "EDIT_PAST" } | { module: string; action: "VIEW" | "EDIT" | "APPROVE" | "REQUEST" | "EDIT_FREE" | "DELETE" | "VIEW_LIST" | "VIEW_HOURS" | "EDIT_PAST" }[]
 ) {
   const session = await auth();
 

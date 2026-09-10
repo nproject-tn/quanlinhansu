@@ -184,6 +184,7 @@ export function SchedulePageClient({ user, companyId }: SchedulePageClientProps)
   const statusHashRef = useRef<{ assignments: string | null; requests: string | null }>({ assignments: null, requests: null });
 
   const canEdit = hasPermission(user.role, user.permissions, "schedule", "EDIT");
+  const canEditPast = hasPermission(user.role, user.permissions, "schedule", "EDIT_PAST");
 
   useEffect(() => {
     if (scheduleErrorObj) setError(scheduleErrorObj.message);
@@ -503,7 +504,9 @@ export function SchedulePageClient({ user, companyId }: SchedulePageClientProps)
   async function clearSchedule() {
     const isConfirmed = await confirm({
       title: "Xác nhận xoá ca",
-      description: `Bạn có chắc chắn muốn xoá toàn bộ ca làm việc ${mode === "day" ? "trong ngày này" : mode === "week" ? "trong tuần này" : "trong tháng này"}? Hành động này không thể hoàn tác.`,
+      description: !canEditPast
+        ? `Bạn có chắc chắn muốn xoá các ca làm việc từ hôm nay trở đi (${mode === "day" ? "trong ngày này" : mode === "week" ? "trong tuần này" : "trong tháng này"})? Các ca trong quá khứ sẽ được giữ nguyên do bạn không có quyền chỉnh sửa ca trong quá khứ.`
+        : `Bạn có chắc chắn muốn xoá toàn bộ ca làm việc ${mode === "day" ? "trong ngày này" : mode === "week" ? "trong tuần này" : "trong tháng này"}? Hành động này không thể hoàn tác.`,
       confirmLabel: "Xoá ca",
       cancelLabel: "Huỷ",
       tone: "destructive",
@@ -1135,6 +1138,7 @@ export function SchedulePageClient({ user, companyId }: SchedulePageClientProps)
           layoutMode={layoutMode}
           onLayoutModeChange={setLayoutMode}
           canEdit={canEdit && !generating}
+          canEditPast={canEditPast}
           isAdmin={user.role === "OWNER" || hasPermission(user.role, user.permissions, "schedule", "EDIT_FREE")}
           onRefresh={refreshScheduleAndApprovals}
           onOptimisticUpdate={handleOptimisticUpdate}

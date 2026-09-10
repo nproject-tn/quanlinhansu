@@ -126,11 +126,14 @@ function StoreFilterLogo({ store }: { store?: Store }) {
 
 export default function ShiftConfigClient({
   canEdit,
+  canEditPast = true,
   companyId,
 }: {
   canEdit?: boolean;
+  canEditPast?: boolean;
   companyId?: string;
 }) {
+  const todayStr = useMemo(() => format(new Date(), "yyyy-MM-dd"), []);
   const [stores, setStores] = useState<Store[]>([]);
   const [selectedStore, setSelectedStore] = useState("");
   const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), "yyyy-MM"));
@@ -160,6 +163,11 @@ export default function ShiftConfigClient({
   // Modals for Periods
   const [isAddPeriodOpen, setIsAddPeriodOpen] = useState(false);
   const [isEditPeriodRangeOpen, setIsEditPeriodRangeOpen] = useState(false);
+  const [periodRangeNotice, setPeriodRangeNotice] = useState<{
+    type: "error" | "warning";
+    title: string;
+    message: string;
+  } | null>(null);
 
   const [addPeriodForm, setAddPeriodForm] = useState({
     name: "",
@@ -616,6 +624,11 @@ export default function ShiftConfigClient({
   }
 
   async function updateOverride(shiftId: string, dateStr: string, requiredStaff: number) {
+    if (!canEditPast && dateStr < todayStr) {
+      setMessage("Bạn không có quyền chỉnh sửa cấu hình các ngày trong quá khứ.");
+      return;
+    }
+
     const res = await fetch("/api/staffing-overrides", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -656,7 +669,16 @@ export default function ShiftConfigClient({
   async function applyRuleToPeriod(shiftId: string, requiredStaff: number) {
     if (!activePeriod || periodDays.length === 0) return;
 
-    const payload = periodDays.map((day) => ({
+    let targetDays = periodDays;
+    if (!canEditPast) {
+      targetDays = periodDays.filter((d) => formatDateOnly(d) >= todayStr);
+      if (targetDays.length === 0) {
+        setMessage("Tất cả các ngày trong đợt này đều thuộc về quá khứ. Bạn không có quyền chỉnh sửa.");
+        return;
+      }
+    }
+
+    const payload = targetDays.map((day) => ({
       storeId: selectedStore,
       shiftTemplateId: shiftId,
       date: formatDateOnly(day),
@@ -674,9 +696,10 @@ export default function ShiftConfigClient({
     const saved = await readJsonSafely<
       Array<{ id: string; date: string | Date; requiredStaff: number }>
     >(res, []);
+    const appliedDates = new Set(targetDays.map((d) => formatDateOnly(d)));
     setOverrides((current) => {
       const rest = current.filter(
-        (item) => !(item.storeId === selectedStore && item.shiftTemplateId === shiftId)
+        (item) => !(item.storeId === selectedStore && item.shiftTemplateId === shiftId && appliedDates.has(item.date))
       );
       return [
         ...rest,
@@ -691,11 +714,15 @@ export default function ShiftConfigClient({
         ),
       ];
     });
-    setMessage(`Đã áp dụng ${requiredStaff} nhân viên cho toàn bộ đợt này`);
+    setMessage(`Đã áp dụng ${requiredStaff} nhân viên cho ${targetDays.length} ngày`);
   }
 
   async function applyRuleToDay(dateStr: string, requiredStaff: number) {
     if (activeShifts.length === 0) return;
+    if (!canEditPast && dateStr < todayStr) {
+      setMessage("Bạn không có quyền chỉnh sửa cấu hình các ngày trong quá khứ.");
+      return;
+    }
 
     const payload = activeShifts.map((shift) => ({
       storeId: selectedStore,
@@ -736,6 +763,11 @@ export default function ShiftConfigClient({
   }
 
   async function updateDayNote(dateStr: string, patch: Partial<DayNote>) {
+    if (!canEditPast && dateStr < todayStr) {
+      setMessage("Bạn không có quyền chỉnh sửa ghi chú các ngày trong quá khứ.");
+      return;
+    }
+
     const current = getDayNote(dateStr) ?? {
       date: dateStr,
       note: "",
@@ -778,6 +810,10 @@ export default function ShiftConfigClient({
 
   // Shift Template Actions inside Active Period
   function startEditShift(shift: ShiftTemplate) {
+    if (!canEditPast && activePeriod && activePeriod.endDate < todayStr) {
+      setMessage("Bảng cấu hình ca này đã thuộc về quá khứ. Bạn không có quyền sửa ca.");
+      return;
+    }
     setEditingShift(shift.id);
     setEditForm({
       name: shift.name,
@@ -787,6 +823,11 @@ export default function ShiftConfigClient({
   }
 
   async function saveEditShift(shift: ShiftTemplate) {
+    if (!canEditPast && activePeriod && activePeriod.endDate < todayStr) {
+      setMessage("Bảng cấu hình ca này đã thuộc về quá khứ. Bạn không có quyền sửa ca.");
+      return;
+    }
+
     for (const s of activeShifts) {
       if (s.id !== shift.id && s.isActive !== false) {
         const errorMsg = getShiftContainmentError(
@@ -833,6 +874,11 @@ export default function ShiftConfigClient({
       return;
     }
 
+    if (!canEditPast && activePeriod.endDate < todayStr) {
+      setMessage("Bảng cấu hình ca này đã thuộc về quá khứ. Bạn không có quyền thêm ca mới.");
+      return;
+    }
+
     for (const s of activeShifts) {
       if (s.isActive !== false) {
         const errorMsg = getShiftContainmentError(
@@ -875,6 +921,11 @@ export default function ShiftConfigClient({
   }
 
   async function deleteShift(shift: ShiftTemplate) {
+    if (!canEditPast && activePeriod && activePeriod.endDate < todayStr) {
+      setMessage("Bảng cấu hình ca này đã thuộc về quá khứ. Bạn không có quyền xóa ca.");
+      return;
+    }
+
     const approved = await confirm({
       title: `Xóa ${shift.name}?`,
       description: "Ca này sẽ bị gỡ khỏi bảng cấu hình hiện tại.",
@@ -885,7 +936,41 @@ export default function ShiftConfigClient({
     if (!approved) return;
 
     const res = await fetch(`/api/shift-templates/${shift.id}`, { method: "DELETE" });
-    const data = await readJsonSafely<{ message?: string }>(res, {});
+    const data = await readJsonSafely<{
+      message?: string;
+      error?: string;
+      requiresConfirmation?: boolean;
+      assignmentCount?: number;
+    }>(res, {});
+
+    if (res.status === 409 && data.requiresConfirmation) {
+      const confirmCascade = await confirm({
+        title: `Cảnh báo: Ca "${shift.name}" đã có nhân viên được xếp!`,
+        description: `Hiện có ${data.assignmentCount} lượt xếp ca của nhân viên đang áp dụng ca này. Nếu bạn xóa ca, toàn bộ ${data.assignmentCount} lượt xếp ca này trên "Lịch xếp ca" sẽ bị xóa hoàn toàn để tránh phát sinh ca vô hình. Bạn có chắc chắn muốn xóa không?`,
+        confirmLabel: "Đồng ý xóa ca và toàn bộ lịch đã xếp",
+        cancelLabel: "Hủy bỏ",
+        tone: "destructive",
+      });
+      if (!confirmCascade) return;
+
+      const cascadeRes = await fetch(`/api/shift-templates/${shift.id}?confirmCascade=true`, {
+        method: "DELETE",
+      });
+      const cascadeData = await readJsonSafely<{ message?: string; error?: string }>(cascadeRes, {});
+      if (!cascadeRes.ok) {
+        setMessage(cascadeData.error ?? "Lỗi xóa ca");
+        return;
+      }
+      setMessage(cascadeData.message ?? "Đã xóa ca và làm sạch lịch xếp ca");
+      await loadPeriodsAndConfig(selectedStore, selectedMonth, activePeriod?.id);
+      return;
+    }
+
+    if (!res.ok) {
+      setMessage(data.error ?? "Lỗi xóa ca");
+      return;
+    }
+
     setMessage(data.message ?? "Đã xóa");
     await loadPeriodsAndConfig(selectedStore, selectedMonth, activePeriod?.id);
   }
@@ -1015,6 +1100,11 @@ export default function ShiftConfigClient({
       return;
     }
 
+    if (!canEditPast && endStr < todayStr) {
+      setMessage("Bạn không có quyền tạo bảng cấu hình ca trong quá khứ.");
+      return;
+    }
+
     // Single-month boundary restriction: cannot span cross months
     if (startStr.slice(0, 7) !== endStr.slice(0, 7)) {
       setMessage("Khoảng ngày cấu hình chỉ được nằm trọn trong 1 tháng duy nhất (không được chọn xuyên tháng)");
@@ -1083,6 +1173,7 @@ export default function ShiftConfigClient({
 
   function openEditPeriodRangeModal() {
     if (!activePeriod) return;
+    setPeriodRangeNotice(null);
     setEditPeriodRangeForm({
       name: getPeriodBaseName(activePeriod.name),
       startDate: activePeriod.startDate,
@@ -1112,6 +1203,16 @@ export default function ShiftConfigClient({
       return;
     }
 
+    // Kiểm tra quyền chỉnh sửa ca/bảng trong quá khứ
+    if (!canEditPast && (activePeriod.startDate < todayStr || startStr < todayStr || activePeriod.endDate < todayStr || endStr < todayStr)) {
+      setPeriodRangeNotice({
+        type: "error",
+        title: "Lưu không thành công",
+        message: "Lưu không thành công vì bạn không có quyền chỉnh sửa bảng cấu hình ca trong quá khứ.",
+      });
+      return;
+    }
+
     const conflict = findConflictingPeriod(startStr, endStr, activePeriod.id);
     if (conflict) {
       setMessage(
@@ -1133,7 +1234,67 @@ export default function ShiftConfigClient({
         }),
       });
 
-      const data = await readJsonSafely<{ error?: string }>(res, {});
+      const data = await readJsonSafely<{
+        error?: string;
+        requiresConfirmation?: boolean;
+        assignmentCount?: number;
+        orphanedCount?: number;
+        message?: string;
+        cutOffDates?: string;
+      }>(res, {});
+
+      if (res.status === 403) {
+        setLoading(false);
+        setPeriodRangeNotice({
+          type: "error",
+          title: "Lưu không thành công",
+          message: data.error || "Lưu không thành công vì bạn không có quyền chỉnh sửa bảng cấu hình ca trong quá khứ.",
+        });
+        return;
+      }
+
+      if (res.status === 409 && data.requiresConfirmation) {
+        setLoading(false);
+        const count = data.assignmentCount ?? data.orphanedCount ?? 0;
+        const confirmCascade = await confirm({
+          title: "Cảnh báo thu hẹp khoảng ngày cấu hình",
+          description: data.message || `Có ${count} lượt xếp ca của nhân viên nằm ngoài khoảng ngày mới (${formatDateRangeVN(startStr, endStr)}). Nếu tiếp tục, các ca này sẽ bị xóa hoàn toàn khỏi "Lịch xếp ca" để tránh ca vô hình. Bạn có chắc chắn muốn tiếp tục?`,
+          confirmLabel: "Đồng ý cắt bớt và xóa các ca thừa",
+          cancelLabel: "Hủy bỏ",
+          tone: "destructive",
+        });
+        if (!confirmCascade) return;
+
+        setLoading(true);
+        const cascadeRes = await fetch(`/api/shift-config-periods/${activePeriod.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: baseName,
+            startDate: startStr,
+            endDate: endStr,
+            confirmDeleteAssignments: true,
+          }),
+        });
+        const cascadeData = await readJsonSafely<{ error?: string }>(cascadeRes, {});
+        if (!cascadeRes.ok) {
+          if (cascadeRes.status === 403) {
+            setPeriodRangeNotice({
+              type: "error",
+              title: "Lưu không thành công",
+              message: cascadeData.error || "Lưu không thành công vì bạn không có quyền chỉnh sửa bảng cấu hình ca trong quá khứ.",
+            });
+            return;
+          }
+          setMessage(cascadeData.error || "Không thể cập nhật khoảng ngày");
+          return;
+        }
+        setIsEditPeriodRangeOpen(false);
+        await loadPeriodsAndConfig(selectedStore, selectedMonth, activePeriod.id);
+        setMessage("Đã cập nhật khoảng ngày thành công");
+        return;
+      }
+
       if (!res.ok) {
         setMessage(data.error || "Không thể cập nhật khoảng ngày");
         return;
@@ -1152,6 +1313,11 @@ export default function ShiftConfigClient({
   async function handleDeleteActivePeriod() {
     if (!activePeriod) return;
 
+    if (!canEditPast && activePeriod.endDate < todayStr) {
+      setMessage("Bảng cấu hình ca này đã thuộc về quá khứ. Bạn không có quyền xóa.");
+      return;
+    }
+
     const approved = await confirm({
       title: `Xóa bảng cấu hình "${getPeriodBaseName(activePeriod.name)}"?`,
       description: `Bảng cấu hình ca áp dụng cho khoảng ngày ${formatDateRangeVN(activePeriod.startDate, activePeriod.endDate)} sẽ bị xóa hoàn toàn. Các ngày này sẽ trở về trạng thái trống trên Lịch xếp ca.`,
@@ -1166,7 +1332,38 @@ export default function ShiftConfigClient({
       const res = await fetch(`/api/shift-config-periods/${activePeriod.id}`, {
         method: "DELETE",
       });
-      const data = await readJsonSafely<{ message?: string; error?: string }>(res, {});
+      const data = await readJsonSafely<{
+        message?: string;
+        error?: string;
+        requiresConfirmation?: boolean;
+        assignmentCount?: number;
+      }>(res, {});
+
+      if (res.status === 409 && data.requiresConfirmation) {
+        setLoading(false);
+        const confirmCascade = await confirm({
+          title: "Cảnh báo: Bảng cấu hình đã có nhân viên được xếp ca!",
+          description: `Hiện có ${data.assignmentCount} lượt xếp ca của nhân viên trong khoảng ngày này (${formatDateRangeVN(activePeriod.startDate, activePeriod.endDate)}). Nếu xóa bảng cấu hình, toàn bộ ${data.assignmentCount} ca này trên "Lịch xếp ca" sẽ bị xóa hoàn toàn để tránh ca vô hình. Bạn có chắc chắn muốn xóa không?`,
+          confirmLabel: "Đồng ý xóa bảng và toàn bộ lịch đã xếp",
+          cancelLabel: "Hủy bỏ",
+          tone: "destructive",
+        });
+        if (!confirmCascade) return;
+
+        setLoading(true);
+        const cascadeRes = await fetch(`/api/shift-config-periods/${activePeriod.id}?confirmCascade=true`, {
+          method: "DELETE",
+        });
+        const cascadeData = await readJsonSafely<{ message?: string; error?: string }>(cascadeRes, {});
+        if (!cascadeRes.ok) {
+          setMessage(cascadeData.error || "Lỗi xóa bảng cấu hình");
+          return;
+        }
+        await loadPeriodsAndConfig(selectedStore, selectedMonth);
+        setMessage(cascadeData.message || "Đã xóa bảng cấu hình");
+        return;
+      }
+
       if (!res.ok) {
         setMessage(data.error || "Lỗi xóa bảng cấu hình");
         return;
@@ -1499,8 +1696,9 @@ export default function ShiftConfigClient({
                   type="button"
                   variant="outline"
                   size="sm"
+                  disabled={!canEditPast && activePeriod.endDate < todayStr}
                   onClick={handleDeleteActivePeriod}
-                  title="Xóa toàn bộ bảng cấu hình này"
+                  title={!canEditPast && activePeriod.endDate < todayStr ? "Không thể xóa bảng cấu hình trong quá khứ" : "Xóa toàn bộ bảng cấu hình này"}
                   className="h-8 px-2.5 text-xs font-semibold gap-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -1510,13 +1708,14 @@ export default function ShiftConfigClient({
                 <Button
                   type="button"
                   size="sm"
+                  disabled={!canEditPast && activePeriod.endDate < todayStr}
                   onClick={() => {
                     setIsAddingShift(true);
                     if (configScrollRef.current) {
                       configScrollRef.current.scrollTop = configScrollRef.current.scrollHeight;
                     }
                   }}
-                  title="Thêm ca mới vào bảng này"
+                  title={!canEditPast && activePeriod.endDate < todayStr ? "Không thể thêm ca vào bảng cấu hình trong quá khứ" : "Thêm ca mới vào bảng này"}
                   className="h-8 px-3 text-xs font-semibold gap-1 shadow-sm"
                 >
                   <Plus className="h-4 w-4" />
@@ -1595,6 +1794,8 @@ export default function ShiftConfigClient({
                           </th>
                           {periodDays.map((day) => {
                             const dateStr = formatDateOnly(day);
+                            const isPastDay = dateStr < todayStr;
+                            const isDayDisabled = !canEdit || (!canEditPast && isPastDay);
                             const note = getDayNote(dateStr);
                             const color = getDayNoteColor(note?.colorKey);
                             return (
@@ -1622,12 +1823,12 @@ export default function ShiftConfigClient({
                                       }
                                       placeholder="Ghi chú"
                                       className="h-8 min-w-[120px] pr-9 text-xs disabled:opacity-100 disabled:text-slate-800 dark:disabled:text-[#E0E0E0]"
-                                      disabled={!canEdit}
+                                      disabled={isDayDisabled}
                                     />
                                     <div className="absolute right-1 top-1/2 -translate-y-1/2">
                                       <DayNoteColorPicker
                                         value={note?.colorKey ?? "none"}
-                                        disabled={!canEdit}
+                                        disabled={isDayDisabled}
                                         onChange={(newColorKey) => {
                                           upsertLocalDayNote(dateStr, { colorKey: newColorKey });
                                           if (note?.note.trim()) {
@@ -1638,7 +1839,7 @@ export default function ShiftConfigClient({
                                     </div>
                                   </div>
 
-                                  {canEdit && (
+                                  {canEdit && (canEditPast || !isPastDay) && (
                                     <Select
                                       value=""
                                       onChange={(e) => {
@@ -1739,7 +1940,7 @@ export default function ShiftConfigClient({
                                         ({shift.durationHours}h)
                                       </span>
                                     </span>
-                                    {canEdit && (
+                                    {canEdit && (canEditPast || (activePeriod && activePeriod.endDate >= todayStr)) && (
                                       <div className="flex items-center gap-0.5 shrink-0">
                                         <button
                                           type="button"
@@ -1783,24 +1984,26 @@ export default function ShiftConfigClient({
 
                             {periodDays.map((day) => {
                               const dateStr = formatDateOnly(day);
-                                const hasNote = hasVisibleDayNote(dateStr);
-                                const dayColor = getDayNoteColor(getDayNote(dateStr)?.colorKey);
-                                return (
-                                  <td
-                                    key={`${shift.id}-${dateStr}`}
-                                    className={cn(
-                                      "px-1 py-2 text-center align-middle border-b border-slate-100 dark:border-[#333333]/80",
-                                      hasNote && !dayColor.isNone ? dayColor.softClass : ""
-                                    )}
-                                    style={hasNote && !dayColor.isNone ? dayColor.softStyle : undefined}
-                                  >
+                              const isPastDay = dateStr < todayStr;
+                              const isCellDisabled = !canEdit || (!canEditPast && isPastDay);
+                              const hasNote = hasVisibleDayNote(dateStr);
+                              const dayColor = getDayNoteColor(getDayNote(dateStr)?.colorKey);
+                              return (
+                                <td
+                                  key={`${shift.id}-${dateStr}`}
+                                  className={cn(
+                                    "px-1 py-2 text-center align-middle border-b border-slate-100 dark:border-[#333333]/80",
+                                    hasNote && !dayColor.isNone ? dayColor.softClass : ""
+                                  )}
+                                  style={hasNote && !dayColor.isNone ? dayColor.softStyle : undefined}
+                                >
                                   <Select
                                     value={String(getDailyStaff(shift.id, dateStr))}
                                     onChange={(e) =>
                                       updateOverride(shift.id, dateStr, Number(e.target.value))
                                     }
                                     className="h-8 w-[125px] text-xs disabled:opacity-100 disabled:text-slate-800 dark:disabled:text-[#E0E0E0]"
-                                    disabled={!canEdit}
+                                    disabled={isCellDisabled}
                                   >
                                     {STAFF_OPTIONS.map((option) => (
                                       <option key={option} value={option}>
@@ -2249,130 +2452,180 @@ export default function ShiftConfigClient({
       {isEditPeriodRangeOpen && activePeriod && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-[#3C3C3C] dark:bg-[#1E1E1E]">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 dark:border-[#333333]">
-              <div className="flex items-center gap-2">
-                <Pencil className="h-4 w-4 text-slate-800 dark:text-white" />
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                  Chỉnh sửa khoảng ngày cấu hình
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsEditPeriodRangeOpen(false)}
-                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-[#2D2D30]"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="mt-4 space-y-4">
-              <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Tên bảng cấu hình
-                </label>
-                <div className="mt-1 flex items-center rounded-lg border border-slate-200 bg-white focus-within:border-slate-900 focus-within:ring-1 focus-within:ring-slate-900 dark:border-[#3C3C3C] dark:bg-[#1E1E1E] dark:focus-within:border-white dark:focus-within:ring-white transition-all overflow-hidden">
-                  <input
-                    type="text"
-                    value={editPeriodRangeForm.name}
-                    onChange={(e) =>
-                      setEditPeriodRangeForm({
-                        ...editPeriodRangeForm,
-                        name: e.target.value,
-                      })
-                    }
-                    placeholder="Ví dụ: Đợt 1, Cuối tuần..."
-                    className="min-w-0 flex-1 bg-transparent px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 outline-hidden dark:text-slate-100"
-                  />
-                  <div
-                    title="Khoảng ngày tự động áp dụng theo lựa chọn bên dưới"
-                    className="shrink-0 px-2.5 py-2 text-xs font-semibold text-slate-500 bg-slate-50 border-l border-slate-200 select-none dark:bg-[#252526] dark:text-slate-400 dark:border-[#3C3C3C] font-mono flex items-center gap-1"
+            {periodRangeNotice ? (
+              <div className="animate-in fade-in duration-150">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3 dark:border-[#333333]">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                      {periodRangeNotice.title}
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPeriodRangeNotice(null);
+                      setIsEditPeriodRangeOpen(false);
+                    }}
+                    className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-[#2D2D30]"
                   >
-                    <span>({formatDateRangeVN(editPeriodRangeForm.startDate, editPeriodRangeForm.endDate)})</span>
-                  </div>
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Từ ngày
-                  </label>
-                  <div className="mt-1">
-                    <DatePicker
-                      value={editPeriodRangeForm.startDate}
-                      onChange={(newStart) => {
-                        setEditPeriodRangeForm((prev) => ({
-                          ...prev,
-                          startDate: newStart,
-                          endDate: prev.endDate && prev.endDate < newStart ? newStart : prev.endDate,
-                        }));
-                      }}
-                      minDate={editMonthLimits.minDate}
-                      maxDate={editMonthLimits.maxDate}
-                      lockMonth={true}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Đến ngày
-                  </label>
-                  <div className="mt-1">
-                    <DatePicker
-                      value={editPeriodRangeForm.endDate}
-                      onChange={(newEnd) => {
-                        setEditPeriodRangeForm((prev) => ({
-                          ...prev,
-                          endDate: newEnd,
-                        }));
-                      }}
-                      minDate={editPeriodRangeForm.startDate || editMonthLimits.minDate}
-                      maxDate={editMonthLimits.maxDate}
-                      lockMonth={true}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Real-time Conflict Alert */}
-              {editPeriodConflict && (
-                <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300 flex items-start gap-2.5">
-                  <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400 mt-0.5" />
-                  <div className="space-y-0.5">
-                    <p className="font-bold">Không thể lưu do trùng ngày:</p>
-                    <p>
-                      Khoảng ngày này bị trùng với bảng <strong>&quot;{getPeriodBaseName(editPeriodConflict.name)}&quot;</strong> (
-                      {formatDateRangeVN(editPeriodConflict.startDate, editPeriodConflict.endDate)}).
+                <div className="mt-4 space-y-3">
+                  <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 dark:border-rose-900/50 dark:bg-rose-950/30">
+                    <p className="text-xs text-rose-800 dark:text-rose-300 leading-relaxed font-medium">
+                      {periodRangeNotice.message}
                     </p>
                   </div>
+                  <p className="text-[11px] text-slate-500 dark:text-[#9D9D9D]">
+                    Tài khoản của bạn chỉ được phép chỉnh sửa các ca và bảng cấu hình từ ngày hôm nay trở đi. Vui lòng liên hệ Quản trị viên nếu cần cấp quyền &quot;Chỉnh sửa lịch sử ca làm&quot;.
+                  </p>
                 </div>
-              )}
 
-              <p className="text-[11px] text-slate-500 dark:text-[#9D9D9D]">
-                Khoảng ngày chỉ được chỉnh trong phạm vi tháng này. Thao tác mở rộng hoặc thu hẹp khoảng ngày sẽ cập nhật phạm vi áp dụng của các ca trong bảng này.
-              </p>
-            </div>
+                <div className="mt-6 flex items-center justify-end border-t border-slate-100 pt-3 dark:border-[#333333]">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      setPeriodRangeNotice(null);
+                      setIsEditPeriodRangeOpen(false);
+                    }}
+                    className="h-8 px-4 text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
+                  >
+                    Đóng
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3 dark:border-[#333333]">
+                  <div className="flex items-center gap-2">
+                    <Pencil className="h-4 w-4 text-slate-800 dark:text-white" />
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                      Chỉnh sửa khoảng ngày cấu hình
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditPeriodRangeOpen(false)}
+                    className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-[#2D2D30]"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
 
-            <div className="mt-6 flex items-center justify-end gap-2 border-t border-slate-100 pt-3 dark:border-[#333333]">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setIsEditPeriodRangeOpen(false)}
-                className="h-8 text-xs font-semibold"
-              >
-                Hủy
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                disabled={Boolean(editPeriodConflict) || loading}
-                onClick={handleUpdatePeriodRange}
-                className="h-8 text-xs font-semibold"
-              >
-                Lưu thay đổi
-              </Button>
-            </div>
+                <div className="mt-4 space-y-4">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Tên bảng cấu hình
+                    </label>
+                    <div className="mt-1 flex items-center rounded-lg border border-slate-200 bg-white focus-within:border-slate-900 focus-within:ring-1 focus-within:ring-slate-900 dark:border-[#3C3C3C] dark:bg-[#1E1E1E] dark:focus-within:border-white dark:focus-within:ring-white transition-all overflow-hidden">
+                      <input
+                        type="text"
+                        value={editPeriodRangeForm.name}
+                        onChange={(e) =>
+                          setEditPeriodRangeForm({
+                            ...editPeriodRangeForm,
+                            name: e.target.value,
+                          })
+                        }
+                        placeholder="Ví dụ: Đợt 1, Cuối tuần..."
+                        className="min-w-0 flex-1 bg-transparent px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 outline-hidden dark:text-slate-100"
+                      />
+                      <div
+                        title="Khoảng ngày tự động áp dụng theo lựa chọn bên dưới"
+                        className="shrink-0 px-2.5 py-2 text-xs font-semibold text-slate-500 bg-slate-50 border-l border-slate-200 select-none dark:bg-[#252526] dark:text-slate-400 dark:border-[#3C3C3C] font-mono flex items-center gap-1"
+                      >
+                        <span>({formatDateRangeVN(editPeriodRangeForm.startDate, editPeriodRangeForm.endDate)})</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Từ ngày
+                      </label>
+                      <div className="mt-1">
+                        <DatePicker
+                          value={editPeriodRangeForm.startDate}
+                          onChange={(newStart) => {
+                            setEditPeriodRangeForm((prev) => ({
+                              ...prev,
+                              startDate: newStart,
+                              endDate: prev.endDate && prev.endDate < newStart ? newStart : prev.endDate,
+                            }));
+                          }}
+                          minDate={editMonthLimits.minDate}
+                          maxDate={editMonthLimits.maxDate}
+                          lockMonth={true}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Đến ngày
+                      </label>
+                      <div className="mt-1">
+                        <DatePicker
+                          value={editPeriodRangeForm.endDate}
+                          onChange={(newEnd) => {
+                            setEditPeriodRangeForm((prev) => ({
+                              ...prev,
+                              endDate: newEnd,
+                            }));
+                          }}
+                          minDate={editPeriodRangeForm.startDate || editMonthLimits.minDate}
+                          maxDate={editMonthLimits.maxDate}
+                          lockMonth={true}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Real-time Conflict Alert */}
+                  {editPeriodConflict && (
+                    <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300 flex items-start gap-2.5">
+                      <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400 mt-0.5" />
+                      <div className="space-y-0.5">
+                        <p className="font-bold">Không thể lưu do trùng ngày:</p>
+                        <p>
+                          Khoảng ngày này bị trùng với bảng <strong>&quot;{getPeriodBaseName(editPeriodConflict.name)}&quot;</strong> (
+                          {formatDateRangeVN(editPeriodConflict.startDate, editPeriodConflict.endDate)}).
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <p className="text-[11px] text-slate-500 dark:text-[#9D9D9D]">
+                    Khoảng ngày chỉ được chỉnh trong phạm vi tháng này. Thao tác mở rộng hoặc thu hẹp khoảng ngày sẽ cập nhật phạm vi áp dụng của các ca trong bảng này.
+                  </p>
+                </div>
+
+                <div className="mt-6 flex items-center justify-end gap-2 border-t border-slate-100 pt-3 dark:border-[#333333]">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsEditPeriodRangeOpen(false)}
+                    className="h-8 text-xs font-semibold"
+                  >
+                    Hủy
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={Boolean(editPeriodConflict) || loading}
+                    onClick={handleUpdatePeriodRange}
+                    className="h-8 text-xs font-semibold"
+                  >
+                    Lưu thay đổi
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

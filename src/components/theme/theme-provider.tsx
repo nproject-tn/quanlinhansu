@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 export type Theme = "light" | "dark" | "system";
 
@@ -23,6 +24,13 @@ export function ThemeProvider({
   defaultTheme?: Theme;
   storageKey?: string;
 }) {
+  const pathname = usePathname();
+  const isLandingPage =
+    pathname === "/" ||
+    pathname === "/home-apexflow" ||
+    Boolean(pathname?.startsWith("/home-apexflow"));
+  const isLoginPage = pathname === "/dang-nhap" || Boolean(pathname?.startsWith("/dang-nhap"));
+
   const [theme, setThemeState] = useState<Theme>(() => {
     if (typeof window === "undefined") return defaultTheme;
     try {
@@ -37,14 +45,20 @@ export function ThemeProvider({
 
   // Function to apply theme to document element
   const applyTheme = (targetTheme: Theme) => {
+    if (typeof document === "undefined") return;
     const root = document.documentElement;
     let actualTheme: "light" | "dark" = "light";
 
-    if (targetTheme === "system") {
-      const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      actualTheme = systemDark ? "dark" : "light";
+    // Landing page is strictly light mode
+    if (isLandingPage) {
+      actualTheme = "light";
     } else {
-      actualTheme = targetTheme;
+      if (targetTheme === "system") {
+        const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        actualTheme = systemDark ? "dark" : "light";
+      } else {
+        actualTheme = targetTheme;
+      }
     }
 
     if (actualTheme === "dark") {
@@ -65,14 +79,16 @@ export function ThemeProvider({
 
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const handleChange = () => {
-      if (theme === "system") {
+      if (isLandingPage) {
+        applyTheme("light");
+      } else if (theme === "system") {
         applyTheme("system");
       }
     };
 
     mediaQuery.addEventListener("change", handleChange);
     return () => mediaQuery.removeEventListener("change", handleChange);
-  }, [theme]);
+  }, [theme, pathname, isLandingPage, isLoginPage]);
 
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);

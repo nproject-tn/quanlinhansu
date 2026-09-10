@@ -342,14 +342,14 @@ export function LoginForm({ currentSessionUser }: LoginFormProps = {}) {
           <img
             src="/logo-shape.svg"
             alt="ApexFlow"
-            className="h-10 w-10 object-contain drop-shadow-sm mb-1"
+            className="h-10 w-10 object-contain drop-shadow-sm mb-1 grayscale dark:invert"
           />
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
             {authMode === "name_onboarding"
               ? "Hoàn tất thông tin cá nhân"
               : "Chào mừng đến với ApexFlow"}
           </h1>
-          <p className="text-xs text-slate-400 font-medium">
+          <p className="text-xs text-slate-400 dark:text-neutral-400 font-medium">
             {authMode === "name_onboarding"
               ? "Vui lòng nhập họ và tên của bạn để hiển thị trong Không gian làm việc"
               : "Đăng nhập để vào không gian làm việc"}
@@ -358,29 +358,29 @@ export function LoginForm({ currentSessionUser }: LoginFormProps = {}) {
 
         {/* Notifications & Alerts */}
         {registered && (
-          <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+          <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 text-xs flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <span>Đăng ký thành công! Hãy đăng nhập để bắt đầu.</span>
           </div>
         )}
 
         {authError && (
-          <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+          <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-300 text-xs flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0" />
             <span>Đăng nhập thất bại. Vui lòng thử lại.</span>
           </div>
         )}
 
         {errorMsg && (
-          <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2 animate-in fade-in">
-            <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+          <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-300 text-xs flex items-center gap-2 animate-in fade-in">
+            <AlertCircle className="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0" />
             <span>{errorMsg}</span>
           </div>
         )}
 
         {successMsg && (
-          <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2 animate-in fade-in">
-            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+          <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 text-xs flex items-center gap-2 animate-in fade-in">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <span>{successMsg}</span>
           </div>
         )}
@@ -390,21 +390,21 @@ export function LoginForm({ currentSessionUser }: LoginFormProps = {}) {
           <div className="space-y-3">
             {/* ACTIVE SESSION CARD (IF ALREADY LOGGED IN) */}
             {currentSessionUser && (
-              <div className="rounded-xl border border-slate-200/90 bg-slate-50/80 p-3.5 space-y-3 animate-in fade-in">
+              <div className="rounded-xl border border-slate-200/90 dark:border-neutral-800 bg-slate-50/80 dark:bg-[#202024] p-3.5 space-y-3 animate-in fade-in">
                 <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm">
+                  <div className="h-9 w-9 rounded-full bg-slate-900 text-white dark:bg-white dark:text-black flex items-center justify-center font-bold text-sm shrink-0 shadow-sm">
                     {currentSessionUser.name ? currentSessionUser.name[0].toUpperCase() : (currentSessionUser.email?.[0]?.toUpperCase() || "U")}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                      <p className="font-semibold text-xs text-slate-900 truncate">
+                      <p className="font-semibold text-xs text-slate-900 dark:text-white truncate">
                         {currentSessionUser.name || "Tài khoản hiện tại"}
                       </p>
-                      <span className="inline-flex items-center rounded-full bg-emerald-100 dark:bg-emerald-950/50 px-1.5 py-0.2 text-[9px] font-semibold text-emerald-700 dark:text-emerald-400 border border-emerald-200">
+                      <span className="inline-flex items-center rounded-full bg-emerald-100 dark:bg-emerald-950/50 px-1.5 py-0.2 text-[9px] font-semibold text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
                         Đang đăng nhập
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-500 font-mono truncate">
+                    <p className="text-[11px] text-slate-500 dark:text-neutral-400 font-mono truncate">
                       {currentSessionUser.email}
                     </p>
                   </div>
@@ -413,7 +413,7 @@ export function LoginForm({ currentSessionUser }: LoginFormProps = {}) {
                 <Button
                   type="button"
                   onClick={() => router.push(callbackUrl)}
-                  className="w-full h-9 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-lg flex items-center justify-center gap-1.5 shadow-sm transition-all"
+                  className="w-full h-9 bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-black dark:hover:bg-neutral-200 font-semibold text-xs rounded-lg flex items-center justify-center gap-1.5 shadow-sm transition-all"
                 >
                   <span>Tiếp tục với tài khoản này</span>
                   <ArrowRight className="h-3.5 w-3.5" />
@@ -425,10 +425,10 @@ export function LoginForm({ currentSessionUser }: LoginFormProps = {}) {
             {currentSessionUser && (
               <div className="relative my-2">
                 <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-slate-200" />
+                  <div className="w-full border-t border-slate-200 dark:border-neutral-800" />
                 </div>
                 <div className="relative flex justify-center text-[10px] uppercase">
-                  <span className="bg-white px-2.5 text-slate-400 font-semibold tracking-wider">
+                  <span className="bg-white dark:bg-[#18181B] px-2.5 text-slate-400 dark:text-neutral-400 font-semibold tracking-wider">
                     hoặc đăng nhập với tài khoản khác
                   </span>
                 </div>
@@ -440,7 +440,7 @@ export function LoginForm({ currentSessionUser }: LoginFormProps = {}) {
               type="button"
               onClick={handleGoogleLogin}
               disabled={loading}
-              className="w-full h-10 bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 hover:border-slate-300 font-medium shadow-none transition-all flex items-center justify-center gap-2.5 rounded-lg text-xs sm:text-sm"
+              className="w-full h-10 bg-white hover:bg-slate-50 text-slate-800 dark:bg-[#202024] dark:hover:bg-[#28282C] dark:text-white border border-slate-200 dark:border-neutral-700 font-medium shadow-none transition-all flex items-center justify-center gap-2.5 rounded-lg text-xs sm:text-sm"
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin text-slate-500" />
@@ -464,19 +464,19 @@ export function LoginForm({ currentSessionUser }: LoginFormProps = {}) {
                 setSuccessMsg("");
                 setErrorMsg("Phương thức đăng nhập bằng Số điện thoại đang bảo trì. Vui lòng chọn phương án đăng nhập bằng Google hoặc Email.");
               }}
-              className="w-full h-10 bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 hover:border-slate-300 font-medium shadow-none transition-all flex items-center justify-center gap-2.5 rounded-lg text-xs sm:text-sm"
+              className="w-full h-10 bg-white hover:bg-slate-50 text-slate-800 dark:bg-[#202024] dark:hover:bg-[#28282C] dark:text-white border border-slate-200 dark:border-neutral-700 font-medium shadow-none transition-all flex items-center justify-center gap-2.5 rounded-lg text-xs sm:text-sm"
             >
-              <Smartphone className="h-4 w-4 text-indigo-600 shrink-0" />
+              <Smartphone className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
               <span>Tiếp tục với Số điện thoại</span>
             </Button>
 
             {/* DIVIDER */}
             <div className="relative my-3.5">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-200" />
+                <div className="w-full border-t border-slate-200 dark:border-neutral-800" />
               </div>
               <div className="relative flex justify-center text-[11px] uppercase">
-                <span className="bg-white px-2.5 text-slate-400 font-medium">
+                <span className="bg-white dark:bg-[#18181B] px-2.5 text-slate-400 dark:text-neutral-400 font-medium">
                   hoặc tiếp tục với email
                 </span>
               </div>
@@ -497,10 +497,10 @@ export function LoginForm({ currentSessionUser }: LoginFormProps = {}) {
                     if (email.trim().length > 0) setEmailTouched(true);
                   }}
                   placeholder="Enter your email"
-                  className={`h-10 rounded-lg bg-white border text-xs sm:text-sm px-3 transition-colors ${
+                  className={`h-10 rounded-lg bg-white dark:bg-[#202024] border text-xs sm:text-sm px-3 transition-colors dark:text-white dark:placeholder:text-neutral-500 ${
                     showEmailError
-                      ? "border-rose-400 focus-visible:ring-rose-400 text-rose-900"
-                      : "border-slate-200 focus-visible:ring-slate-400"
+                      ? "border-rose-400 focus-visible:ring-rose-400 text-rose-900 dark:text-rose-300"
+                      : "border-slate-200 dark:border-neutral-700 focus-visible:ring-slate-400 dark:focus-visible:ring-neutral-500"
                   }`}
                   required
                 />
@@ -517,8 +517,8 @@ export function LoginForm({ currentSessionUser }: LoginFormProps = {}) {
                 disabled={!isEmailValid || loading}
                 className={`w-full h-10 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center ${
                   isEmailValid && !loading
-                    ? "bg-slate-900 hover:bg-slate-800 text-white shadow-sm cursor-pointer"
-                    : "bg-slate-100 text-slate-400 hover:bg-slate-100 cursor-not-allowed border-0 shadow-none font-medium"
+                    ? "bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-black dark:hover:bg-neutral-200 shadow-sm cursor-pointer"
+                    : "bg-slate-100 dark:bg-[#202024] text-slate-400 dark:text-neutral-600 hover:bg-slate-100 dark:hover:bg-[#202024] cursor-not-allowed border-0 shadow-none font-medium"
                 }`}
               >
                 {loading ? (
@@ -541,7 +541,7 @@ export function LoginForm({ currentSessionUser }: LoginFormProps = {}) {
                 setErrorMsg("");
                 setSuccessMsg("");
               }}
-              className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-900 font-semibold"
+              className="inline-flex items-center gap-1 text-xs text-slate-500 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white font-semibold"
             >
               <ChevronLeft className="h-4 w-4" /> Quay lại
             </button>
@@ -555,10 +555,10 @@ export function LoginForm({ currentSessionUser }: LoginFormProps = {}) {
             >
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                  <label className="text-[11px] font-bold text-slate-700 dark:text-neutral-300 uppercase tracking-wider">
                     Nhập mã OTP Email (6 số)
                   </label>
-                  <span className="text-xs text-slate-500 font-mono">
+                  <span className="text-xs text-slate-500 dark:text-neutral-400 font-mono">
                     {emailCountdown > 0 ? `${emailCountdown}s` : "Hết hạn"}
                   </span>
                 </div>
@@ -577,8 +577,8 @@ export function LoginForm({ currentSessionUser }: LoginFormProps = {}) {
                   disabled={loading}
                 />
 
-                <p className="text-[11px] text-slate-500 text-center pt-1">
-                  Mã xác thực đã được gửi tới hòm thư <strong className="text-slate-800">{email}</strong>
+                <p className="text-[11px] text-slate-500 dark:text-neutral-400 text-center pt-1">
+                  Mã xác thực đã được gửi tới hòm thư <strong className="text-slate-800 dark:text-white">{email}</strong>
                 </p>
               </div>
 
@@ -587,8 +587,8 @@ export function LoginForm({ currentSessionUser }: LoginFormProps = {}) {
                 disabled={emailOtpCode.length < 6 || loading}
                 className={`w-full h-10 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center ${
                   emailOtpCode.length === 6 && !loading
-                    ? "bg-slate-900 hover:bg-slate-800 text-white shadow-sm cursor-pointer"
-                    : "bg-slate-100 text-slate-400 hover:bg-slate-100 cursor-not-allowed border-0 shadow-none font-medium"
+                    ? "bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-black dark:hover:bg-neutral-200 shadow-sm cursor-pointer"
+                    : "bg-slate-100 dark:bg-[#202024] text-slate-400 dark:text-neutral-600 hover:bg-slate-100 dark:hover:bg-[#202024] cursor-not-allowed border-0 shadow-none font-medium"
                 }`}
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin text-slate-400" /> : "Xác nhận & Đăng nhập"}
@@ -599,7 +599,7 @@ export function LoginForm({ currentSessionUser }: LoginFormProps = {}) {
                   type="button"
                   disabled={emailCountdown > 0 || loading}
                   onClick={() => handleEmailSubmit()}
-                  className="text-xs text-slate-600 hover:text-slate-900 disabled:text-slate-400 font-medium underline underline-offset-2"
+                  className="text-xs text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white disabled:text-slate-400 dark:disabled:text-neutral-600 font-medium underline underline-offset-2"
                 >
                   Gửi lại mã OTP
                 </button>
@@ -613,11 +613,11 @@ export function LoginForm({ currentSessionUser }: LoginFormProps = {}) {
           <div className="space-y-3.5 animate-in fade-in">
             <form onSubmit={handleNameOnboardingSubmit} className="space-y-3.5">
               <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                <label className="text-[11px] font-bold text-slate-700 dark:text-neutral-300 uppercase tracking-wider">
                   Họ và tên của bạn
                 </label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-neutral-500" />
                   <Input
                     type="text"
                     value={fullName}
@@ -626,12 +626,12 @@ export function LoginForm({ currentSessionUser }: LoginFormProps = {}) {
                       setErrorMsg("");
                     }}
                     placeholder="Ví dụ: Nguyễn Thành Nam"
-                    className="h-10 rounded-lg bg-white border border-slate-200 focus-visible:ring-slate-400 text-xs sm:text-sm pl-9 pr-3"
+                    className="h-10 rounded-lg bg-white dark:bg-[#202024] border border-slate-200 dark:border-neutral-700 focus-visible:ring-slate-400 dark:focus-visible:ring-neutral-500 text-xs sm:text-sm pl-9 pr-3 text-slate-900 dark:text-white"
                     autoFocus
                     required
                   />
                 </div>
-                <p className="text-[10px] text-slate-400">
+                <p className="text-[10px] text-slate-400 dark:text-neutral-500">
                   Tên này sẽ được hiển thị khi bạn quản lý chuỗi cửa hàng, ca làm việc và nhân sự.
                 </p>
               </div>
@@ -641,8 +641,8 @@ export function LoginForm({ currentSessionUser }: LoginFormProps = {}) {
                 disabled={fullName.trim().length < 2 || loading}
                 className={`w-full h-10 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-1.5 ${
                   fullName.trim().length >= 2 && !loading
-                    ? "bg-slate-900 hover:bg-slate-800 text-white shadow-sm cursor-pointer"
-                    : "bg-slate-100 text-slate-400 hover:bg-slate-100 cursor-not-allowed border-0 shadow-none font-medium"
+                    ? "bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-black dark:hover:bg-neutral-200 shadow-sm cursor-pointer"
+                    : "bg-slate-100 dark:bg-[#202024] text-slate-400 dark:text-neutral-600 hover:bg-slate-100 dark:hover:bg-[#202024] cursor-not-allowed border-0 shadow-none font-medium"
                 }`}
               >
                 {loading ? (
@@ -669,7 +669,7 @@ export function LoginForm({ currentSessionUser }: LoginFormProps = {}) {
                 setErrorMsg("");
                 setSuccessMsg("");
               }}
-              className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-900 font-semibold"
+              className="inline-flex items-center gap-1 text-xs text-slate-500 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white font-semibold"
             >
               <ChevronLeft className="h-4 w-4" /> Quay lại
             </button>
@@ -677,11 +677,11 @@ export function LoginForm({ currentSessionUser }: LoginFormProps = {}) {
             {!otpSent ? (
               <form onSubmit={handleSendPhoneOtp} className="space-y-2.5">
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                  <label className="text-[11px] font-bold text-slate-700 dark:text-neutral-300 uppercase tracking-wider">
                     Số điện thoại
                   </label>
                   <div className="relative">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs font-bold text-slate-500 border-r pr-2 border-slate-300">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs font-bold text-slate-500 dark:text-neutral-400 border-r pr-2 border-slate-300 dark:border-neutral-700">
                       <span>🇻🇳</span>
                       <span>+84</span>
                     </div>
@@ -690,7 +690,7 @@ export function LoginForm({ currentSessionUser }: LoginFormProps = {}) {
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       placeholder="0912 345 678"
-                      className="pl-16 h-10 rounded-lg bg-slate-50/70 border-slate-200 focus:bg-white text-xs sm:text-sm font-medium"
+                      className="pl-16 h-10 rounded-lg bg-slate-50/70 dark:bg-[#202024] border-slate-200 dark:border-neutral-700 focus:bg-white dark:focus:bg-[#202024] text-slate-900 dark:text-white text-xs sm:text-sm font-medium"
                       autoFocus
                       required
                     />
@@ -700,7 +700,7 @@ export function LoginForm({ currentSessionUser }: LoginFormProps = {}) {
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="w-full h-10 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg shadow-sm transition-all text-xs sm:text-sm"
+                  className="w-full h-10 bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-black dark:hover:bg-neutral-200 font-semibold rounded-lg shadow-sm transition-all text-xs sm:text-sm"
                 >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Gửi mã xác thực OTP"}
                 </Button>
@@ -715,10 +715,10 @@ export function LoginForm({ currentSessionUser }: LoginFormProps = {}) {
               >
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                    <label className="text-[11px] font-bold text-slate-700 dark:text-neutral-300 uppercase tracking-wider">
                       Nhập mã OTP (6 số)
                     </label>
-                    <span className="text-xs text-slate-500 font-mono">
+                    <span className="text-xs text-slate-500 dark:text-neutral-400 font-mono">
                       {countdown > 0 ? `${countdown}s` : "Hết hạn"}
                     </span>
                   </div>
@@ -737,8 +737,8 @@ export function LoginForm({ currentSessionUser }: LoginFormProps = {}) {
                     disabled={loading}
                   />
 
-                  <p className="text-[11px] text-slate-500 text-center pt-1">
-                    Mã xác thực đã gửi tới số <strong className="text-slate-800">{phone}</strong>
+                  <p className="text-[11px] text-slate-500 dark:text-neutral-400 text-center pt-1">
+                    Mã xác thực đã gửi tới số <strong className="text-slate-800 dark:text-white">{phone}</strong>
                   </p>
                 </div>
 
@@ -747,8 +747,8 @@ export function LoginForm({ currentSessionUser }: LoginFormProps = {}) {
                   disabled={otpCode.length < 6 || loading}
                   className={`w-full h-10 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center ${
                     otpCode.length === 6 && !loading
-                      ? "bg-slate-900 hover:bg-slate-800 text-white shadow-sm cursor-pointer"
-                      : "bg-slate-100 text-slate-400 hover:bg-slate-100 cursor-not-allowed border-0 shadow-none font-medium"
+                      ? "bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-black dark:hover:bg-neutral-200 shadow-sm cursor-pointer"
+                      : "bg-slate-100 dark:bg-[#202024] text-slate-400 dark:text-neutral-600 hover:bg-slate-100 dark:hover:bg-[#202024] cursor-not-allowed border-0 shadow-none font-medium"
                   }`}
                 >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin text-slate-400" /> : "Xác nhận & Đăng nhập"}
@@ -759,7 +759,7 @@ export function LoginForm({ currentSessionUser }: LoginFormProps = {}) {
                     type="button"
                     disabled={countdown > 0}
                     onClick={handleSendPhoneOtp}
-                    className="text-xs text-slate-600 hover:text-slate-900 disabled:text-slate-400 font-medium underline underline-offset-2"
+                    className="text-xs text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white disabled:text-slate-400 dark:disabled:text-neutral-600 font-medium underline underline-offset-2"
                   >
                     Gửi lại mã OTP
                   </button>
@@ -770,14 +770,14 @@ export function LoginForm({ currentSessionUser }: LoginFormProps = {}) {
         )}
 
         {/* Footer info & Link */}
-        <div className="pt-3 text-center space-y-1.5 border-t border-slate-100">
-          <p className="text-[10px] text-slate-400 leading-relaxed">
+        <div className="pt-3 text-center space-y-1.5 border-t border-slate-100 dark:border-neutral-800">
+          <p className="text-[10px] text-slate-400 dark:text-neutral-500 leading-relaxed">
             Bằng việc tiếp tục, bạn đồng ý với{" "}
-            <a href="/home-apexflow" className="text-slate-600 underline hover:text-slate-900">
+            <a href="/home-apexflow" className="text-slate-600 dark:text-neutral-400 underline hover:text-slate-900 dark:hover:text-white">
               Điều khoản dịch vụ
             </a>{" "}
             và{" "}
-            <a href="/home-apexflow" className="text-slate-600 underline hover:text-slate-900">
+            <a href="/home-apexflow" className="text-slate-600 dark:text-neutral-400 underline hover:text-slate-900 dark:hover:text-white">
               Chính sách quyền riêng tư
             </a>.
           </p>

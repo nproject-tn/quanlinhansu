@@ -273,6 +273,19 @@ export function RolesManagement({
                       if (key === "edit" && !value) {
                         newPerm.editFree = false;
                         newPerm.approve = false;
+                        newPerm.editPast = false;
+                      }
+                    } else if (mod.id === "shift_config") {
+                      if (key === "edit" && value) {
+                        newPerm.view = true;
+                      }
+                      if (key === "delete" && value) {
+                        newPerm.edit = true;
+                        newPerm.view = true;
+                      }
+                      if (key === "edit" && !value) {
+                        newPerm.delete = false;
+                        newPerm.editPast = false;
                       }
                     } else {
                       if (key === "edit" && value) {
@@ -366,6 +379,13 @@ export function RolesManagement({
                                     <div className="flex items-center justify-between">
                                       <span className="text-sm text-slate-700 dark:text-neutral-300">Duyệt yêu cầu</span>
                                       <Switch checked={!!perm.approve} onCheckedChange={(c) => updatePermObj("approve", c)} className="scale-90" />
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                      <div className="space-y-0.5">
+                                        <span className="text-sm text-slate-700 dark:text-neutral-300">Chỉnh sửa lịch sử ca làm</span>
+                                        <p className="text-[11px] text-slate-500 dark:text-neutral-400">Cho phép thêm, sửa, xoá ca trước ngày hiện tại</p>
+                                      </div>
+                                      <Switch checked={!!perm.editPast} onCheckedChange={(c) => updatePermObj("editPast", c)} className="scale-90" />
                                     </div>
                                   </div>
                                 </div>
@@ -501,7 +521,40 @@ export function RolesManagement({
                                       </div>
                                     </div>
                                   );
-                                })() : (
+                                })() : mod.id === "shift_config" ? (
+                                  <>
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-xs font-bold uppercase tracking-wide text-slate-600 dark:text-neutral-400">Chỉ xem</span>
+                                      <Switch checked={!!perm.view || !!perm.edit} disabled={!!perm.edit} onCheckedChange={(c) => updatePermObj("view", c)} className="scale-90" />
+                                    </div>
+                                    <div className="space-y-3 pt-2">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-xs font-bold uppercase tracking-wide text-slate-600 dark:text-neutral-400">Chỉnh sửa</span>
+                                        <Switch checked={!!perm.edit} onCheckedChange={(c) => updatePermObj("edit", c)} className="scale-90" />
+                                      </div>
+                                      <div className={cn("grid transition-all duration-300 ease-in-out", perm.edit ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0 pointer-events-none")}>
+                                        <div className="overflow-hidden">
+                                          <div className="pl-4 space-y-3 border-l-2 border-slate-200 dark:border-neutral-700 pt-1 pb-1">
+                                            <div className="flex items-center justify-between">
+                                              <div className="space-y-0.5">
+                                                <span className="text-sm text-slate-700 dark:text-neutral-300">Xoá cấu hình ca</span>
+                                                <p className="text-[11px] text-slate-500 dark:text-neutral-400">Cho phép xoá ca và bảng cấu hình</p>
+                                              </div>
+                                              <Switch checked={!!perm.delete} onCheckedChange={(c) => updatePermObj("delete", c)} className="scale-90" />
+                                            </div>
+                                            <div className="flex items-center justify-between">
+                                              <div className="space-y-0.5">
+                                                <span className="text-sm text-slate-700 dark:text-neutral-300">Chỉnh sửa lịch sử ca làm</span>
+                                                <p className="text-[11px] text-slate-500 dark:text-neutral-400">Cho phép sửa định biên và ca trước ngày hiện tại</p>
+                                              </div>
+                                              <Switch checked={!!perm.editPast} onCheckedChange={(c) => updatePermObj("editPast", c)} className="scale-90" />
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </>
+                                ) : (
                                   <>
                                     <div className="flex items-center justify-between">
                                       <span className="text-xs font-bold uppercase tracking-wide text-slate-600 dark:text-neutral-400">Chỉ xem</span>

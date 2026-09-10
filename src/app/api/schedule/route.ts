@@ -15,6 +15,7 @@ import { formatDateOnly, parseDateOnly } from "@/lib/utils";
 import { isMissingStoreLogoColumn } from "@/lib/store-logo-fallback";
 import { scheduleGenerateSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity-logger";
+import { hasPermission } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -754,7 +755,7 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const { error, companyId, session } = await requireAuth(["OWNER"], { module: "schedule", action: "EDIT" });
+    const { error, companyId, session, permissions } = await requireAuth(["OWNER"], { module: "schedule", action: "EDIT" });
     if (error) return error;
 
     const { searchParams } = new URL(request.url);
@@ -763,6 +764,20 @@ export async function DELETE(request: Request) {
     const storeId = searchParams.get("storeId");
 
     const { start, end } = getDateRange(mode, referenceDate);
+
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+    const today = parseDateOnly(todayStr);
+    const canEditPast = session?.user?.role === "OWNER" || session?.user?.role === "ADMIN" || hasPermission(session?.user?.role || "", permissions, "schedule", "EDIT_PAST");
+
+    let effectiveStart = start;
+    if (!canEditPast) {
+      if (end < today) {
+        return NextResponse.json({ error: "Bạn không có quyền xoá lịch sử ca làm (các ngày trước hôm nay)." }, { status: 403 });
+      }
+      if (start < today) {
+        effectiveStart = today;
+      }
+    }
 
     let storeIds: string[] = [];
     if (storeId) {
@@ -783,7 +798,7 @@ export async function DELETE(request: Request) {
       where: {
         companyId,
         storeId: { in: storeIds },
-        date: { gte: start, lte: end },
+        date: { gte: effectiveStart, lte: end },
       },
     });
 

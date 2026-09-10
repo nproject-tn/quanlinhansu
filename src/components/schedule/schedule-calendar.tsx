@@ -95,6 +95,7 @@ type ScheduleCalendarProps = {
   layoutMode: "horizontal" | "vertical";
   onLayoutModeChange: (mode: "horizontal" | "vertical") => void;
   canEdit: boolean;
+  canEditPast?: boolean;
   isAdmin: boolean;
   onRefresh: () => void;
   onOptimisticUpdate: (
@@ -743,11 +744,13 @@ export function ScheduleCalendar({
   layoutMode,
   onLayoutModeChange,
   canEdit,
+  canEditPast = true,
   isAdmin,
   onRefresh,
   onOptimisticUpdate,
   onOptimisticOvertimeUpdate,
 }: ScheduleCalendarProps) {
+  const todayStr = useMemo(() => format(new Date(), "yyyy-MM-dd"), []);
   const [activeSlot, setActiveSlot] = useState<Slot | null>(null);
   const [faultSlot, setFaultSlot] = useState<Slot | null>(null);
   const [conflicts, setConflicts] = useState<ScheduleConflict[]>([]);
@@ -1241,6 +1244,15 @@ export function ScheduleCalendar({
     employeeId: string | null,
     confirmOverCapacity = false
   ) {
+    if (!canEditPast && slot.date < todayStr) {
+      notify({
+        title: "Không thể chỉnh sửa ca",
+        body: "Bạn không có quyền chỉnh sửa ca làm việc trong quá khứ.",
+        tone: "error",
+      });
+      return;
+    }
+
     if (employeeId && !confirmOverCapacity) {
       const conflicts = checkClientConflicts(slot, employeeId);
       if (conflicts.length > 0) {
@@ -1373,6 +1385,20 @@ export function ScheduleCalendar({
 
   async function submitOvertime(employeeId: string, hours: number) {
     if (!overtimeSlotContext && overtimeModalMode === "add") return;
+
+    if (!canEditPast) {
+      if (overtimeModalMode === "add" && overtimeSlotContext && overtimeSlotContext.date < todayStr) {
+        notify({ title: "Không thể thêm giờ làm thêm", body: "Bạn không có quyền chỉnh sửa ca làm việc trong quá khứ.", tone: "error" });
+        return;
+      }
+      if (overtimeModalMode === "edit" && editingOvertimeId) {
+        const targetOt = overtimes.find((ot) => ot.id === editingOvertimeId);
+        if (targetOt && targetOt.date < todayStr) {
+          notify({ title: "Không thể chỉnh sửa giờ làm thêm", body: "Bạn không có quyền chỉnh sửa ca làm việc trong quá khứ.", tone: "error" });
+          return;
+        }
+      }
+    }
     
     try {
       const url = overtimeModalMode === "add" ? "/api/schedule/overtime" : `/api/schedule/overtime/${editingOvertimeId}`;
@@ -1427,6 +1453,14 @@ export function ScheduleCalendar({
     if (!confirmingDeleteOvertimeId) return;
     const id = confirmingDeleteOvertimeId;
     setConfirmingDeleteOvertimeId(null);
+
+    if (!canEditPast) {
+      const targetOt = overtimes.find((ot) => ot.id === id);
+      if (targetOt && targetOt.date < todayStr) {
+        notify({ title: "Không thể xoá giờ làm thêm", body: "Bạn không có quyền chỉnh sửa ca làm việc trong quá khứ.", tone: "error" });
+        return;
+      }
+    }
 
     if (isAdmin && onOptimisticOvertimeUpdate) {
       onOptimisticOvertimeUpdate("delete", { id });
@@ -1488,6 +1522,15 @@ export function ScheduleCalendar({
 
     if (!sourceSlot?.employeeId || !targetSlot) return;
     if (slotKey(sourceSlot) === slotKey(targetSlot)) return;
+
+    if (!canEditPast && (sourceSlot.date < todayStr || targetSlot.date < todayStr)) {
+      notify({
+        title: "Không thể đổi ca",
+        body: "Bạn không có quyền chỉnh sửa ca làm việc trong quá khứ.",
+        tone: "error",
+      });
+      return;
+    }
 
     const conflictsA = checkClientConflicts(targetSlot, sourceSlot.employeeId, sourceSlot);
     const conflictsB = targetSlot.employeeId ? checkClientConflicts(sourceSlot, targetSlot.employeeId, targetSlot) : [];
@@ -2117,7 +2160,7 @@ export function ScheduleCalendar({
                                             store={store}
                                             employeeMap={employeeMap}
                                             employees={eligibleEmployeesByStore.get(store.id) ?? []}
-                                            canEdit={canEdit}
+                                            canEdit={canEdit && (canEditPast || date >= todayStr)}
                                             loading={loading}
                                             flashSlots={flashSlots}
                                             overtimes={overtimes.filter(
@@ -2288,7 +2331,7 @@ export function ScheduleCalendar({
                                     store={store}
                                     employeeMap={employeeMap}
                                     employees={eligibleEmployeesByStore.get(store.id) ?? []}
-                                    canEdit={canEdit}
+                                    canEdit={canEdit && (canEditPast || date >= todayStr)}
                                     loading={loading}
                                     flashSlots={flashSlots}
                                     overtimes={overtimes.filter((ot) => ot.storeId === store.id && ot.shiftTemplateId === shift.id && ot.date === date)}

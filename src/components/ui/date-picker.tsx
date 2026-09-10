@@ -347,19 +347,32 @@ export function DatePicker({
               >
                 {/* Header: Month & Year + Chevrons */}
                 <div className="mb-3 flex items-center justify-between gap-2">
-                  <CalendarButton
-                    onClick={handlePrev}
-                    disabled={isPrevDisabled}
-                    aria-label={
-                      viewMode === "days"
-                        ? "Tháng trước"
-                        : viewMode === "months"
-                          ? "Năm trước"
-                          : "Khoảng năm trước"
-                    }
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </CalendarButton>
+                  {viewMode === "days" ? (
+                    <CalendarButton
+                      onClick={handlePrev}
+                      disabled={isPrevDisabled}
+                      aria-label="Tháng trước"
+                      title="Tháng trước"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </CalendarButton>
+                  ) : viewMode === "months" ? (
+                    <CalendarButton
+                      onClick={() => setViewMode("days")}
+                      aria-label="Quay lại chọn ngày"
+                      title="Quay lại chọn ngày"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </CalendarButton>
+                  ) : (
+                    <CalendarButton
+                      onClick={() => setViewMode("months")}
+                      aria-label="Quay lại chọn tháng"
+                      title="Quay lại chọn tháng"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </CalendarButton>
+                  )}
 
                   {/* Header Center Title */}
                   {viewMode === "days" ? (
@@ -368,36 +381,22 @@ export function DatePicker({
                         {format(viewDate, "'Tháng' MM, yyyy", { locale: vi })}
                       </div>
                     ) : (
-                      <div className="flex items-center gap-0.5">
-                        <button
-                          type="button"
-                          onClick={() => setViewMode("months")}
-                          className="group flex items-center gap-1 rounded-lg px-2 py-1 text-sm font-bold text-slate-900 transition-colors duration-75 hover:bg-slate-100 dark:text-white dark:hover:bg-[#2D2D30] capitalize cursor-pointer"
-                          title="Bấm để chọn tháng khác"
-                        >
-                          <span>{format(viewDate, "'Tháng' MM", { locale: vi })}</span>
-                          <ChevronDown className="h-3.5 w-3.5 text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-transform duration-75" />
-                        </button>
-
-                        <span className="text-sm font-semibold text-slate-400 dark:text-neutral-500">,</span>
-
-                        <button
-                          type="button"
-                          onClick={() => setViewMode("years")}
-                          className="group flex items-center gap-1 rounded-lg px-2 py-1 text-sm font-bold text-slate-900 transition-colors duration-75 hover:bg-slate-100 dark:text-white dark:hover:bg-[#2D2D30] cursor-pointer"
-                          title="Bấm để chọn năm khác"
-                        >
-                          <span>{format(viewDate, "yyyy")}</span>
-                          <ChevronDown className="h-3.5 w-3.5 text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-transform duration-75" />
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setViewMode("months")}
+                        className="group flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-bold text-slate-900 transition-colors duration-75 hover:bg-slate-100 dark:text-white dark:hover:bg-[#2D2D30] capitalize cursor-pointer"
+                        title="Bấm để chọn tháng / năm"
+                      >
+                        <span>{format(viewDate, "'Tháng' MM, yyyy", { locale: vi })}</span>
+                        <ChevronDown className="h-3.5 w-3.5 text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-transform duration-75" />
+                      </button>
                     )
                   ) : viewMode === "months" ? (
                     <button
                       type="button"
                       onClick={() => setViewMode("years")}
                       className="group flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-bold text-slate-900 transition-colors duration-75 hover:bg-slate-100 dark:text-white dark:hover:bg-[#2D2D30] cursor-pointer"
-                      title="Bấm để chọn năm khác"
+                      title="Bấm để chọn năm"
                     >
                       <span>Năm {viewDate.getFullYear()}</span>
                       <ChevronDown className="h-3.5 w-3.5 text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-transform duration-75" />
@@ -408,19 +407,18 @@ export function DatePicker({
                     </div>
                   )}
 
-                  <CalendarButton
-                    onClick={handleNext}
-                    disabled={isNextDisabled}
-                    aria-label={
-                      viewMode === "days"
-                        ? "Tháng sau"
-                        : viewMode === "months"
-                          ? "Năm sau"
-                          : "Khoảng năm sau"
-                    }
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </CalendarButton>
+                  {viewMode === "days" ? (
+                    <CalendarButton
+                      onClick={handleNext}
+                      disabled={isNextDisabled}
+                      aria-label="Tháng sau"
+                      title="Tháng sau"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </CalendarButton>
+                  ) : (
+                    <div className="h-8 w-8 shrink-0" aria-hidden="true" />
+                  )}
                 </div>
 
                 {/* View 1: Calendar Days */}
@@ -535,7 +533,7 @@ export function DatePicker({
                           onClick={() => {
                             if (isYearDisabled) return;
                             setViewDate(new Date(year, viewDate.getMonth(), 1));
-                            setViewMode("days");
+                            setViewMode("months");
                           }}
                           className={cn(
                             "flex h-10 items-center justify-center rounded-xl text-xs font-semibold transition-colors duration-50 ease-out select-none active:scale-95",

@@ -1,3 +1,4 @@
+import { format } from "date-fns";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/api-auth";
@@ -16,6 +17,12 @@ export async function PUT(request: Request) {
   const parsed = assignmentUpdateSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
+
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const canEditPast = session!.user.role === "OWNER" || session!.user.role === "ADMIN" || hasPermission(session!.user.role, permissions, "schedule", "EDIT_PAST");
+  if (!canEditPast && parsed.data.date < todayStr) {
+    return NextResponse.json({ error: "Bạn không có quyền chỉnh sửa lịch sử ca làm (các ngày trước hôm nay)." }, { status: 403 });
   }
 
   const isScheduler = !hasPermission(session!.user.role, permissions, "schedule", "EDIT_FREE");
@@ -120,6 +127,12 @@ export async function POST(request: Request) {
     confirmOverCapacity:
       isScheduler ? false : Boolean(body.confirmOverCapacity),
   };
+
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const canEditPast = session!.user.role === "OWNER" || session!.user.role === "ADMIN" || hasPermission(session!.user.role, permissions, "schedule", "EDIT_PAST");
+  if (!canEditPast && (input.sourceDate < todayStr || input.targetDate < todayStr)) {
+    return NextResponse.json({ error: "Bạn không có quyền chỉnh sửa lịch sử ca làm (các ngày trước hôm nay)." }, { status: 403 });
+  }
 
   const result = await moveAssignment(input, isScheduler);
 
